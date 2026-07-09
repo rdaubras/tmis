@@ -5,7 +5,7 @@ import pytest
 from tmis.agents.contracts import AgentInput, ConfidenceLevel
 from tmis.agents.orchestrator import Orchestrator
 from tmis.agents.verifier_agent import VerifierAgent
-from tmis.domain.shared.ports import Citation
+from tmis.ai.schemas.citation import Citation
 
 
 @pytest.mark.asyncio

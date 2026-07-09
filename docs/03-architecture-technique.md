@@ -131,36 +131,43 @@ l'arborescence complète du backend.
 
 ## Fournisseurs de modèles IA et connecteurs — interchangeabilité
 
+Depuis le Sprint 2, ces ports et adaptateurs vivent dans le AI Kernel
+(`backend/src/tmis/ai/`) plutôt que dans `infrastructure/` — voir
+`docs/10-ai-kernel.md` pour l'architecture complète et
+`docs/13-guides-extension.md` pour la marche à suivre pour ajouter un
+fournisseur ou un connecteur.
+
 ```mermaid
 classDiagram
-    class ModelProviderPort {
+    class ProviderPort {
         <<interface>>
-        +complete(prompt, params) ModelResponse
-        +embed(texts) list~vector~
-        +stream(prompt, params) AsyncIterator
+        +complete(prompt, model) ModelResponse
     }
-    class OpenAIAdapter
-    class AnthropicAdapter
-    class MistralAdapter
-    class LocalModelAdapter
-    ModelProviderPort <|.. OpenAIAdapter
-    ModelProviderPort <|.. AnthropicAdapter
-    ModelProviderPort <|.. MistralAdapter
-    ModelProviderPort <|.. LocalModelAdapter
+    class OpenAIProvider
+    class AnthropicProvider
+    class MistralProvider
+    class LocalProvider
+    ProviderPort <|.. OpenAIProvider
+    ProviderPort <|.. AnthropicProvider
+    ProviderPort <|.. MistralProvider
+    ProviderPort <|.. LocalProvider
 
-    class LegalSourceConnectorPort {
+    class ConnectorPort {
         <<interface>>
-        +search(query, filters) list~Document~
-        +fetch(document_id) Document
+        +search(query, filters) list~ConnectorDocument~
+        +fetch(document_id) ConnectorDocument
     }
     class CodesConnector
     class JurisprudenceConnector
     class DoctrineConnector
-    LegalSourceConnectorPort <|.. CodesConnector
-    LegalSourceConnectorPort <|.. JurisprudenceConnector
-    LegalSourceConnectorPort <|.. DoctrineConnector
+    ConnectorPort <|.. CodesConnector
+    ConnectorPort <|.. JurisprudenceConnector
+    ConnectorPort <|.. DoctrineConnector
 ```
 
-Chaque adaptateur est enregistré dans un registre configuré par variables
-d'environnement / configuration cabinet, permettant d'activer, désactiver ou
-remplacer un fournisseur sans changement de code applicatif.
+Chaque adaptateur est enregistré dans un registre (`ProviderRegistry`,
+`ConnectorManager`) configuré par variables d'environnement / configuration
+cabinet, permettant d'activer, désactiver ou remplacer un fournisseur sans
+changement de code applicatif. Le seul point d'entrée pour les utiliser est
+`TMISKernel` : aucun agent ni module métier n'importe un `ProviderPort` ou
+un `ConnectorPort` directement.

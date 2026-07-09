@@ -175,34 +175,45 @@ backend/
 │       │   ├── persistence/
 │       │   │   ├── models.py           # Modèles SQLAlchemy
 │       │   │   └── repositories.py     # Implémentations des ports
-│       │   ├── model_providers/
-│       │   │   ├── openai_adapter.py
-│       │   │   ├── anthropic_adapter.py
-│       │   │   ├── mistral_adapter.py
-│       │   │   └── local_adapter.py
-│       │   ├── legal_connectors/
-│       │   │   ├── codes_connector.py
-│       │   │   ├── jurisprudence_connector.py
-│       │   │   └── doctrine_connector.py
 │       │   └── storage/                # Stockage fichiers (S3-compatible)
 │       ├── api/
 │       │   └── v1/
 │       │       ├── router.py
 │       │       └── <bounded_context>/{routes.py,schemas.py}
-│       └── agents/
-│           ├── orchestrator.py         # Chef d'Orchestre (LangGraph)
-│           ├── analysis_agent.py
-│           ├── research_agent.py
-│           ├── jurisprudence_agent.py
-│           ├── contract_agent.py
-│           ├── strategy_agent.py
-│           ├── drafting_agent.py
-│           ├── verifier_agent.py
-│           ├── synthesis_agent.py
-│           ├── collaboration_agent.py
-│           └── watch_agent.py
+│       ├── agents/                     # Agents métier (Sprint 1), branchés
+│       │   │                           # sur le Kernel à partir du Sprint 11
+│       │   ├── orchestrator.py         # Chef d'Orchestre (démonstration)
+│       │   ├── analysis_agent.py
+│       │   ├── research_agent.py
+│       │   ├── jurisprudence_agent.py
+│       │   ├── contract_agent.py
+│       │   ├── strategy_agent.py
+│       │   ├── drafting_agent.py
+│       │   ├── verifier_agent.py
+│       │   ├── synthesis_agent.py
+│       │   ├── collaboration_agent.py
+│       │   └── watch_agent.py
+│       └── ai/                         # AI Kernel (Sprint 2, docs/10-13)
+│           ├── schemas/                # Contrats partagés (base commune)
+│           ├── kernel/                 # TMISKernel, KernelConfig
+│           ├── providers/              # ProviderPort + adaptateurs
+│           ├── connectors/             # ConnectorPort + ConnectorManager
+│           ├── memory/                 # Mémoire conversation/case/workflow/user
+│           ├── cache/                  # CachePort (mémoire, Redis)
+│           ├── events/                 # EventBus + événements
+│           ├── prompts/                # PromptRegistry versionné
+│           ├── guardrails/             # Garde-fous entrée/sortie
+│           ├── evaluation/             # Métriques d'évaluation IA
+│           ├── tools/                  # ToolRegistry
+│           ├── embeddings/             # EmbeddingProviderPort
+│           ├── retrieval/              # Récupération hybride
+│           ├── reranking/              # Reranking
+│           ├── rag/                    # Pipeline RAG (ingestion → citations)
+│           └── langgraph/              # Graphe de démonstration du Kernel
 └── tests/
     ├── unit/
+    │   └── ai/                         # Un test par module `tmis.ai.*`
     ├── integration/
+    │   └── ai/                         # Kernel, providers, LangGraph, events
     └── e2e/
 ```

@@ -13,6 +13,10 @@ architecture fonctionnelle et technique, DDD, stratégies transverses
 7. [Stratégie sécurité & RGPD](./07-strategie-securite.md)
 8. [Plan de tests](./08-plan-de-tests.md)
 9. [Roadmap des 30 sprints](./09-roadmap-30-sprints.md)
+10. [AI Kernel — architecture (Sprint 2)](./10-ai-kernel.md)
+11. [Architecture LangGraph (Sprint 2)](./11-langgraph-architecture.md)
+12. [Architecture RAG — implémentation (Sprint 2)](./12-rag-architecture.md)
+13. [Guides d'extension (provider / agent / connecteur)](./13-guides-extension.md)
 
 Pour la structure de code correspondante, voir `backend/` et `frontend/`
-à la racine du dépôt.
+à la racine du dépôt. Le noyau IA vit dans `backend/src/tmis/ai/`.

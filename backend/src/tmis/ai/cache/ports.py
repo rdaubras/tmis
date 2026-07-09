@@ -1,0 +1,13 @@
+from typing import Protocol
+
+
+class CachePort(Protocol):
+    """Port implemented by every interchangeable cache backend."""
+
+    async def get(self, key: str) -> str | None: ...
+
+    async def set(self, key: str, value: str, *, ttl_seconds: int | None = None) -> None: ...
+
+    async def delete(self, key: str) -> None: ...
+
+    async def exists(self, key: str) -> bool: ...
