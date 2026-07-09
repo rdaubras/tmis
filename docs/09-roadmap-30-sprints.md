@@ -6,26 +6,34 @@ documentation, vérifier que le projet compile et fonctionne, puis
 **s'arrêter en attendant la validation** avant de passer au sprint
 suivant.
 
+> **Note de révision (après Sprint 2)** : la roadmap initiale prévoyait
+> `Identity & Firm` au Sprint 2. Le CTO a choisi de prioriser le socle IA
+> (AI Kernel) avant toute fonctionnalité métier, y compris avant
+> l'authentification. La table ci-dessous reflète l'ordre réellement
+> exécuté ; le total reste fixé à 30 sprints (l'ancien Sprint 10
+> "Orchestrateur LangGraph" est désormais couvert par le Sprint 2 et a été
+> remplacé par un sprint d'intégration des agents métier au Kernel).
+
 ## Vue d'ensemble
 
 ```mermaid
 flowchart TB
-    subgraph Phase1["Phase 1 — Socle (S1-S6)"]
+    subgraph Phase1["Phase 1 — Socle (S1-S7)"]
         S1[S1 Vision & architecture]
-        S2[S2 Identity & Firm]
-        S3[S3 Billing & abonnements]
-        S4[S4 Module Case]
-        S5[S5 Module Document]
-        S6[S6 OCR]
+        S2[S2 AI Kernel]
+        S3[S3 Identity & Firm]
+        S4[S4 Billing & abonnements]
+        S5[S5 Module Case]
+        S6[S6 Module Document]
+        S7[S7 OCR]
     end
-    subgraph Phase2["Phase 2 — RAG & Recherche (S7-S9)"]
-        S7[S7 RAG fondations]
-        S8[S8 Connecteurs recherche documentaire]
-        S9[S9 Recherche hybride + reranking + cache]
+    subgraph Phase2["Phase 2 — RAG & Recherche (S8-S10)"]
+        S8[S8 RAG branché sur données réelles]
+        S9[S9 Connecteurs recherche documentaire réels]
+        S10[S10 Recherche hybride avancée + cache Redis]
     end
-    subgraph Phase3["Phase 3 — Agents IA (S10-S21)"]
-        S10[S10 Orchestrateur LangGraph]
-        S11[S11 Agent Analyse]
+    subgraph Phase3["Phase 3 — Agents IA (S11-S21)"]
+        S11[S11 Intégration agents métier au Kernel + Agent Analyse]
         S12[S12 Agent Synthèse + Chronologie]
         S13[S13 Agent Vérificateur]
         S14[S14 Chat IA]
@@ -57,19 +65,19 @@ flowchart TB
 
 | # | Sprint | Objectif | Modules / agents concernés | Livrables clés |
 |---|---|---|---|---|
-| 1 | Fondations | Vision, architecture, structure du dépôt | Aucun (transverse) | Ce document + squelettes backend/frontend + Docker |
-| 2 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
-| 3 | Billing & abonnements | Abonnements et essai gratuit | `billing` | Intégration Stripe (mode test), plans Solo/Cabinet/Entreprise |
-| 4 | Module Case | Cycle de vie du dossier | `case` | CRUD dossiers, parties, phases, statuts |
-| 5 | Module Document | Gestion des pièces | `document` | Upload, stockage, versionning, classification |
-| 6 | OCR | Extraction de texte | `ocr` | Pipeline Celery, `OcrEnginePort`, tests d'ingestion |
-| 7 | RAG fondations | Chunking, embeddings, indexation | RAG core | Pipeline ingestion → Qdrant, `ModelProviderPort.embed` |
-| 8 | Connecteurs recherche | Sources juridiques configurables | `legal_research` | `LegalSourceConnectorPort`, connecteurs codes/textes |
-| 9 | Recherche hybride | Qualité de recherche | RAG core | Recherche hybride, reranking, cache Redis |
-| 10 | Orchestrateur | Chef d'Orchestre | `agents/orchestrator` | Graphe LangGraph, contrat AgentInput/Output |
-| 11 | Agent Analyse | Extraction d'entités | `case_analysis` | Reconnaissance entités, détection incohérences |
+| 1 | Fondations | Vision, architecture, structure du dépôt | Aucun (transverse) | Documentation + squelettes backend/frontend + Docker |
+| 2 | **AI Kernel** ✅ | Socle IA indépendant : `TMISKernel`, providers, connecteurs, mémoire, cache, LangGraph, RAG (squelette), prompts, garde-fous, évaluation | `tmis.ai.*` | `TMISKernel`, workflow LangGraph de démonstration, 16 sous-modules testés (voir docs/10, 11, 12, 13) |
+| 3 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
+| 4 | Billing & abonnements | Abonnements et essai gratuit | `billing` | Intégration Stripe (mode test), plans Solo/Cabinet/Entreprise |
+| 5 | Module Case | Cycle de vie du dossier | `case` | CRUD dossiers, parties, phases, statuts |
+| 6 | Module Document | Gestion des pièces | `document` | Upload, stockage, versionning, classification |
+| 7 | OCR | Extraction de texte | `ocr` | Pipeline Celery, `OcrEnginePort`, tests d'ingestion |
+| 8 | RAG branché sur données réelles | Remplacer les implémentations en mémoire du Sprint 2 | `tmis.ai.rag`, `tmis.ai.embeddings` | Qdrant en backend d'index, vrai modèle d'embedding |
+| 9 | Connecteurs recherche documentaire réels | Sources juridiques configurables | `tmis.ai.connectors` | Connecteurs codes/textes branchés sur de vraies sources |
+| 10 | Recherche hybride avancée | Qualité de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache` | Reranker appris, cache Redis en production |
+| 11 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel | `case_analysis`, `tmis.agents` | Reconnaissance d'entités, détection d'incohérences, agents appelant `TMISKernel.complete()` |
 | 12 | Agent Synthèse + Chronologie | Synthèses et frises | `timeline`, synthèse | Chronologie automatique + édition manuelle |
-| 13 | Agent Vérificateur | Fiabilité des réponses | Vérification transverse | Contrôle citations/cohérence, marquage d'incertitude |
+| 13 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | Contrôle citations/cohérence, marquage d'incertitude |
 | 14 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
 | 15 | Agent Recherche Documentaire | Intégration agent ↔ connecteurs | `legal_research` | Recherche exposée dans le chat avec citations |
 | 16 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
@@ -98,3 +106,6 @@ flowchart TB
 4. Les modules post-V1 (notaires, experts-comptables, directions
    juridiques) ne font l'objet d'aucun sprint dans cette roadmap : seule
    l'architecture doit rester capable de les accueillir.
+5. Depuis le Sprint 2 : aucun agent ni module métier n'appelle un
+   fournisseur de modèle ou un connecteur directement — tout passe par
+   `TMISKernel` (voir `docs/10-ai-kernel.md`).
