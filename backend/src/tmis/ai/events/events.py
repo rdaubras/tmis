@@ -44,3 +44,64 @@ class VerificationCompleted(Event):
 class WorkflowFinished(Event):
     workflow_name: str
     success: bool
+
+
+# ---------------------------------------------------------------------
+# Document Intelligence Engine events (Sprint 3, see
+# docs/14-document-intelligence.md). `workflow_id` correlates every event
+# of a single document processing run; `document_id` identifies the
+# document across runs.
+# ---------------------------------------------------------------------
+
+
+@dataclass(frozen=True, kw_only=True)
+class DocumentUploaded(Event):
+    document_id: str
+    filename: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class OCRCompleted(Event):
+    document_id: str
+    confidence: float
+
+
+@dataclass(frozen=True, kw_only=True)
+class LayoutDetected(Event):
+    document_id: str
+    block_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class MetadataExtracted(Event):
+    document_id: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class EntitiesExtracted(Event):
+    document_id: str
+    entity_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class TimelineBuilt(Event):
+    document_id: str
+    event_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class EmbeddingsCreated(Event):
+    document_id: str
+    chunk_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class KnowledgeUpdated(Event):
+    document_id: str
+    node_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class DocumentProcessed(Event):
+    document_id: str
+    success: bool

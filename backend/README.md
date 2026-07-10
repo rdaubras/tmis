@@ -31,3 +31,11 @@ guardrails, evaluation, RAG, and the first LangGraph workflow. No other
 package talks to a model provider or a connector directly. See
 `docs/10-ai-kernel.md`, `docs/11-langgraph-architecture.md`,
 `docs/12-rag-architecture.md` and `docs/13-guides-extension.md`.
+
+The **Document Intelligence Engine** (`document_intelligence/`) is TMIS's
+documentary core: ingestion, OCR, layout analysis, classification,
+metadata, entity extraction, timeline construction, structural chunking,
+embeddings, and a knowledge graph, orchestrated by
+`DocumentIntelligencePipeline`. See `docs/14-document-intelligence.md` and
+`docs/15-18` for the extension guides (parser, OCR engine, classifier,
+knowledge graph).
