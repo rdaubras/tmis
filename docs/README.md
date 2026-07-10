@@ -12,7 +12,7 @@ architecture fonctionnelle et technique, DDD, stratégies transverses
 6. [Stratégie RAG](./06-strategie-rag.md)
 7. [Stratégie sécurité & RGPD](./07-strategie-securite.md)
 8. [Plan de tests](./08-plan-de-tests.md)
-9. [Roadmap des 30 sprints](./09-roadmap-30-sprints.md)
+9. [Roadmap détaillée (29 sprints après révisions)](./09-roadmap-30-sprints.md)
 10. [AI Kernel — architecture (Sprint 2)](./10-ai-kernel.md)
 11. [Architecture LangGraph (Sprint 2)](./11-langgraph-architecture.md)
 12. [Architecture RAG — implémentation (Sprint 2)](./12-rag-architecture.md)
@@ -42,6 +42,13 @@ architecture fonctionnelle et technique, DDD, stratégies transverses
 36. [Guide : les workflows](./36-guide-workflows.md)
 37. [Guide : les notifications](./37-guide-notifications.md)
 38. [Guide : les validations](./38-guide-validations.md)
+39. [Cabinet Operating System — architecture (Sprint 9)](./39-cabinet-os.md)
+40. [Guide : le CRM](./40-guide-crm.md)
+41. [Guide : le calendrier](./41-guide-calendrier.md)
+42. [Guide : la facturation](./42-guide-facturation.md)
+43. [Guide : les rapports](./43-guide-rapports.md)
+44. [Guide : l'API publique](./44-guide-api-publique.md)
+45. [Guide : l'administration](./45-guide-administration.md)
 
 Pour la structure de code correspondante, voir `backend/` et `frontend/`
 à la racine du dépôt. Le noyau IA vit dans `backend/src/tmis/ai/`, le
@@ -51,4 +58,6 @@ le moteur de recherche juridique dans `backend/src/tmis/legal_research/`,
 le moteur de raisonnement juridique dans `backend/src/tmis/legal_reasoning/`,
 le studio de rédaction assistée dans `backend/src/tmis/legal_drafting/`,
 le moteur de collaboration (indépendant de l'IA) dans
-`backend/src/tmis/collaboration/`.
+`backend/src/tmis/collaboration/`, et le système d'exploitation du
+cabinet (CRM, facturation, abonnements, tableaux de bord, API publique)
+dans `backend/src/tmis/cabinet_os/`.

@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from tmis.api.v1.case.routes import router as case_router
 from tmis.api.v1.case_intelligence.routes import router as case_intelligence_router
 from tmis.api.v1.health.routes import router as health_router
+from tmis.cabinet_os.api.routes import router as cabinet_os_router
 from tmis.collaboration.api.routes import router as collaboration_router
 from tmis.legal_drafting.api.routes import router as legal_drafting_router
 from tmis.legal_reasoning.api.routes import router as legal_reasoning_router
@@ -16,3 +17,4 @@ api_router.include_router(legal_research_router)
 api_router.include_router(legal_reasoning_router)
 api_router.include_router(legal_drafting_router)
 api_router.include_router(collaboration_router)
+api_router.include_router(cabinet_os_router)
