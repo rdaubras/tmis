@@ -29,12 +29,52 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev]"
-      - run: ruff check src tests
-      - run: mypy src
-      - run: pytest
+      - run: pip install -e ".[dev,ci]"
+
+      - name: Static analysis (ruff)
+        run: ruff check src tests
+
+      - name: Type check (mypy)
+        run: mypy src
+
+      - name: Security scan - static analysis (bandit)
+        run: bandit -r src -ll -f txt -o bandit-report.txt
+        continue-on-error: true
+
+      - name: Security scan - dependency vulnerabilities (pip-audit)
+        run: pip-audit --skip-editable -f json -o pip-audit-report.json
+        continue-on-error: true
+
+      - name: Tests + coverage
+        run: pytest --cov=tmis --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=90
         env:
           TMIS_DATABASE_URL: postgresql+psycopg://tmis:tmis@localhost:5432/tmis
+
+      - name: Generate API documentation (pdoc)
+        run: pdoc --output-directory pdoc-html tmis
+        continue-on-error: true
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: |
+            backend/coverage.xml
+            backend/htmlcov
+
+      - name: Upload security scan reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-security-reports
+          path: |
+            backend/bandit-report.txt
+            backend/pip-audit-report.json
+
+      - name: Upload generated API docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-api-docs
+          path: backend/pdoc-html
 
   frontend:
     runs-on: ubuntu-latest
@@ -51,3 +91,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+      - name: Security scan - dependency vulnerabilities (npm audit)
+        run: npm audit --audit-level=high
+        continue-on-error: true

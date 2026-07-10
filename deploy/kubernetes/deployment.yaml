@@ -1,0 +1,47 @@
+# Reference manifest generated from tmis.platform.kubernetes
+# Tier: cabinet_small (10-user pilot). Regenerate per-tier via
+# tmis.platform.kubernetes.render.render_all — do not hand-edit
+# resource values here without updating the matching preset.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tmis-backend
+  namespace: tmis-pilot
+  labels: &id001
+    app: tmis-backend
+    part-of: tmis
+spec:
+  replicas: 2
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      containers:
+      - name: tmis-backend
+        image: ghcr.io/example/tmis-backend:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: tmis-backend-config
+        - secretRef:
+            name: tmis-backend-secrets
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        readinessProbe:
+          httpGet:
+            path: /platform/health/ready
+            port: 8000
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /platform/health/live
+            port: 8000
+          periodSeconds: 20

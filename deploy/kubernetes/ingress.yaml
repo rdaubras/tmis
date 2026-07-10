@@ -1,0 +1,27 @@
+# Reference manifest generated from tmis.platform.kubernetes
+# Tier: cabinet_small (10-user pilot). Regenerate per-tier via
+# tmis.platform.kubernetes.render.render_all — do not hand-edit
+# resource values here without updating the matching preset.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tmis-backend
+  namespace: tmis-pilot
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  tls:
+  - hosts:
+    - pilot.tmis.example.com
+    secretName: tmis-pilot-tls
+  rules:
+  - host: pilot.tmis.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: tmis-backend
+            port:
+              number: 80
