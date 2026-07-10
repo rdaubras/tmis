@@ -39,3 +39,12 @@ embeddings, and a knowledge graph, orchestrated by
 `DocumentIntelligencePipeline`. See `docs/14-document-intelligence.md` and
 `docs/15-18` for the extension guides (parser, OCR engine, classifier,
 knowledge graph).
+
+The **Case Intelligence Engine** (`case_intelligence/`) is TMIS's main
+business engine: it turns every document processed by the DIE into a
+living, continuously-enriched `CaseProfile` — actors (deduplicated),
+facts (with corroboration/contradiction), a consolidated timeline,
+evidence links, potential legal issues, a relationship graph, unified
+search, and summaries. `CaseIntelligenceWorkflow` reacts automatically to
+`DocumentProcessed` events on the Kernel's shared `EventBus`. See
+`docs/19-case-intelligence.md` and `docs/20-guide-nouveau-moteur-analyse.md`.

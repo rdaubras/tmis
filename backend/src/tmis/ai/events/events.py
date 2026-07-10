@@ -58,6 +58,7 @@ class WorkflowFinished(Event):
 class DocumentUploaded(Event):
     document_id: str
     filename: str
+    case_id: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -105,3 +106,57 @@ class KnowledgeUpdated(Event):
 class DocumentProcessed(Event):
     document_id: str
     success: bool
+    case_id: str | None = None
+
+
+# ---------------------------------------------------------------------
+# Case Intelligence Engine events (Sprint 4, see
+# docs/19-case-intelligence.md). `workflow_id` correlates every event of a
+# single case-enrichment run; `case_id` identifies the case across runs.
+# ---------------------------------------------------------------------
+
+
+@dataclass(frozen=True, kw_only=True)
+class CaseCreated(Event):
+    case_id: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class CaseUpdated(Event):
+    case_id: str
+    document_id: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class FactsUpdated(Event):
+    case_id: str
+    fact_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class TimelineUpdated(Event):
+    case_id: str
+    entry_count: int
+    inconsistency_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class EvidenceUpdated(Event):
+    case_id: str
+    evidence_link_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class IssueDetected(Event):
+    case_id: str
+    issue_count: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class CaseIndexed(Event):
+    case_id: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class CaseSummarized(Event):
+    case_id: str

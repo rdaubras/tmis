@@ -22,7 +22,10 @@ architecture fonctionnelle et technique, DDD, stratégies transverses
 16. [Guide : ajouter un nouveau moteur OCR](./16-guide-nouveau-moteur-ocr.md)
 17. [Guide : ajouter un nouveau classifieur](./17-guide-nouveau-classifieur.md)
 18. [Guide : le Knowledge Graph](./18-guide-knowledge-graph.md)
+19. [Case Intelligence Engine — architecture (Sprint 4)](./19-case-intelligence.md)
+20. [Guide : ajouter un nouveau moteur d'analyse](./20-guide-nouveau-moteur-analyse.md)
 
 Pour la structure de code correspondante, voir `backend/` et `frontend/`
 à la racine du dépôt. Le noyau IA vit dans `backend/src/tmis/ai/`, le
-moteur documentaire dans `backend/src/tmis/document_intelligence/`.
+moteur documentaire dans `backend/src/tmis/document_intelligence/`, le
+moteur métier des dossiers dans `backend/src/tmis/case_intelligence/`.
