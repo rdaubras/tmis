@@ -65,11 +65,24 @@ Cabinet (tenant), paramétrage, marque, membres. Agrégat racine : `Firm`.
 
 ### `billing` (domaine générique)
 Abonnements (Solo / Cabinet / Entreprise), essai gratuit, usage, intégration
-Stripe, webhooks. Agrégat racine : `Subscription`.
+Stripe, webhooks. Agrégat racine : `Subscription`. Depuis le Sprint 9,
+le mécanisme (devis, factures, avoirs, paiements, plans et quotas) est
+délégué à `tmis.cabinet_os.billing`/`tmis.cabinet_os.subscriptions`
+(voir docs/39-cabinet-os.md) ; l'intégration Stripe réelle et les
+webhooks sortants restent un travail d'intégration derrière
+`PaymentGatewayPort`/`AccountingExportPort`, déjà posés comme
+interfaces ce sprint.
 
 ### `platform_admin` (domaine générique)
 Supervision multi-tenant, audit global, feature flags, configuration des
 connecteurs et fournisseurs de modèles disponibles pour un cabinet.
+Depuis le Sprint 9, le portail (gestion des cabinets, catalogue de
+connecteurs, configuration globale) est délégué à
+`tmis.cabinet_os.administration` (voir docs/45-guide-administration.md)
+— l'audit global réutilise directement
+`tmis.collaboration.audit.AuditTrail` (Sprint 8) plutôt que d'être
+reconstruit ; un exportateur de monitoring réel reste au Sprint 28
+"Observabilité complète".
 
 ### `case` (domaine cœur)
 Dossier juridique : identité, appartenance au cabinet, statut
@@ -149,15 +162,38 @@ historique des échanges liés à un dossier.
 
 ### `dashboard` (domaine support)
 Agrégation de données en lecture (CQRS - côté Query) pour la vue cabinet /
-dossier / utilisateur.
+dossier / utilisateur. Depuis le Sprint 9, ce rôle est délégué à
+`tmis.cabinet_os.dashboard`/`tmis.cabinet_os.analytics` (voir
+docs/39-cabinet-os.md), qui composent les ports de lecture d'autres
+moteurs (y compris `tmis.collaboration.tasks`, Sprint 8) sans jamais
+dupliquer leur stockage.
 
 ### `collaboration` (domaine support)
-Commentaires, historique, validation, versionning collaboratif, gestion de
-tâches liées à un dossier.
+Espace de travail multi-utilisateurs : rôles/permissions, membres,
+tâches, workflow, commentaires/mentions, validations, notifications,
+journal d'activité, présence, partage. Depuis le Sprint 8, ce rôle est
+délégué au **Legal Collaboration Engine** (`tmis.collaboration`, voir
+docs/33-legal-collaboration.md) — moteur **indépendant de l'IA**
+(aucun import de `tmis.ai`), qui publie ses événements sur son propre
+`CollaborationEventBus` pour que les modules d'IA puissent y réagir
+sans que le LCE ne les connaisse ; ce bounded context ne portera, à
+terme, que la persistance de ce que le LCE produit, sur le même
+principe que `document`/`case`.
 
 ### `watch` — veille (domaine support)
 Suivi des évolutions juridiques depuis les connecteurs configurés,
 génération d'alertes ciblées.
+
+### Domaines introduits au Sprint 9 (hors cartographie V1 initiale)
+La cartographie V1 n'anticipait pas un CRM ni un calendrier métier
+complets. Le Sprint 9 les introduit sous `tmis.cabinet_os` (voir
+docs/39-cabinet-os.md) : `crm`/`clients`/`contacts` (relation client),
+`calendar`/`hearings`/`deadlines` (agenda et délais), `time_tracking`
+(temps passé), `documents` (registre documentaire niveau cabinet,
+distinct de l'analyse de contenu du `document_intelligence`),
+`settings` (paramètres par cabinet) et `public_api` (accès API
+externe). Comme les autres moteurs, chacun est scopé par `firm_id` et
+ne dépend d'aucun fournisseur d'IA directement.
 
 ## Langage ubiquitaire (extrait)
 
@@ -329,6 +365,48 @@ backend/
 │           ├── versioning/             # Instantanés, comparaison, restauration
 │           ├── evaluation/             # Métriques par génération
 │           └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
+│       └── collaboration/              # Legal Collaboration Engine (Sprint 8, docs/33-38)
+│           │                           # — zéro import de `tmis.ai`, vérifié par test statique
+│           ├── event_bus.py            # CollaborationEventBus (indépendant de celui du Kernel)
+│           ├── events.py               # Événements publiés par le LCE
+│           ├── bootstrap.py            # get_workspace_engine()
+│           ├── workspace/              # Workspace (frontière SaaS), WorkspaceEngine (racine)
+│           ├── members/                # MemberServicePort (cycle de vie tracé)
+│           ├── roles/                  # RoleAssignmentStorePort (six rôles)
+│           ├── permissions/            # PermissionEnginePort (matrice + dérogations deny-overrides)
+│           ├── tasks/                  # TaskServicePort (délègue au workflow)
+│           ├── workflow/               # WorkflowEnginePort (transitions configurables)
+│           ├── comments/               # CommentServicePort (fils de discussion)
+│           ├── mentions/               # MentionEnginePort (@user/@team/@firm -> notifications)
+│           ├── approvals/               # ApprovalEnginePort (simple/multiple, jamais de vainqueur imposé)
+│           ├── notifications/          # NotificationEnginePort (canaux extensibles)
+│           ├── activity/               # ActivityFeedPort (journal chronologique filtrable)
+│           ├── timeline/               # TimelineServicePort (projection par cible)
+│           ├── presence/               # PresencePort/OptimisticLockPort (architecture seulement)
+│           ├── audit/                  # AuditTrailPort (acteur/IP/état avant-après)
+│           ├── sharing/                # SharingEnginePort (interne + liens sécurisés)
+│           ├── evaluation/             # Métriques d'activité par espace de travail
+│           └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
+│       └── cabinet_os/                 # Cabinet Operating System (Sprint 9, docs/39-45)
+│           │                           # — multi-tenant par firm_id, IA seulement via TMISKernel
+│           ├── bootstrap.py            # get_dashboard_engine(), etc.
+│           ├── clients/                # Client (personne physique/morale), ClientServicePort
+│           ├── contacts/               # Contact (6 rôles) + relations dirigées entre contacts
+│           ├── crm/                    # CRMEngine (racine) — vue à 360° par résolution d'ids
+│           ├── calendar/               # CalendarEnginePort (jour/semaine/mois/agenda)
+│           ├── hearings/               # HearingEnginePort (compose le Calendar Engine)
+│           ├── deadlines/              # DeadlineEnginePort (aucune règle par défaut, extensible)
+│           ├── time_tracking/          # TimeTrackingEnginePort (manuel/minuteur/présaisie)
+│           ├── billing/                # BillingEnginePort (devis/factures/avoirs/paiements)
+│           ├── subscriptions/          # SubscriptionEnginePort (Solo/Cabinet/Entreprise, quotas)
+│           ├── documents/              # CabinetDocumentServicePort (registre, pas d'analyse)
+│           ├── dashboard/              # DashboardEnginePort (cabinet/collaborateur/admin)
+│           ├── analytics/              # AnalyticsEnginePort (+ AIUsagePort narrow port -> Kernel)
+│           ├── reports/                # ReportEnginePort (PDF/Excel/CSV/HTML)
+│           ├── settings/               # SettingsEnginePort (clé/valeur par cabinet et catégorie)
+│           ├── administration/         # AdministrationEnginePort (portail plateforme)
+│           ├── public_api/             # PublicApiEnginePort (clés API, OAuth2, scopes, rate limit)
+│           └── api/                    # Routers FastAPI dédiés (inclus dans api/v1/router.py)
 └── tests/
     ├── unit/
     │   ├── ai/                         # Un test par module `tmis.ai.*`
@@ -336,13 +414,17 @@ backend/
     │   ├── case_intelligence/          # Un test par module `tmis.case_intelligence.*`
     │   ├── legal_research/             # Un test par module `tmis.legal_research.*`
     │   ├── legal_reasoning/            # Un test par module `tmis.legal_reasoning.*`
-    │   └── legal_drafting/             # Un test par module `tmis.legal_drafting.*`
+    │   ├── legal_drafting/             # Un test par module `tmis.legal_drafting.*`
+    │   ├── collaboration/              # Un test par module `tmis.collaboration.*` + indépendance IA
+    │   └── cabinet_os/                 # Un test par module `tmis.cabinet_os.*`
     ├── integration/
     │   ├── ai/                         # Kernel, providers, LangGraph, events
     │   ├── document_intelligence/      # Pipeline bout en bout, validation, performance
     │   ├── case_intelligence/          # Dossier vivant bout en bout, API REST
     │   ├── legal_research/             # Recherche bout en bout, API REST
     │   ├── legal_reasoning/            # Raisonnement bout en bout, API REST
-    │   └── legal_drafting/             # Rédaction bout en bout, API REST
+    │   ├── legal_drafting/             # Rédaction bout en bout, API REST
+    │   ├── collaboration/              # Cycle de vie d'un espace de travail bout en bout, API REST
+    │   └── cabinet_os/                 # CRM/agenda/facturation/tableaux de bord/API publique, API REST
     └── e2e/
 ```

@@ -89,3 +89,43 @@ Paragraph Engine, through `TMISKernel`. See `docs/28-legal-drafting.md`,
 `docs/29-guide-nouveau-modele-documentaire.md`,
 `docs/30-guide-moteur-style.md`, `docs/31-guide-versioning.md` and
 `docs/32-guide-exports.md`.
+
+The **Legal Collaboration Engine** (`collaboration/`) turns TMIS into a
+shared legal workspace: workspaces, member lifecycle, six-role RBAC
+with per-member grant/revoke overrides, tasks bound to a configurable
+workflow, comments with threaded replies and `@user`/`@team`/`@firm`
+mentions, single/multiple approvals, extensible notification channels,
+a filterable activity feed plus a separate compliance-grade audit
+trail, presence/optimistic-locking scaffolding, and internal/secure-link
+sharing — all composed by `WorkspaceEngine`. **It depends on no AI
+provider and works independently of the TMIS AI Kernel**: no module
+under `collaboration/` imports `tmis.ai`, enforced by a static test
+(`tests/unit/collaboration/test_collaboration_ai_independence.py`).
+Every action is published on its own `CollaborationEventBus`, so a
+future AI module can react to collaboration activity without the LCE
+ever depending on it. See `docs/33-legal-collaboration.md`,
+`docs/34-guide-roles.md`, `docs/35-guide-permissions.md`,
+`docs/36-guide-workflows.md`, `docs/37-guide-notifications.md` and
+`docs/38-guide-validations.md`.
+
+The **Cabinet Operating System** (`cabinet_os/`) turns TMIS into a
+complete business platform for law firms: CRM (physical/legal-person
+clients, contacts with relations, a 360° profile), a business calendar
+with day/week/month/agenda views, hearings that auto-create their own
+calendar event and reminder, a deadline engine that computes nothing
+until a procedure-specific rule is registered, time tracking (manual,
+timer, quick entry), billing (quotes, invoices, credit notes, payments
+behind an interface-only payment gateway), subscriptions (Solo/Cabinet/
+Entreprise plans with quotas), a cabinet-level document registry,
+cabinet/collaborator/admin dashboards and analytics, PDF/Excel/CSV/HTML
+report generation, per-firm settings, a platform administration portal,
+and a public API (API keys, OAuth2 client-credentials, scopes, rate
+limiting). **Every module is multi-tenant from inception** (`firm_id`
+on every aggregate, the same tenant key as `collaboration.workspace.
+Workspace.firm_id`) and **never depends on an AI provider directly** —
+the one AI-adjacent feature (usage analytics) goes through
+`TMISKernel.evaluator` behind a narrow `AIUsagePort`. See
+`docs/39-cabinet-os.md`, `docs/40-guide-crm.md`,
+`docs/41-guide-calendrier.md`, `docs/42-guide-facturation.md`,
+`docs/43-guide-rapports.md`, `docs/44-guide-api-publique.md` and
+`docs/45-guide-administration.md`.
