@@ -1,0 +1,22 @@
+# Reference manifest generated from tmis.platform.kubernetes
+# Tier: cabinet_small (10-user pilot). Regenerate per-tier via
+# tmis.platform.kubernetes.render.render_all — do not hand-edit
+# resource values here without updating the matching preset.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tmis-backend-default-deny
+  namespace: tmis-pilot
+spec:
+  podSelector:
+    matchLabels:
+      app: tmis-backend
+      part-of: tmis
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    - podSelector:
+        matchLabels:
+          app: ingress-nginx

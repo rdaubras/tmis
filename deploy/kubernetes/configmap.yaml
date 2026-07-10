@@ -1,0 +1,12 @@
+# Reference manifest generated from tmis.platform.kubernetes
+# Tier: cabinet_small (10-user pilot). Regenerate per-tier via
+# tmis.platform.kubernetes.render.render_all — do not hand-edit
+# resource values here without updating the matching preset.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tmis-backend-config
+  namespace: tmis-pilot
+data:
+  TMIS_ENVIRONMENT: production
+  TMIS_API_V1_PREFIX: /api/v1

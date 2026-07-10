@@ -1,0 +1,16 @@
+# Reference manifest generated from tmis.platform.kubernetes
+# Tier: cabinet_small (10-user pilot). Regenerate per-tier via
+# tmis.platform.kubernetes.render.render_all — do not hand-edit
+# resource values here without updating the matching preset.
+apiVersion: v1
+kind: Service
+metadata:
+  name: tmis-backend
+  namespace: tmis-pilot
+spec:
+  selector:
+    app: tmis-backend
+    part-of: tmis
+  ports:
+  - port: 80
+    targetPort: 8000

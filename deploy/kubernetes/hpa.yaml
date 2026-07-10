@@ -1,0 +1,29 @@
+# Reference manifest generated from tmis.platform.kubernetes
+# Tier: cabinet_small (10-user pilot). Regenerate per-tier via
+# tmis.platform.kubernetes.render.render_all — do not hand-edit
+# resource values here without updating the matching preset.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tmis-backend
+  namespace: tmis-pilot
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: tmis-backend
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 75

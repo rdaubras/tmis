@@ -7,6 +7,13 @@ backend/.pytest_cache/
 backend/.mypy_cache/
 backend/.ruff_cache/
 *.egg-info/
+backend/var/
+backend/htmlcov/
+backend/coverage.xml
+backend/.coverage
+backend/bandit-report.txt
+backend/pip-audit-report.json
+backend/pdoc-html/
 
 # Node / Next.js
 frontend/node_modules/

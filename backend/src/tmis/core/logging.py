@@ -3,9 +3,15 @@ import sys
 
 import structlog
 
+from tmis.platform.logging.redaction import RedactSensitiveFields
+
 
 def configure_logging(debug: bool = False) -> None:
-    """Configure structured JSON logging (stdout), per the Twelve Factor App model."""
+    """Configure structured JSON logging (stdout), per the Twelve Factor
+    App model. Every log passes through `RedactSensitiveFields` (see
+    docs/49-guide-supervision.md) before being rendered, so a stray
+    `password=`/`token=`/`api_key=` kwarg anywhere in the codebase can
+    never leak a credential into centralized logs."""
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
@@ -19,6 +25,7 @@ def configure_logging(debug: bool = False) -> None:
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
+            RedactSensitiveFields(),
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(

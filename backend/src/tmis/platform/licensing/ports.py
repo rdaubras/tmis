@@ -1,0 +1,26 @@
+from typing import Protocol
+
+from tmis.cabinet_os.subscriptions.schemas import PlanTier
+from tmis.platform.licensing.schemas import License, LicenseValidationResult
+
+
+class LicenseStorePort(Protocol):
+    def save(self, license_: License) -> None: ...
+
+    def get(self, license_id: str) -> License | None: ...
+
+    def get_for_firm(self, firm_id: str) -> License | None: ...
+
+
+class LicenseEnginePort(Protocol):
+    """Port implemented by every interchangeable licensing engine."""
+
+    def issue(self, firm_id: str, plan: PlanTier, *, duration_days: int = 365) -> License: ...
+
+    def renew(self, firm_id: str, *, extension_days: int = 365) -> License: ...
+
+    def validate(self, key: str) -> LicenseValidationResult: ...
+
+    def has_feature(self, firm_id: str, feature: str) -> bool: ...
+
+    def seats_remaining(self, firm_id: str, seats_in_use: int) -> int: ...
