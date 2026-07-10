@@ -48,3 +48,15 @@ evidence links, potential legal issues, a relationship graph, unified
 search, and summaries. `CaseIntelligenceWorkflow` reacts automatically to
 `DocumentProcessed` events on the Kernel's shared `EventBus`. See
 `docs/19-case-intelligence.md` and `docs/20-guide-nouveau-moteur-analyse.md`.
+
+The **Legal Research Engine** (`legal_research/`) is TMIS's documentary
+search engine: given a query, it prepares it (normalization, language
+detection, keyword extraction, legal-synonym expansion), selects the
+right connectors, runs a hybrid lexical + vector search, normalizes and
+deduplicates results, ranks them (relevance, authority, freshness), and
+attaches a traceable citation to each one — through a three-layer cache
+and with every search recorded in history. It never produces a legal
+opinion, only structured, referenced elements for an agent to reason
+over, and it never talks to a connector or a model provider directly:
+everything goes through `TMISKernel`. See `docs/21-legal-research.md`
+and `docs/22-24` for the connector/ranking/citation extension guides.

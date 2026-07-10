@@ -116,8 +116,12 @@ avocat.
 
 ### `legal_research` (domaine cœur)
 Recherche documentaire via connecteurs configurables (codes, textes,
-jurisprudence, doctrine) et recherche de jurisprudence pertinente.
-Port `LegalSourceConnectorPort` interchangeable.
+jurisprudence, doctrine, documentation interne, bases privées) et
+recherche de jurisprudence pertinente. Depuis le Sprint 5, ce rôle est
+délégué au **Legal Research Engine** (`tmis.legal_research`, voir
+docs/21-legal-research.md) plutôt que réimplémenté ici — ce bounded
+context ne portera, à terme, que la persistance de l'historique de
+recherche (Sprint 7), sur le même principe que `document`/`case`.
 
 ### `assistant` (domaine support)
 Interface de chat multi-agents, orchestration des conversations,
@@ -195,6 +199,7 @@ backend/
 │       │   └── v1/
 │       │       ├── router.py
 │       │       └── <bounded_context>/{routes.py,schemas.py}  # incl. case_intelligence/
+│       │                                                      # (legal_research/api vit dans le package, voir plus bas)
 │       ├── agents/                     # Agents métier (Sprint 1), branchés
 │       │   │                           # sur le Kernel à partir du Sprint 11
 │       │   ├── orchestrator.py         # Chef d'Orchestre (démonstration)
@@ -242,28 +247,44 @@ backend/
 │       │   ├── storage/                # DocumentStorePort
 │       │   ├── export/                 # ExportPort (JSON)
 │       │   └── evaluation/             # Métriques par étape du pipeline
-│       └── case_intelligence/          # Case Intelligence Engine (Sprint 4, docs/19-20)
-│           ├── bootstrap.py            # get_case_intelligence_workflow()
-│           ├── cases/                  # CaseProfile (agrégat), CaseStorePort
-│           ├── actors/                 # ActorMergerPort (dédoublonnage/alias)
-│           ├── facts/                  # FactEnginePort (confirmation/contradiction)
-│           ├── evidence/               # EvidenceLinkerPort (niveaux de confiance)
-│           ├── issues/                 # IssueDetectorPort
-│           ├── relationships/          # CaseGraphPort (Legal Knowledge Graph V1)
-│           ├── knowledge/              # CaseKnowledgeAggregator (Profile → graphe)
-│           ├── timeline/               # TimelineConsolidatorPort (multi-documents)
-│           ├── summaries/              # SummaryGeneratorPort (via TMISKernel)
-│           ├── search/                 # CaseSearchPort (compatible RAG)
-│           ├── workflow/               # CaseIntelligenceWorkflow (dossier vivant)
-│           └── evaluation/             # Métriques par mise à jour de dossier
+│       ├── case_intelligence/          # Case Intelligence Engine (Sprint 4, docs/19-20)
+│       │   ├── bootstrap.py            # get_case_intelligence_workflow()
+│       │   ├── cases/                  # CaseProfile (agrégat), CaseStorePort
+│       │   ├── actors/                 # ActorMergerPort (dédoublonnage/alias)
+│       │   ├── facts/                  # FactEnginePort (confirmation/contradiction)
+│       │   ├── evidence/               # EvidenceLinkerPort (niveaux de confiance)
+│       │   ├── issues/                 # IssueDetectorPort
+│       │   ├── relationships/          # CaseGraphPort (Legal Knowledge Graph V1)
+│       │   ├── knowledge/              # CaseKnowledgeAggregator (Profile → graphe)
+│       │   ├── timeline/               # TimelineConsolidatorPort (multi-documents)
+│       │   ├── summaries/              # SummaryGeneratorPort (via TMISKernel)
+│       │   ├── search/                 # CaseSearchPort (compatible RAG)
+│       │   ├── workflow/               # CaseIntelligenceWorkflow (dossier vivant)
+│       │   └── evaluation/             # Métriques par mise à jour de dossier
+│       └── legal_research/             # Legal Research Engine (Sprint 5, docs/21-24)
+│           ├── bootstrap.py            # get_research_orchestrator()
+│           ├── providers/              # ResearchKernelPort (narrow, mirrors SummaryKernelPort)
+│           ├── connectors/             # Connecteurs LRE, enregistrés sur le ConnectorManager du Kernel
+│           ├── sources/                # SourceRegistry (catalogue d'autorité par connecteur)
+│           ├── queries/                # QueryEnginePort (normalisation, langue, mots-clés, expansion)
+│           ├── search/                 # HybridResearchSearch, ResearchOrchestrator (racine)
+│           ├── ranking/                # RankingPort, ConfigurableRanker
+│           ├── citations/              # ResearchCitation, CitationFormatterPort
+│           ├── normalization/          # SourceNormalizerPort (unification, dédoublonnage, versions)
+│           ├── cache/                  # ResearchCache (3 couches : brut, normalisé, classé)
+│           ├── history/                # ResearchHistoryPort
+│           ├── evaluation/             # Métriques par recherche
+│           └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
 └── tests/
     ├── unit/
     │   ├── ai/                         # Un test par module `tmis.ai.*`
     │   ├── document_intelligence/      # Un test par module `tmis.document_intelligence.*`
-    │   └── case_intelligence/          # Un test par module `tmis.case_intelligence.*`
+    │   ├── case_intelligence/          # Un test par module `tmis.case_intelligence.*`
+    │   └── legal_research/             # Un test par module `tmis.legal_research.*`
     ├── integration/
     │   ├── ai/                         # Kernel, providers, LangGraph, events
     │   ├── document_intelligence/      # Pipeline bout en bout, validation, performance
-    │   └── case_intelligence/          # Dossier vivant bout en bout, API REST
+    │   ├── case_intelligence/          # Dossier vivant bout en bout, API REST
+    │   └── legal_research/             # Recherche bout en bout, API REST
     └── e2e/
 ```

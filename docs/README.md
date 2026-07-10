@@ -24,8 +24,13 @@ architecture fonctionnelle et technique, DDD, stratégies transverses
 18. [Guide : le Knowledge Graph](./18-guide-knowledge-graph.md)
 19. [Case Intelligence Engine — architecture (Sprint 4)](./19-case-intelligence.md)
 20. [Guide : ajouter un nouveau moteur d'analyse](./20-guide-nouveau-moteur-analyse.md)
+21. [Legal Research Engine — architecture (Sprint 5)](./21-legal-research.md)
+22. [Guide : ajouter un nouveau connecteur au LRE](./22-guide-nouveau-connecteur.md)
+23. [Guide : le Ranking Engine du LRE](./23-guide-ranking-engine.md)
+24. [Guide : le système de citations du LRE](./24-guide-citation-system.md)
 
 Pour la structure de code correspondante, voir `backend/` et `frontend/`
 à la racine du dépôt. Le noyau IA vit dans `backend/src/tmis/ai/`, le
 moteur documentaire dans `backend/src/tmis/document_intelligence/`, le
-moteur métier des dossiers dans `backend/src/tmis/case_intelligence/`.
+moteur métier des dossiers dans `backend/src/tmis/case_intelligence/`,
+le moteur de recherche juridique dans `backend/src/tmis/legal_research/`.
