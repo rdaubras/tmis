@@ -117,7 +117,12 @@ génération de rapports.
 Génération de brouillons de documents (consultations, conclusions,
 assignations, requêtes, courriers, notes internes). Tout document produit
 porte un statut `DRAFT` explicite tant qu'il n'est pas validé par un
-avocat.
+avocat. Depuis le Sprint 7, ce rôle est délégué au **Legal Drafting
+Studio** (`tmis.legal_drafting`, voir docs/28-legal-drafting.md) — ce
+bounded context ne portera, à terme, que la persistance des brouillons
+qu'il produit (Sprint 9), sur le même principe que `document`/`case`.
+`Document.is_draft` y reste une invariante technique : aucun document
+n'est jamais présenté comme juridiquement validé.
 
 ### `legal_research` (domaine cœur)
 Recherche documentaire via connecteurs configurables (codes, textes,
@@ -126,7 +131,7 @@ recherche de jurisprudence pertinente. Depuis le Sprint 5, ce rôle est
 délégué au **Legal Research Engine** (`tmis.legal_research`, voir
 docs/21-legal-research.md) plutôt que réimplémenté ici — ce bounded
 context ne portera, à terme, que la persistance de l'historique de
-recherche (Sprint 7), sur le même principe que `document`/`case`.
+recherche (Sprint 9), sur le même principe que `document`/`case`.
 
 ### `legal_reasoning` (domaine cœur)
 Raisonnement juridique : hypothèses concurrentes, arguments et
@@ -215,9 +220,10 @@ backend/
 │       │   └── v1/
 │       │       ├── router.py
 │       │       └── <bounded_context>/{routes.py,schemas.py}  # incl. case_intelligence/
-│       │                                                      # (legal_research/api vit dans le package, voir plus bas)
+│       │                                                      # (legal_research/legal_reasoning/legal_drafting
+│       │                                                      #  ont leur propre api/, voir plus bas)
 │       ├── agents/                     # Agents métier (Sprint 1), branchés
-│       │   │                           # sur le Kernel à partir du Sprint 11
+│       │   │                           # sur le Kernel à partir du Sprint 12
 │       │   ├── orchestrator.py         # Chef d'Orchestre (démonstration)
 │       │   ├── analysis_agent.py
 │       │   ├── research_agent.py
@@ -291,21 +297,37 @@ backend/
 │       │   ├── history/                # ResearchHistoryPort
 │       │   ├── evaluation/             # Métriques par recherche
 │       │   └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
-│       └── legal_reasoning/            # Legal Reasoning Engine (Sprint 6, docs/25-27)
-│           ├── bootstrap.py            # get_reasoning_orchestrator()
-│           ├── planner/                # ReasoningPlanner (plan fixe du workflow)
-│           ├── reasoner/               # ReasoningKernelPort/CasePort/ResearchPort, ReasoningOrchestrator (racine)
-│           ├── hypotheses/             # HypothesisEnginePort (hypothèses coexistantes)
-│           ├── arguments/              # ArgumentEnginePort (provenance conservée)
-│           ├── counter_arguments/      # CounterArgumentEnginePort
-│           ├── evidence/               # EvidenceEnginePort (fait/document/hypothèse/argument)
-│           ├── conflicts/              # ConflictDetectorPort (réutilise les contradictions du CIE)
-│           ├── confidence/             # ConfidenceEnginePort (score expliqué, poids configurables)
-│           ├── strategy/               # StrategyEnginePort (jamais de choix à la place de l'avocat)
-│           ├── validation/             # HypothesisValidationPort (valider/rejeter sans écraser)
-│           ├── explanations/           # ExplanationEnginePort
-│           ├── decision_graph/         # DecisionGraphBuilderPort
-│           ├── evaluation/             # Métriques par raisonnement
+│       ├── legal_reasoning/            # Legal Reasoning Engine (Sprint 6, docs/25-27)
+│       │   ├── bootstrap.py            # get_reasoning_orchestrator()
+│       │   ├── planner/                # ReasoningPlanner (plan fixe du workflow)
+│       │   ├── reasoner/               # ReasoningKernelPort/CasePort/ResearchPort, ReasoningOrchestrator (racine)
+│       │   ├── hypotheses/             # HypothesisEnginePort (hypothèses coexistantes)
+│       │   ├── arguments/              # ArgumentEnginePort (provenance conservée)
+│       │   ├── counter_arguments/      # CounterArgumentEnginePort
+│       │   ├── evidence/               # EvidenceEnginePort (fait/document/hypothèse/argument)
+│       │   ├── conflicts/              # ConflictDetectorPort (réutilise les contradictions du CIE)
+│       │   ├── confidence/             # ConfidenceEnginePort (score expliqué, poids configurables)
+│       │   ├── strategy/               # StrategyEnginePort (jamais de choix à la place de l'avocat)
+│       │   ├── validation/             # HypothesisValidationPort (valider/rejeter sans écraser)
+│       │   ├── explanations/           # ExplanationEnginePort
+│       │   ├── decision_graph/         # DecisionGraphBuilderPort
+│       │   ├── evaluation/             # Métriques par raisonnement
+│       │   └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
+│       └── legal_drafting/             # Legal Drafting Studio (Sprint 7, docs/28-32)
+│           ├── bootstrap.py            # get_document_orchestrator()
+│           ├── templates/              # DocumentTemplate versionné (9 types de documents)
+│           ├── documents/              # Document (is_draft toujours True), DocumentOrchestrator (racine)
+│           ├── sections/               # DocumentBuilderPort (sections indépendamment régénérables)
+│           ├── paragraphs/             # ParagraphEnginePort (traçabilité stricte, seul point Kernel)
+│           ├── citations/              # DraftCitation (document/section/paragraphe/source)
+│           ├── references/             # ReferenceResolverPort (ids bruts -> ReferenceLink lisibles)
+│           ├── style/                  # StyleProfile/StyleEnginePort (charte rédactionnelle par cabinet)
+│           ├── validation/             # Human In The Loop (valider/rejeter/commenter, jamais écraser)
+│           ├── review/                 # ReviewEnginePort (constate, ne corrige jamais)
+│           ├── export/                 # ExporterPort (DOCX/PDF/HTML)
+│           ├── history/                # Journal d'audit de toute action
+│           ├── versioning/             # Instantanés, comparaison, restauration
+│           ├── evaluation/             # Métriques par génération
 │           └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
 └── tests/
     ├── unit/
@@ -313,12 +335,14 @@ backend/
     │   ├── document_intelligence/      # Un test par module `tmis.document_intelligence.*`
     │   ├── case_intelligence/          # Un test par module `tmis.case_intelligence.*`
     │   ├── legal_research/             # Un test par module `tmis.legal_research.*`
-    │   └── legal_reasoning/            # Un test par module `tmis.legal_reasoning.*`
+    │   ├── legal_reasoning/            # Un test par module `tmis.legal_reasoning.*`
+    │   └── legal_drafting/             # Un test par module `tmis.legal_drafting.*`
     ├── integration/
     │   ├── ai/                         # Kernel, providers, LangGraph, events
     │   ├── document_intelligence/      # Pipeline bout en bout, validation, performance
     │   ├── case_intelligence/          # Dossier vivant bout en bout, API REST
     │   ├── legal_research/             # Recherche bout en bout, API REST
-    │   └── legal_reasoning/            # Raisonnement bout en bout, API REST
+    │   ├── legal_reasoning/            # Raisonnement bout en bout, API REST
+    │   └── legal_drafting/             # Rédaction bout en bout, API REST
     └── e2e/
 ```

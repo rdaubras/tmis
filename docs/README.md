@@ -31,10 +31,16 @@ architecture fonctionnelle et technique, DDD, stratégies transverses
 25. [Legal Reasoning Engine — architecture (Sprint 6)](./25-legal-reasoning.md)
 26. [Guide : ajouter un nouveau moteur de raisonnement](./26-guide-nouveau-moteur-raisonnement.md)
 27. [Guide : les scores de confiance du LRE²](./27-guide-scores-confiance.md)
+28. [Legal Drafting Studio — architecture (Sprint 7)](./28-legal-drafting.md)
+29. [Guide : créer un nouveau modèle documentaire](./29-guide-nouveau-modele-documentaire.md)
+30. [Guide : le Style Engine du LDS](./30-guide-moteur-style.md)
+31. [Guide : le système de versioning du LDS](./31-guide-versioning.md)
+32. [Guide : les exports du LDS](./32-guide-exports.md)
 
 Pour la structure de code correspondante, voir `backend/` et `frontend/`
 à la racine du dépôt. Le noyau IA vit dans `backend/src/tmis/ai/`, le
 moteur documentaire dans `backend/src/tmis/document_intelligence/`, le
 moteur métier des dossiers dans `backend/src/tmis/case_intelligence/`,
 le moteur de recherche juridique dans `backend/src/tmis/legal_research/`,
-le moteur de raisonnement juridique dans `backend/src/tmis/legal_reasoning/`.
+le moteur de raisonnement juridique dans `backend/src/tmis/legal_reasoning/`,
+le studio de rédaction assistée dans `backend/src/tmis/legal_drafting/`.
