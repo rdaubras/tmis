@@ -152,8 +152,16 @@ Agrégation de données en lecture (CQRS - côté Query) pour la vue cabinet /
 dossier / utilisateur.
 
 ### `collaboration` (domaine support)
-Commentaires, historique, validation, versionning collaboratif, gestion de
-tâches liées à un dossier.
+Espace de travail multi-utilisateurs : rôles/permissions, membres,
+tâches, workflow, commentaires/mentions, validations, notifications,
+journal d'activité, présence, partage. Depuis le Sprint 8, ce rôle est
+délégué au **Legal Collaboration Engine** (`tmis.collaboration`, voir
+docs/33-legal-collaboration.md) — moteur **indépendant de l'IA**
+(aucun import de `tmis.ai`), qui publie ses événements sur son propre
+`CollaborationEventBus` pour que les modules d'IA puissent y réagir
+sans que le LCE ne les connaisse ; ce bounded context ne portera, à
+terme, que la persistance de ce que le LCE produit, sur le même
+principe que `document`/`case`.
 
 ### `watch` — veille (domaine support)
 Suivi des évolutions juridiques depuis les connecteurs configurés,
@@ -329,6 +337,28 @@ backend/
 │           ├── versioning/             # Instantanés, comparaison, restauration
 │           ├── evaluation/             # Métriques par génération
 │           └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
+│       └── collaboration/              # Legal Collaboration Engine (Sprint 8, docs/33-38)
+│           │                           # — zéro import de `tmis.ai`, vérifié par test statique
+│           ├── event_bus.py            # CollaborationEventBus (indépendant de celui du Kernel)
+│           ├── events.py               # Événements publiés par le LCE
+│           ├── bootstrap.py            # get_workspace_engine()
+│           ├── workspace/              # Workspace (frontière SaaS), WorkspaceEngine (racine)
+│           ├── members/                # MemberServicePort (cycle de vie tracé)
+│           ├── roles/                  # RoleAssignmentStorePort (six rôles)
+│           ├── permissions/            # PermissionEnginePort (matrice + dérogations deny-overrides)
+│           ├── tasks/                  # TaskServicePort (délègue au workflow)
+│           ├── workflow/               # WorkflowEnginePort (transitions configurables)
+│           ├── comments/               # CommentServicePort (fils de discussion)
+│           ├── mentions/               # MentionEnginePort (@user/@team/@firm -> notifications)
+│           ├── approvals/               # ApprovalEnginePort (simple/multiple, jamais de vainqueur imposé)
+│           ├── notifications/          # NotificationEnginePort (canaux extensibles)
+│           ├── activity/               # ActivityFeedPort (journal chronologique filtrable)
+│           ├── timeline/               # TimelineServicePort (projection par cible)
+│           ├── presence/               # PresencePort/OptimisticLockPort (architecture seulement)
+│           ├── audit/                  # AuditTrailPort (acteur/IP/état avant-après)
+│           ├── sharing/                # SharingEnginePort (interne + liens sécurisés)
+│           ├── evaluation/             # Métriques d'activité par espace de travail
+│           └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
 └── tests/
     ├── unit/
     │   ├── ai/                         # Un test par module `tmis.ai.*`
@@ -336,13 +366,15 @@ backend/
     │   ├── case_intelligence/          # Un test par module `tmis.case_intelligence.*`
     │   ├── legal_research/             # Un test par module `tmis.legal_research.*`
     │   ├── legal_reasoning/            # Un test par module `tmis.legal_reasoning.*`
-    │   └── legal_drafting/             # Un test par module `tmis.legal_drafting.*`
+    │   ├── legal_drafting/             # Un test par module `tmis.legal_drafting.*`
+    │   └── collaboration/              # Un test par module `tmis.collaboration.*` + indépendance IA
     ├── integration/
     │   ├── ai/                         # Kernel, providers, LangGraph, events
     │   ├── document_intelligence/      # Pipeline bout en bout, validation, performance
     │   ├── case_intelligence/          # Dossier vivant bout en bout, API REST
     │   ├── legal_research/             # Recherche bout en bout, API REST
     │   ├── legal_reasoning/            # Raisonnement bout en bout, API REST
-    │   └── legal_drafting/             # Rédaction bout en bout, API REST
+    │   ├── legal_drafting/             # Rédaction bout en bout, API REST
+    │   └── collaboration/              # Cycle de vie d'un espace de travail bout en bout, API REST
     └── e2e/
 ```

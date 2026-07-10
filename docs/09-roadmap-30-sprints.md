@@ -67,11 +67,31 @@ suivant.
 > Sprint 7 et la suppression de l'ancien Sprint 19 "Module Rédaction" se
 > compensent. Le total reste fixé à 30 sprints.
 
+> **Note de révision (après Sprint 8)** : même logique une nouvelle
+> fois. Le Sprint 8 livre le **Legal Collaboration Engine**
+> (`tmis.collaboration`, docs/33-38), qui transforme TMIS en espace de
+> travail collaboratif — **indépendant de l'IA**, il fonctionne sans
+> `TMISKernel` et ne communique avec les futurs modules d'IA que via
+> ses propres événements. `Identity & Firm`, `Billing`, `Module
+> Document`, et les deux sprints RAG/recherche glissent chacun d'un
+> cran (S8→S9, S9→S10, S10→S11, S11→S12, S12→S13). L'ancien Sprint 20
+> "Agent Collaboration" (commentaires, tâches, versionning, validation)
+> est entièrement couvert par `tmis.collaboration` — rôles,
+> permissions, membres, tâches, workflow, commentaires, mentions,
+> validations, notifications, activité, présence, partage — et
+> disparaît donc à son tour de la roadmap comme sprint dédié, sur le
+> même principe que les anciens Sprints 19 "Agent Stratégie" et "Module
+> Rédaction" absorbés par les Sprints 6 et 7. Tout ce qui suivait
+> (Agent Veille et toute la Phase 4/5) garde exactement son numéro :
+> l'insertion du Sprint 8 et la suppression de l'ancien Sprint 20
+> "Agent Collaboration" se compensent. Le total reste fixé à 30
+> sprints.
+
 ## Vue d'ensemble
 
 ```mermaid
 flowchart TB
-    subgraph Phase1["Phase 1 — Socle (S1-S9)"]
+    subgraph Phase1["Phase 1 — Socle (S1-S10)"]
         S1[S1 Vision & architecture]
         S2[S2 AI Kernel]
         S3[S3 Document Intelligence Engine]
@@ -79,23 +99,23 @@ flowchart TB
         S5[S5 Legal Research Engine]
         S6[S6 Legal Reasoning Engine]
         S7[S7 Legal Drafting Studio]
-        S8[S8 Identity & Firm]
-        S9[S9 Billing & abonnements]
+        S8[S8 Legal Collaboration Engine]
+        S9[S9 Identity & Firm]
+        S10[S10 Billing & abonnements]
     end
-    subgraph Phase2["Phase 2 — RAG & Recherche (S10-S12)"]
-        S10[S10 Module Document + Persistance]
-        S11[S11 RAG et connecteurs branchés sur données réelles]
-        S12[S12 Cache Redis en production + reranker appris]
+    subgraph Phase2["Phase 2 — RAG & Recherche (S11-S13)"]
+        S11[S11 Module Document + Persistance]
+        S12[S12 RAG et connecteurs branchés sur données réelles]
+        S13[S13 Cache Redis en production + reranker appris]
     end
-    subgraph Phase3["Phase 3 — Agents IA (S13-S21)"]
-        S13[S13 Intégration agents métier au Kernel + Agent Analyse]
-        S14[S14 Agent Synthèse narrative]
-        S15[S15 Agent Vérificateur]
-        S16[S16 Chat IA]
-        S17[S17 Agent Recherche Documentaire]
-        S18[S18 Agent Jurisprudence]
-        S19[S19 Module Contrats + Agent Contrat]
-        S20[S20 Agent Collaboration]
+    subgraph Phase3["Phase 3 — Agents IA (S14-S21)"]
+        S14[S14 Intégration agents métier au Kernel + Agent Analyse]
+        S15[S15 Agent Synthèse narrative]
+        S16[S16 Agent Vérificateur]
+        S17[S17 Chat IA]
+        S18[S18 Agent Recherche Documentaire]
+        S19[S19 Agent Jurisprudence]
+        S20[S20 Module Contrats + Agent Contrat]
         S21[S21 Agent Veille]
     end
     subgraph Phase4["Phase 4 — Pilotage & Plateforme (S22-S26)"]
@@ -125,19 +145,19 @@ flowchart TB
 | 5 | **Legal Research Engine** ✅ | Socle recherche documentaire indépendant : connecteurs (mock), requêtes, recherche hybride, ranking, citations, normalisation, cache 3 couches, historique, évaluation | `tmis.legal_research.*` | `ResearchOrchestrator`, API REST, 12 sous-modules testés (voir docs/21-24) |
 | 6 | **Legal Reasoning Engine** ✅ | Socle raisonnement indépendant : hypothèses coexistantes, arguments/contre-arguments tracés, preuves, conflits, confiance expliquée, stratégies, explications, graphe de décision | `tmis.legal_reasoning.*` | `ReasoningOrchestrator`, API REST, 13 sous-modules testés (voir docs/25-27) |
 | 7 | **Legal Drafting Studio** ✅ | Socle rédaction assistée indépendant : modèles versionnés (9 types), sections/paragraphes tracés, citations, style, relecture, human-in-the-loop, versioning, export DOCX/PDF/HTML | `tmis.legal_drafting.*` | `DocumentOrchestrator`, API REST, 13 sous-modules testés (voir docs/28-32) |
-| 8 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
-| 9 | Billing & abonnements | Abonnements et essai gratuit | `billing` | Intégration Stripe (mode test), plans Solo/Cabinet/Entreprise |
-| 10 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6) et des brouillons (Sprint 7) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
-| 11 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
-| 12 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
-| 13 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` |
-| 14 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique |
-| 15 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
-| 16 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
-| 17 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
-| 18 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
-| 19 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions |
-| 20 | Agent Collaboration | Travail d'équipe | `collaboration` | Commentaires, tâches, versionning, validation |
+| 8 | **Legal Collaboration Engine** ✅ | Socle collaboratif indépendant de l'IA : espaces de travail, membres, rôles/permissions, tâches, workflow, commentaires/mentions, validations, notifications, activité, présence, partage | `tmis.collaboration.*` | `WorkspaceEngine`, API REST, 16 sous-modules testés (voir docs/33-38) |
+| 9 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
+| 10 | Billing & abonnements | Abonnements et essai gratuit | `billing` | Intégration Stripe (mode test), plans Solo/Cabinet/Entreprise |
+| 11 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7) et des espaces de travail (Sprint 8) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
+| 12 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
+| 13 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
+| 14 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` |
+| 15 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique |
+| 16 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
+| 17 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
+| 18 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
+| 19 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
+| 20 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions |
 | 21 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
 | 22 | Tableau de bord | Pilotage | `dashboard` | Vues CQRS cabinet/dossier/utilisateur |
 | 23 | Administration | Supervision plateforme | `platform_admin` | Audit, feature flags, configuration connecteurs |
@@ -181,3 +201,10 @@ flowchart TB
     `docs/28-legal-drafting.md`). Tout document produit reste un
     brouillon (`Document.is_draft` toujours `True`) ; aucun code ne le
     présente comme juridiquement validé.
+11. Depuis le Sprint 8 : le Legal Collaboration Engine
+    (`tmis.collaboration`, voir `docs/33-legal-collaboration.md`) ne
+    dépend d'aucun fournisseur d'IA ni de `TMISKernel` — vérifié par un
+    test statique (aucun import de `tmis.ai` sous `tmis.collaboration`).
+    Toute interaction future entre l'IA et la collaboration passe par
+    les événements publiés sur `CollaborationEventBus`, jamais par un
+    appel direct dans un sens ou dans l'autre.

@@ -89,3 +89,21 @@ Paragraph Engine, through `TMISKernel`. See `docs/28-legal-drafting.md`,
 `docs/29-guide-nouveau-modele-documentaire.md`,
 `docs/30-guide-moteur-style.md`, `docs/31-guide-versioning.md` and
 `docs/32-guide-exports.md`.
+
+The **Legal Collaboration Engine** (`collaboration/`) turns TMIS into a
+shared legal workspace: workspaces, member lifecycle, six-role RBAC
+with per-member grant/revoke overrides, tasks bound to a configurable
+workflow, comments with threaded replies and `@user`/`@team`/`@firm`
+mentions, single/multiple approvals, extensible notification channels,
+a filterable activity feed plus a separate compliance-grade audit
+trail, presence/optimistic-locking scaffolding, and internal/secure-link
+sharing — all composed by `WorkspaceEngine`. **It depends on no AI
+provider and works independently of the TMIS AI Kernel**: no module
+under `collaboration/` imports `tmis.ai`, enforced by a static test
+(`tests/unit/collaboration/test_collaboration_ai_independence.py`).
+Every action is published on its own `CollaborationEventBus`, so a
+future AI module can react to collaboration activity without the LCE
+ever depending on it. See `docs/33-legal-collaboration.md`,
+`docs/34-guide-roles.md`, `docs/35-guide-permissions.md`,
+`docs/36-guide-workflows.md`, `docs/37-guide-notifications.md` and
+`docs/38-guide-validations.md`.
