@@ -20,6 +20,7 @@ flowchart TB
         contract[contract]
         drafting[drafting]
         legal_research[legal_research]
+        legal_reasoning[legal_reasoning]
     end
 
     subgraph Supporting["Domaines support"]
@@ -45,6 +46,10 @@ flowchart TB
     assistant --> drafting
     case --> collaboration
     legal_research --> watch
+    case_analysis --> legal_reasoning
+    legal_research --> legal_reasoning
+    legal_reasoning --> drafting
+    assistant --> legal_reasoning
     billing --> firm
 ```
 
@@ -123,6 +128,16 @@ docs/21-legal-research.md) plutôt que réimplémenté ici — ce bounded
 context ne portera, à terme, que la persistance de l'historique de
 recherche (Sprint 7), sur le même principe que `document`/`case`.
 
+### `legal_reasoning` (domaine cœur)
+Raisonnement juridique : hypothèses concurrentes, arguments et
+contre-arguments tracés, détection de conflits, score de confiance
+expliqué, synthèse transparente. Depuis le Sprint 6, ce rôle est
+délégué au **Legal Reasoning Engine** (`tmis.legal_reasoning`, voir
+docs/25-legal-reasoning.md) — moteur d'assistance à la décision qui ne
+produit jamais de document juridique final ni de conclusion
+automatique ; ce bounded context ne portera, à terme, que la
+persistance des sessions de raisonnement.
+
 ### `assistant` (domaine support)
 Interface de chat multi-agents, orchestration des conversations,
 historique des échanges liés à un dossier.
@@ -184,6 +199,7 @@ backend/
 │       │   ├── contract/...
 │       │   ├── drafting/...
 │       │   ├── legal_research/...
+│       │   ├── legal_reasoning/...
 │       │   ├── assistant/...
 │       │   ├── dashboard/...
 │       │   ├── collaboration/...
@@ -261,30 +277,48 @@ backend/
 │       │   ├── search/                 # CaseSearchPort (compatible RAG)
 │       │   ├── workflow/               # CaseIntelligenceWorkflow (dossier vivant)
 │       │   └── evaluation/             # Métriques par mise à jour de dossier
-│       └── legal_research/             # Legal Research Engine (Sprint 5, docs/21-24)
-│           ├── bootstrap.py            # get_research_orchestrator()
-│           ├── providers/              # ResearchKernelPort (narrow, mirrors SummaryKernelPort)
-│           ├── connectors/             # Connecteurs LRE, enregistrés sur le ConnectorManager du Kernel
-│           ├── sources/                # SourceRegistry (catalogue d'autorité par connecteur)
-│           ├── queries/                # QueryEnginePort (normalisation, langue, mots-clés, expansion)
-│           ├── search/                 # HybridResearchSearch, ResearchOrchestrator (racine)
-│           ├── ranking/                # RankingPort, ConfigurableRanker
-│           ├── citations/              # ResearchCitation, CitationFormatterPort
-│           ├── normalization/          # SourceNormalizerPort (unification, dédoublonnage, versions)
-│           ├── cache/                  # ResearchCache (3 couches : brut, normalisé, classé)
-│           ├── history/                # ResearchHistoryPort
-│           ├── evaluation/             # Métriques par recherche
+│       ├── legal_research/             # Legal Research Engine (Sprint 5, docs/21-24)
+│       │   ├── bootstrap.py            # get_research_orchestrator()
+│       │   ├── providers/              # ResearchKernelPort (narrow, mirrors SummaryKernelPort)
+│       │   ├── connectors/             # Connecteurs LRE, enregistrés sur le ConnectorManager du Kernel
+│       │   ├── sources/                # SourceRegistry (catalogue d'autorité par connecteur)
+│       │   ├── queries/                # QueryEnginePort (normalisation, langue, mots-clés, expansion)
+│       │   ├── search/                 # HybridResearchSearch, ResearchOrchestrator (racine)
+│       │   ├── ranking/                # RankingPort, ConfigurableRanker
+│       │   ├── citations/              # ResearchCitation, CitationFormatterPort
+│       │   ├── normalization/          # SourceNormalizerPort (unification, dédoublonnage, versions)
+│       │   ├── cache/                  # ResearchCache (3 couches : brut, normalisé, classé)
+│       │   ├── history/                # ResearchHistoryPort
+│       │   ├── evaluation/             # Métriques par recherche
+│       │   └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
+│       └── legal_reasoning/            # Legal Reasoning Engine (Sprint 6, docs/25-27)
+│           ├── bootstrap.py            # get_reasoning_orchestrator()
+│           ├── planner/                # ReasoningPlanner (plan fixe du workflow)
+│           ├── reasoner/               # ReasoningKernelPort/CasePort/ResearchPort, ReasoningOrchestrator (racine)
+│           ├── hypotheses/             # HypothesisEnginePort (hypothèses coexistantes)
+│           ├── arguments/              # ArgumentEnginePort (provenance conservée)
+│           ├── counter_arguments/      # CounterArgumentEnginePort
+│           ├── evidence/               # EvidenceEnginePort (fait/document/hypothèse/argument)
+│           ├── conflicts/              # ConflictDetectorPort (réutilise les contradictions du CIE)
+│           ├── confidence/             # ConfidenceEnginePort (score expliqué, poids configurables)
+│           ├── strategy/               # StrategyEnginePort (jamais de choix à la place de l'avocat)
+│           ├── validation/             # HypothesisValidationPort (valider/rejeter sans écraser)
+│           ├── explanations/           # ExplanationEnginePort
+│           ├── decision_graph/         # DecisionGraphBuilderPort
+│           ├── evaluation/             # Métriques par raisonnement
 │           └── api/                    # Router FastAPI dédié (inclus dans api/v1/router.py)
 └── tests/
     ├── unit/
     │   ├── ai/                         # Un test par module `tmis.ai.*`
     │   ├── document_intelligence/      # Un test par module `tmis.document_intelligence.*`
     │   ├── case_intelligence/          # Un test par module `tmis.case_intelligence.*`
-    │   └── legal_research/             # Un test par module `tmis.legal_research.*`
+    │   ├── legal_research/             # Un test par module `tmis.legal_research.*`
+    │   └── legal_reasoning/            # Un test par module `tmis.legal_reasoning.*`
     ├── integration/
     │   ├── ai/                         # Kernel, providers, LangGraph, events
     │   ├── document_intelligence/      # Pipeline bout en bout, validation, performance
     │   ├── case_intelligence/          # Dossier vivant bout en bout, API REST
-    │   └── legal_research/             # Recherche bout en bout, API REST
+    │   ├── legal_research/             # Recherche bout en bout, API REST
+    │   └── legal_reasoning/            # Raisonnement bout en bout, API REST
     └── e2e/
 ```

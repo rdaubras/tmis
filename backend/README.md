@@ -60,3 +60,16 @@ opinion, only structured, referenced elements for an agent to reason
 over, and it never talks to a connector or a model provider directly:
 everything goes through `TMISKernel`. See `docs/21-legal-research.md`
 and `docs/22-24` for the connector/ranking/citation extension guides.
+
+The **Legal Reasoning Engine** (`legal_reasoning/`) is TMIS's
+decision-support brain: given a question, it reads the case (via the
+CIE), searches the law (via the LRE), builds several co-existing
+hypotheses, gathers arguments and counter-arguments with their
+provenance, links evidence, detects conflicts, scores confidence with
+an explanation, proposes analytical strategies without ever picking a
+winner, and produces a transparent synthesis through
+`ReasoningOrchestrator`. It never replaces the lawyer, never produces a
+final legal document, and the only model call in the whole engine is
+the final synthesis, through `TMISKernel`. See
+`docs/25-legal-reasoning.md`, `docs/26-guide-nouveau-moteur-raisonnement.md`
+and `docs/27-guide-scores-confiance.md`.

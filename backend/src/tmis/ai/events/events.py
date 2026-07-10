@@ -160,3 +160,59 @@ class CaseIndexed(Event):
 @dataclass(frozen=True, kw_only=True)
 class CaseSummarized(Event):
     case_id: str
+
+
+# ---------------------------------------------------------------------
+# Legal Reasoning Engine events (Sprint 6, see
+# docs/25-legal-reasoning.md). `workflow_id` correlates every event of a
+# single reasoning run; `session_id` identifies the `ReasoningSession`.
+# ---------------------------------------------------------------------
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReasoningStarted(Event):
+    session_id: str
+    question: str
+    case_id: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class HypothesisCreated(Event):
+    session_id: str
+    hypothesis_id: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class ArgumentAdded(Event):
+    session_id: str
+    argument_id: str
+    hypothesis_id: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class CounterArgumentAdded(Event):
+    session_id: str
+    counter_argument_id: str
+    argument_id: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class ConflictDetected(Event):
+    session_id: str
+    conflict_id: str
+    conflict_type: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class ConfidenceCalculated(Event):
+    session_id: str
+    hypothesis_id: str
+    value: float
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReasoningCompleted(Event):
+    session_id: str
+    hypothesis_count: int
+    conflict_count: int
+    duration_ms: float

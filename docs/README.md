@@ -28,9 +28,13 @@ architecture fonctionnelle et technique, DDD, stratégies transverses
 22. [Guide : ajouter un nouveau connecteur au LRE](./22-guide-nouveau-connecteur.md)
 23. [Guide : le Ranking Engine du LRE](./23-guide-ranking-engine.md)
 24. [Guide : le système de citations du LRE](./24-guide-citation-system.md)
+25. [Legal Reasoning Engine — architecture (Sprint 6)](./25-legal-reasoning.md)
+26. [Guide : ajouter un nouveau moteur de raisonnement](./26-guide-nouveau-moteur-raisonnement.md)
+27. [Guide : les scores de confiance du LRE²](./27-guide-scores-confiance.md)
 
 Pour la structure de code correspondante, voir `backend/` et `frontend/`
 à la racine du dépôt. Le noyau IA vit dans `backend/src/tmis/ai/`, le
 moteur documentaire dans `backend/src/tmis/document_intelligence/`, le
 moteur métier des dossiers dans `backend/src/tmis/case_intelligence/`,
-le moteur de recherche juridique dans `backend/src/tmis/legal_research/`.
+le moteur de recherche juridique dans `backend/src/tmis/legal_research/`,
+le moteur de raisonnement juridique dans `backend/src/tmis/legal_reasoning/`.
