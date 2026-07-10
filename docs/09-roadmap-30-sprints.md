@@ -34,34 +34,51 @@ suivant.
 > d'un reranker appris, plutôt que la construction de la mécanique
 > elle-même. Le total reste fixé à 30 sprints.
 
+> **Note de révision (après Sprint 6)** : le Sprint 6 livre le **Legal
+> Reasoning Engine** (`tmis.legal_reasoning`, docs/25-27) juste après le
+> Legal Research Engine, avant `Identity & Firm` et tout le reste du
+> socle applicatif — même logique de priorisation qu'aux sprints
+> précédents : construire le raisonnement avant les fonctionnalités qui
+> s'appuieront dessus. `Identity & Firm`, `Billing`, `Module Document`,
+> et les deux sprints RAG/recherche gardent leur contenu mais glissent
+> chacun d'un cran (S6→S7, S7→S8, S8→S9, S9→S10, S10→S11). L'ancien
+> Sprint 19 "Agent Stratégie" (pistes argumentées, hypothèses à valider)
+> est entièrement couvert par les modules `strategy`/`hypotheses`/
+> `validation` livrés ce sprint et disparaît donc de la roadmap comme
+> sprint dédié — sur le même principe que l'ancien Sprint 6 "Module
+> Case" absorbé par le Sprint 4. Tout ce qui suivait l'ancien Sprint 19
+> (Agent Collaboration, Agent Veille, et toute la Phase 4/5) garde
+> exactement son numéro : l'insertion du Sprint 6 et la suppression de
+> l'ancien Sprint 19 se compensent. Le total reste fixé à 30 sprints.
+
 ## Vue d'ensemble
 
 ```mermaid
 flowchart TB
-    subgraph Phase1["Phase 1 — Socle (S1-S7)"]
+    subgraph Phase1["Phase 1 — Socle (S1-S8)"]
         S1[S1 Vision & architecture]
         S2[S2 AI Kernel]
         S3[S3 Document Intelligence Engine]
         S4[S4 Case Intelligence Engine]
         S5[S5 Legal Research Engine]
-        S6[S6 Identity & Firm]
-        S7[S7 Billing & abonnements]
+        S6[S6 Legal Reasoning Engine]
+        S7[S7 Identity & Firm]
+        S8[S8 Billing & abonnements]
     end
-    subgraph Phase2["Phase 2 — RAG & Recherche (S8-S10)"]
-        S8[S8 Module Document + Persistance]
-        S9[S9 RAG et connecteurs branchés sur données réelles]
-        S10[S10 Cache Redis en production + reranker appris]
+    subgraph Phase2["Phase 2 — RAG & Recherche (S9-S11)"]
+        S9[S9 Module Document + Persistance]
+        S10[S10 RAG et connecteurs branchés sur données réelles]
+        S11[S11 Cache Redis en production + reranker appris]
     end
-    subgraph Phase3["Phase 3 — Agents IA (S11-S21)"]
-        S11[S11 Intégration agents métier au Kernel + Agent Analyse]
-        S12[S12 Agent Synthèse narrative]
-        S13[S13 Agent Vérificateur]
-        S14[S14 Chat IA]
-        S15[S15 Agent Recherche Documentaire]
-        S16[S16 Agent Jurisprudence]
-        S17[S17 Module Contrats + Agent Contrat]
-        S18[S18 Module Rédaction + Agent Rédacteur]
-        S19[S19 Agent Stratégie]
+    subgraph Phase3["Phase 3 — Agents IA (S12-S21)"]
+        S12[S12 Intégration agents métier au Kernel + Agent Analyse]
+        S13[S13 Agent Synthèse narrative]
+        S14[S14 Agent Vérificateur]
+        S15[S15 Chat IA]
+        S16[S16 Agent Recherche Documentaire]
+        S17[S17 Agent Jurisprudence]
+        S18[S18 Module Contrats + Agent Contrat]
+        S19[S19 Module Rédaction + Agent Rédacteur]
         S20[S20 Agent Collaboration]
         S21[S21 Agent Veille]
     end
@@ -90,20 +107,20 @@ flowchart TB
 | 3 | **Document Intelligence Engine** ✅ | Socle documentaire indépendant : ingestion, OCR, mise en page, classification, métadonnées, entités, chronologie, chunking, embeddings, knowledge graph | `tmis.document_intelligence.*` | `DocumentIntelligencePipeline` (14 étapes), 14 sous-modules testés (voir docs/14-18) |
 | 4 | **Case Intelligence Engine** ✅ | Socle métier des dossiers : dossier vivant, acteurs, faits, preuves, questions juridiques, relations, résumés, recherche unifiée | `tmis.case_intelligence.*` | `CaseIntelligenceWorkflow` (dossier vivant, réactif aux événements du DIE), API REST, 12 sous-modules testés (voir docs/19-20) |
 | 5 | **Legal Research Engine** ✅ | Socle recherche documentaire indépendant : connecteurs (mock), requêtes, recherche hybride, ranking, citations, normalisation, cache 3 couches, historique, évaluation | `tmis.legal_research.*` | `ResearchOrchestrator`, API REST, 12 sous-modules testés (voir docs/21-24) |
-| 6 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
-| 7 | Billing & abonnements | Abonnements et essai gratuit | `billing` | Intégration Stripe (mode test), plans Solo/Cabinet/Entreprise |
-| 8 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4) et de l'historique de recherche (Sprint 5) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
-| 9 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
-| 10 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
-| 11 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` |
-| 12 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique |
-| 13 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | Contrôle citations/cohérence, marquage d'incertitude |
-| 14 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
-| 15 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
-| 16 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
-| 17 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions |
-| 18 | Module Rédaction | Génération de brouillons | `drafting` | Brouillons consultations/conclusions/courriers |
-| 19 | Agent Stratégie | Aide à la décision | Stratégie | Pistes argumentées, hypothèses à valider |
+| 6 | **Legal Reasoning Engine** ✅ | Socle raisonnement indépendant : hypothèses coexistantes, arguments/contre-arguments tracés, preuves, conflits, confiance expliquée, stratégies, explications, graphe de décision | `tmis.legal_reasoning.*` | `ReasoningOrchestrator`, API REST, 13 sous-modules testés (voir docs/25-27) |
+| 7 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
+| 8 | Billing & abonnements | Abonnements et essai gratuit | `billing` | Intégration Stripe (mode test), plans Solo/Cabinet/Entreprise |
+| 9 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5) et des sessions de raisonnement (Sprint 6) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
+| 10 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
+| 11 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
+| 12 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` |
+| 13 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique |
+| 14 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
+| 15 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
+| 16 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
+| 17 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
+| 18 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions |
+| 19 | Module Rédaction | Génération de brouillons | `drafting` | Brouillons consultations/conclusions/courriers, s'appuyant sur les hypothèses validées du LRE² (Sprint 6) |
 | 20 | Agent Collaboration | Travail d'équipe | `collaboration` | Commentaires, tâches, versionning, validation |
 | 21 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
 | 22 | Tableau de bord | Pilotage | `dashboard` | Vues CQRS cabinet/dossier/utilisateur |
@@ -138,3 +155,8 @@ flowchart TB
 8. Depuis le Sprint 5 : aucun agent ne recherche une source juridique ou
    documentaire directement — tout passe par `ResearchOrchestrator` (voir
    `docs/21-legal-research.md`).
+9. Depuis le Sprint 6 : aucun module métier ne construit d'hypothèses,
+   d'arguments ou de score de confiance directement — tout passe par
+   `ReasoningOrchestrator` (voir `docs/25-legal-reasoning.md`). Aucun
+   module ne produit de document juridique final ni de conclusion
+   juridique automatique.
