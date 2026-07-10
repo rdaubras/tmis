@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from typing import TypeVar, cast
 
 from tmis.ai.events.events import Event
 
@@ -20,11 +20,15 @@ class EventBus:
         self._subscribers: dict[type[Event], list[EventHandler]] = defaultdict(list)
         self._history: list[Event] = []
 
-    def subscribe(self, event_type: type[EventT], handler: EventHandler) -> None:
-        self._subscribers[event_type].append(handler)
+    def subscribe(
+        self, event_type: type[EventT], handler: Callable[[EventT], Awaitable[None]]
+    ) -> None:
+        self._subscribers[event_type].append(cast(EventHandler, handler))
 
-    def unsubscribe(self, event_type: type[EventT], handler: EventHandler) -> None:
-        self._subscribers[event_type].remove(handler)
+    def unsubscribe(
+        self, event_type: type[EventT], handler: Callable[[EventT], Awaitable[None]]
+    ) -> None:
+        self._subscribers[event_type].remove(cast(EventHandler, handler))
 
     async def publish(self, event: Event) -> None:
         self._history.append(event)

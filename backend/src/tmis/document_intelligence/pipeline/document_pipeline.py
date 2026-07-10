@@ -120,6 +120,7 @@ class DocumentIntelligencePipeline:
         *,
         document_id: str | None = None,
         source: str = "upload",
+        case_id: str | None = None,
     ) -> DocumentRecord:
         document_id = document_id or str(uuid.uuid4())
         run_id = uuid.uuid4()
@@ -179,7 +180,9 @@ class DocumentIntelligencePipeline:
             return result
 
         await self.event_bus.publish(
-            DocumentUploaded(workflow_id=run_id, document_id=document_id, filename=filename)
+            DocumentUploaded(
+                workflow_id=run_id, document_id=document_id, filename=filename, case_id=case_id
+            )
         )
 
         stage("validation", lambda: self.validator.validate(filename, raw_bytes))
@@ -291,6 +294,8 @@ class DocumentIntelligencePipeline:
         )
 
         await self.event_bus.publish(
-            DocumentProcessed(workflow_id=run_id, document_id=document_id, success=True)
+            DocumentProcessed(
+                workflow_id=run_id, document_id=document_id, success=True, case_id=case_id
+            )
         )
         return record
