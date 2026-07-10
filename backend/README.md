@@ -73,3 +73,19 @@ final legal document, and the only model call in the whole engine is
 the final synthesis, through `TMISKernel`. See
 `docs/25-legal-reasoning.md`, `docs/26-guide-nouveau-moteur-raisonnement.md`
 and `docs/27-guide-scores-confiance.md`.
+
+The **Legal Drafting Studio** (`legal_drafting/`) is TMIS's
+assisted-drafting engine: it turns what the DIE, CIE, LRE and LRE²
+already produced into a draft document — templates (nine document
+types, versioned), sections independently regenerable, paragraphs
+carrying full traceability (facts/references/evidence/hypotheses),
+citations anchored to the document/section/paragraph, a configurable
+style per firm, a review engine that only ever reports issues, a
+human-in-the-loop validation trail, versioning (snapshot/compare/
+restore), and DOCX/PDF/HTML export. It never drafts alone and never
+produces anything but a draft: `Document.is_draft` always returns
+`True`, and the only model call in the whole engine lives in the
+Paragraph Engine, through `TMISKernel`. See `docs/28-legal-drafting.md`,
+`docs/29-guide-nouveau-modele-documentaire.md`,
+`docs/30-guide-moteur-style.md`, `docs/31-guide-versioning.md` and
+`docs/32-guide-exports.md`.
