@@ -6,13 +6,15 @@ documentation, vérifier que le projet compile et fonctionne, puis
 **s'arrêter en attendant la validation** avant de passer au sprint
 suivant.
 
-> **Note de révision (après Sprint 2)** : la roadmap initiale prévoyait
+> **Note de révision (après Sprint 3)** : la roadmap initiale prévoyait
 > `Identity & Firm` au Sprint 2. Le CTO a choisi de prioriser le socle IA
-> (AI Kernel) avant toute fonctionnalité métier, y compris avant
-> l'authentification. La table ci-dessous reflète l'ordre réellement
-> exécuté ; le total reste fixé à 30 sprints (l'ancien Sprint 10
-> "Orchestrateur LangGraph" est désormais couvert par le Sprint 2 et a été
-> remplacé par un sprint d'intégration des agents métier au Kernel).
+> (Sprint 2 — AI Kernel) puis le socle documentaire (Sprint 3 — Document
+> Intelligence Engine) avant toute fonctionnalité métier, y compris avant
+> l'authentification. Le total reste fixé à 30 sprints : l'ancien
+> Sprint 10 "Orchestrateur LangGraph" est couvert par le Sprint 2, et
+> l'ancien Sprint 7 "OCR" est couvert par le Sprint 3 (le futur Sprint 7
+> "Module Document" ne porte plus que la persistance/API du
+> `DocumentRecord` produit par le Document Intelligence Engine).
 
 ## Vue d'ensemble
 
@@ -21,11 +23,11 @@ flowchart TB
     subgraph Phase1["Phase 1 — Socle (S1-S7)"]
         S1[S1 Vision & architecture]
         S2[S2 AI Kernel]
-        S3[S3 Identity & Firm]
-        S4[S4 Billing & abonnements]
-        S5[S5 Module Case]
-        S6[S6 Module Document]
-        S7[S7 OCR]
+        S3[S3 Document Intelligence Engine]
+        S4[S4 Identity & Firm]
+        S5[S5 Billing & abonnements]
+        S6[S6 Module Case]
+        S7[S7 Module Document]
     end
     subgraph Phase2["Phase 2 — RAG & Recherche (S8-S10)"]
         S8[S8 RAG branché sur données réelles]
@@ -67,16 +69,16 @@ flowchart TB
 |---|---|---|---|---|
 | 1 | Fondations | Vision, architecture, structure du dépôt | Aucun (transverse) | Documentation + squelettes backend/frontend + Docker |
 | 2 | **AI Kernel** ✅ | Socle IA indépendant : `TMISKernel`, providers, connecteurs, mémoire, cache, LangGraph, RAG (squelette), prompts, garde-fous, évaluation | `tmis.ai.*` | `TMISKernel`, workflow LangGraph de démonstration, 16 sous-modules testés (voir docs/10, 11, 12, 13) |
-| 3 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
-| 4 | Billing & abonnements | Abonnements et essai gratuit | `billing` | Intégration Stripe (mode test), plans Solo/Cabinet/Entreprise |
-| 5 | Module Case | Cycle de vie du dossier | `case` | CRUD dossiers, parties, phases, statuts |
-| 6 | Module Document | Gestion des pièces | `document` | Upload, stockage, versionning, classification |
-| 7 | OCR | Extraction de texte | `ocr` | Pipeline Celery, `OcrEnginePort`, tests d'ingestion |
+| 3 | **Document Intelligence Engine** ✅ | Socle documentaire indépendant : ingestion, OCR, mise en page, classification, métadonnées, entités, chronologie, chunking, embeddings, knowledge graph | `tmis.document_intelligence.*` | `DocumentIntelligencePipeline` (14 étapes), 14 sous-modules testés (voir docs/14-18) |
+| 4 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
+| 5 | Billing & abonnements | Abonnements et essai gratuit | `billing` | Intégration Stripe (mode test), plans Solo/Cabinet/Entreprise |
+| 6 | Module Case | Cycle de vie du dossier | `case` | CRUD dossiers, parties, phases, statuts |
+| 7 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) du pipeline DIE |
 | 8 | RAG branché sur données réelles | Remplacer les implémentations en mémoire du Sprint 2 | `tmis.ai.rag`, `tmis.ai.embeddings` | Qdrant en backend d'index, vrai modèle d'embedding |
 | 9 | Connecteurs recherche documentaire réels | Sources juridiques configurables | `tmis.ai.connectors` | Connecteurs codes/textes branchés sur de vraies sources |
 | 10 | Recherche hybride avancée | Qualité de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache` | Reranker appris, cache Redis en production |
-| 11 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel | `case_analysis`, `tmis.agents` | Reconnaissance d'entités, détection d'incohérences, agents appelant `TMISKernel.complete()` |
-| 12 | Agent Synthèse + Chronologie | Synthèses et frises | `timeline`, synthèse | Chronologie automatique + édition manuelle |
+| 11 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel et au DIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant le `DocumentRecord` |
+| 12 | Agent Synthèse + Chronologie | Synthèses et frises | `timeline`, synthèse | Chronologie automatique (bâtie sur celle du DIE) + édition manuelle |
 | 13 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | Contrôle citations/cohérence, marquage d'incertitude |
 | 14 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
 | 15 | Agent Recherche Documentaire | Intégration agent ↔ connecteurs | `legal_research` | Recherche exposée dans le chat avec citations |
@@ -109,3 +111,6 @@ flowchart TB
 5. Depuis le Sprint 2 : aucun agent ni module métier n'appelle un
    fournisseur de modèle ou un connecteur directement — tout passe par
    `TMISKernel` (voir `docs/10-ai-kernel.md`).
+6. Depuis le Sprint 3 : aucun module métier n'analyse un document
+   directement — tout passe par `DocumentIntelligencePipeline` (voir
+   `docs/14-document-intelligence.md`).

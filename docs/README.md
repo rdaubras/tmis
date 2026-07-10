@@ -17,6 +17,12 @@ architecture fonctionnelle et technique, DDD, stratégies transverses
 11. [Architecture LangGraph (Sprint 2)](./11-langgraph-architecture.md)
 12. [Architecture RAG — implémentation (Sprint 2)](./12-rag-architecture.md)
 13. [Guides d'extension (provider / agent / connecteur)](./13-guides-extension.md)
+14. [Document Intelligence Engine — architecture (Sprint 3)](./14-document-intelligence.md)
+15. [Guide : ajouter un nouveau parser](./15-guide-nouveau-parser.md)
+16. [Guide : ajouter un nouveau moteur OCR](./16-guide-nouveau-moteur-ocr.md)
+17. [Guide : ajouter un nouveau classifieur](./17-guide-nouveau-classifieur.md)
+18. [Guide : le Knowledge Graph](./18-guide-knowledge-graph.md)
 
 Pour la structure de code correspondante, voir `backend/` et `frontend/`
-à la racine du dépôt. Le noyau IA vit dans `backend/src/tmis/ai/`.
+à la racine du dépôt. Le noyau IA vit dans `backend/src/tmis/ai/`, le
+moteur documentaire dans `backend/src/tmis/document_intelligence/`.

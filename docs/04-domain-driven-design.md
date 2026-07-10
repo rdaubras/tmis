@@ -72,13 +72,21 @@ Agrégat racine : `Case`. C'est le pivot autour duquel gravitent la plupart
 des autres contextes (document, timeline, contract, drafting...).
 
 ### `document` (domaine cœur)
-Pièces déposées dans un dossier : métadonnées, versionning, classification,
-stockage. Agrégat racine : `Document`.
+Pièces déposées dans un dossier : upload, persistance, versionning,
+lien vers un dossier. À partir du Sprint 3, l'analyse d'une pièce
+(OCR, mise en page, classification, entités, chronologie, chunking,
+embeddings, knowledge graph) est déléguée au **Document Intelligence
+Engine** (`tmis.document_intelligence`, voir
+`docs/14-document-intelligence.md`) plutôt que réimplémentée ici ; ce
+bounded context ne porte que la persistance et l'exposition API du
+`DocumentRecord` qu'il produit (Sprint 7). Agrégat racine : `Document`.
 
 ### `ocr` (domaine cœur)
-Extraction de texte depuis PDF/scans/images, normalisation. Orchestré en
-tâche asynchrone Celery. Port `OcrEnginePort` interchangeable
-(Tesseract, moteur cloud...).
+Historiquement prévu pour l'extraction de texte ; ce rôle est couvert
+par `tmis.document_intelligence.ocr` depuis le Sprint 3 (`OcrEnginePort`
+interchangeable — passthrough aujourd'hui, Tesseract/moteur cloud demain).
+Ce bounded context reste réservé à une éventuelle orchestration Celery
+dédiée si le volume l'exige (Sprint 7 et au-delà).
 
 ### `case_analysis` (domaine cœur)
 Reconnaissance d'entités (personnes, sociétés, faits, dates, contrats,
@@ -193,27 +201,45 @@ backend/
 │       │   ├── synthesis_agent.py
 │       │   ├── collaboration_agent.py
 │       │   └── watch_agent.py
-│       └── ai/                         # AI Kernel (Sprint 2, docs/10-13)
+│       ├── ai/                         # AI Kernel (Sprint 2, docs/10-13)
+│       │   ├── schemas/                # Contrats partagés (base commune)
+│       │   ├── kernel/                 # TMISKernel, KernelConfig
+│       │   ├── providers/              # ProviderPort + adaptateurs
+│       │   ├── connectors/             # ConnectorPort + ConnectorManager
+│       │   ├── memory/                 # Mémoire conversation/case/workflow/user
+│       │   ├── cache/                  # CachePort (mémoire, Redis)
+│       │   ├── events/                 # EventBus + événements
+│       │   ├── prompts/                # PromptRegistry versionné
+│       │   ├── guardrails/             # Garde-fous entrée/sortie
+│       │   ├── evaluation/             # Métriques d'évaluation IA
+│       │   ├── tools/                  # ToolRegistry
+│       │   ├── embeddings/             # EmbeddingProviderPort
+│       │   ├── retrieval/              # Récupération hybride
+│       │   ├── reranking/              # Reranking
+│       │   ├── rag/                    # Pipeline RAG (ingestion → citations)
+│       │   └── langgraph/              # Graphe de démonstration du Kernel
+│       └── document_intelligence/      # Document Intelligence Engine (Sprint 3, docs/14-18)
 │           ├── schemas/                # Contrats partagés (base commune)
-│           ├── kernel/                 # TMISKernel, KernelConfig
-│           ├── providers/              # ProviderPort + adaptateurs
-│           ├── connectors/             # ConnectorPort + ConnectorManager
-│           ├── memory/                 # Mémoire conversation/case/workflow/user
-│           ├── cache/                  # CachePort (mémoire, Redis)
-│           ├── events/                 # EventBus + événements
-│           ├── prompts/                # PromptRegistry versionné
-│           ├── guardrails/             # Garde-fous entrée/sortie
-│           ├── evaluation/             # Métriques d'évaluation IA
-│           ├── tools/                  # ToolRegistry
-│           ├── embeddings/             # EmbeddingProviderPort
-│           ├── retrieval/              # Récupération hybride
-│           ├── reranking/              # Reranking
-│           ├── rag/                    # Pipeline RAG (ingestion → citations)
-│           └── langgraph/              # Graphe de démonstration du Kernel
+│           ├── ingestion/              # Parsers PDF/DOCX/TXT/image, validation, virus scan
+│           ├── ocr/                    # OcrEnginePort, détection langue/rotation
+│           ├── layout/                 # Analyse de mise en page (titres, tableaux, ...)
+│           ├── classification/         # ClassifierPort (10 catégories)
+│           ├── metadata/               # MetadataExtractorPort
+│           ├── entities/               # EntityExtractorPort (10 types)
+│           ├── timeline/               # TimelineBuilderPort
+│           ├── chunking/               # DocumentChunkerPort (structurel + taille fixe)
+│           ├── embeddings/             # Pont vers tmis.ai.embeddings/rag
+│           ├── knowledge/              # KnowledgeGraphPort (V1)
+│           ├── pipeline/               # DocumentIntelligencePipeline
+│           ├── storage/                # DocumentStorePort
+│           ├── export/                 # ExportPort (JSON)
+│           └── evaluation/             # Métriques par étape du pipeline
 └── tests/
     ├── unit/
-    │   └── ai/                         # Un test par module `tmis.ai.*`
+    │   ├── ai/                         # Un test par module `tmis.ai.*`
+    │   └── document_intelligence/      # Un test par module `tmis.document_intelligence.*`
     ├── integration/
-    │   └── ai/                         # Kernel, providers, LangGraph, events
+    │   ├── ai/                         # Kernel, providers, LangGraph, events
+    │   └── document_intelligence/      # Pipeline bout en bout, validation, performance
     └── e2e/
 ```
