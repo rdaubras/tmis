@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.strategic_intelligence.action_planner.schemas import ActionStep
+
+
+class ActionPlanStorePort(Protocol):
+    def add(self, firm_id: str, step: ActionStep) -> None: ...
+
+    def get(self, firm_id: str, step_id: str) -> ActionStep | None: ...
+
+    def remove(self, firm_id: str, step_id: str) -> None: ...
+
+    def list_for_strategy(self, firm_id: str, strategy_id: str) -> list[ActionStep]: ...
