@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.platform_sdk.extensions.schemas import ExtensionInstance
+
+
+class ExtensionStorePort(Protocol):
+    def save(self, instance: ExtensionInstance) -> None: ...
+
+    def get(self, firm_id: str, plugin_id: str) -> ExtensionInstance | None: ...
+
+    def list_for_firm(self, firm_id: str) -> list[ExtensionInstance]: ...
+
+    def list_all(self) -> list[ExtensionInstance]: ...

@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.platform_sdk.plugin_system.schemas import PluginManifest, PluginType
+
+
+class PluginRegistryPort(Protocol):
+    def register(self, manifest: PluginManifest) -> None: ...
+
+    def get(self, plugin_id: str) -> PluginManifest | None: ...
+
+    def list_all(self) -> list[PluginManifest]: ...
+
+    def list_by_type(self, plugin_type: PluginType) -> list[PluginManifest]: ...

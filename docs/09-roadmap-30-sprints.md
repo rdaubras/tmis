@@ -1,4 +1,4 @@
-# Roadmap détaillée — 32 sprints
+# Roadmap détaillée — 33 sprints
 
 > Le nombre de sprints a évolué au fil des révisions (voir notes
 > ci-dessous) ; l'intitulé et le nom de fichier d'origine ("30 sprints")
@@ -171,10 +171,11 @@ suivant.
 > de valeur "équipe IA" de TMIS — avant l'authentification réelle
 > permet de valider l'expérience complète (composition d'équipe,
 > suivi de mission, validation humaine) avec les cabinets pilotes de la
-> bêta privée déjà préparée au Sprint 10. Le Sprint 17 ("Intégration
-> agents métier + Agent Analyse") et les suivants de la Phase 3 s'appuieront
-> directement sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner`
-> plutôt que de redévelopper une orchestration multi-agents distincte.
+> bêta privée déjà préparée au Sprint 10. Le futur sprint « Intégration
+> agents métier + Agent Analyse » (voir la table détaillée pour son
+> numéro à jour) et les suivants de la Phase 3 s'appuieront directement
+> sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` plutôt que de
+> redévelopper une orchestration multi-agents distincte.
 
 > **Note de révision (après Sprint 12)** : le Sprint 12 livre le
 > **Cabinet Knowledge Engine** (`tmis.cabinet_knowledge`, docs/59-64)
@@ -194,17 +195,40 @@ suivant.
 > alignés sur les habitudes réelles du cabinet — avant
 > l'authentification réelle, pour valider cette capacité avec les
 > cabinets pilotes de la bêta privée déjà préparée au Sprint 10. Les
-> futurs Sprints 18 ("Agent Synthèse narrative") et 24 ("Module
-> Contrats + Agent Contrat") pourront s'appuyer sur
+> futurs sprints « Agent Synthèse narrative » et « Module Contrats +
+> Agent Contrat » (voir la table détaillée pour leurs numéros à jour)
+> pourront s'appuyer sur
 > `tmis.cabinet_knowledge.clauses`/`tmis.cabinet_knowledge.templates`
 > plutôt que de redévelopper une bibliothèque de clauses ou de modèles
 > distincte.
+
+> **Note de révision (après Sprint 13)** : le Sprint 13 livre le
+> **TMIS Platform SDK & Marketplace** (`tmis.platform_sdk`, docs/65-72)
+> — TMIS devient une plateforme extensible : agents IA, connecteurs,
+> workflows, modèles documentaires et outils métier tiers peuvent être
+> développés, validés, signés, publiés, installés et retirés sans
+> jamais modifier le code source principal, au travers d'API publiques
+> et d'interfaces stables. Comme les Sprints 10, 11 et 12, ce sprint ne
+> couvre par anticipation aucun sprint futur : il s'insère avant
+> `Identity & Firm`, qui glisse à nouveau d'un cran (ainsi que tous les
+> sprints suivants). **Le total passe de 32 à 33 sprints.**
+>
+> Ce choix suit la même logique que les insertions précédentes :
+> livrer l'extensibilité de la plateforme — la capacité pour un
+> cabinet pilote d'installer ses propres agents/connecteurs/workflows
+> — avant l'authentification réelle, pour valider cette capacité avec
+> les cabinets pilotes de la bêta privée déjà préparée au Sprint 10. Le
+> futur sprint « Intégration agents métier + Agent Analyse » (voir la
+> table détaillée pour son numéro à jour) pourra s'appuyer sur
+> `tmis.platform_sdk.agent_sdk` pour tout agent développé en interne,
+> plutôt que de redévelopper une seconde façon de connecter un agent au
+> Kernel.
 
 ## Vue d'ensemble
 
 ```mermaid
 flowchart TB
-    subgraph Phase1["Phase 1 — Socle (S1-S14)"]
+    subgraph Phase1["Phase 1 — Socle (S1-S15)"]
         S1[S1 Vision & architecture]
         S2[S2 AI Kernel]
         S3[S3 Document Intelligence Engine]
@@ -217,34 +241,35 @@ flowchart TB
         S10[S10 Enterprise Platform]
         S11[S11 AI Team Platform]
         S12[S12 Cabinet Knowledge Engine]
-        S13[S13 Identity & Firm]
-        S14[S14 Billing & abonnements]
+        S13[S13 Platform SDK & Marketplace]
+        S14[S14 Identity & Firm]
+        S15[S15 Billing & abonnements]
     end
-    subgraph Phase2["Phase 2 — RAG & Recherche (S15-S17)"]
-        S15[S15 Module Document + Persistance]
-        S16[S16 RAG et connecteurs branchés sur données réelles]
-        S17[S17 Cache Redis en production + reranker appris]
+    subgraph Phase2["Phase 2 — RAG & Recherche (S16-S18)"]
+        S16[S16 Module Document + Persistance]
+        S17[S17 RAG et connecteurs branchés sur données réelles]
+        S18[S18 Cache Redis en production + reranker appris]
     end
-    subgraph Phase3["Phase 3 — Agents IA (S18-S25)"]
-        S18[S18 Intégration agents métier au Kernel + Agent Analyse]
-        S19[S19 Agent Synthèse narrative]
-        S20[S20 Agent Vérificateur]
-        S21[S21 Chat IA]
-        S22[S22 Agent Recherche Documentaire]
-        S23[S23 Agent Jurisprudence]
-        S24[S24 Module Contrats + Agent Contrat]
-        S25[S25 Agent Veille]
+    subgraph Phase3["Phase 3 — Agents IA (S19-S26)"]
+        S19[S19 Intégration agents métier au Kernel + Agent Analyse]
+        S20[S20 Agent Synthèse narrative]
+        S21[S21 Agent Vérificateur]
+        S22[S22 Chat IA]
+        S23[S23 Agent Recherche Documentaire]
+        S24[S24 Agent Jurisprudence]
+        S25[S25 Module Contrats + Agent Contrat]
+        S26[S26 Agent Veille]
     end
-    subgraph Phase4["Phase 4 — Pilotage & Plateforme (S26-S28)"]
-        S26[S26 Sécurité renforcée & RGPD]
-        S27[S27 Facturation avancée — webhooks Stripe]
-        S28[S28 API publique — webhooks sortants]
+    subgraph Phase4["Phase 4 — Pilotage & Plateforme (S27-S29)"]
+        S27[S27 Sécurité renforcée & RGPD]
+        S28[S28 Facturation avancée — webhooks Stripe]
+        S29[S29 API publique — webhooks sortants]
     end
-    subgraph Phase5["Phase 5 — Qualité & Lancement (S29-S32)"]
-        S29[S29 Performance & scalabilité]
-        S30[S30 Observabilité complète]
-        S31[S31 UX polish & accessibilité]
-        S32[S32 Durcissement pré-lancement]
+    subgraph Phase5["Phase 5 — Qualité & Lancement (S30-S33)"]
+        S30[S30 Performance & scalabilité]
+        S31[S31 Observabilité complète]
+        S32[S32 UX polish & accessibilité]
+        S33[S33 Durcissement pré-lancement]
     end
     Phase1 --> Phase2 --> Phase3 --> Phase4 --> Phase5
 ```
@@ -265,26 +290,27 @@ flowchart TB
 | 10 | **Enterprise Platform** ✅ | Durcissement transverse pour la commercialisation pilote : sécurité, multi-tenant, conformité, observabilité, performance, coûts IA, feature flags, licences, sauvegarde/restauration/reprise après incident, déploiement Kubernetes — **aucune nouvelle fonctionnalité métier** | `tmis.platform.*` | 21 sous-modules, manifests Kubernetes, 136 tests dédiés, couverture globale 95,76 % (voir docs/46-52) |
 | 11 | **AI Team Platform** ✅ | TMIS devient une équipe d'agents spécialisés collaborant sur un même dossier : registre d'agents, composition d'équipe (prédéfinie ou automatique), planification, délégation, file de travail, contexte partagé limité en tokens, mémoire par agent, consensus, négociation, critique, validation humaine à chaque étape — **aucun agent n'accède directement à un fournisseur LLM** | `tmis.ai_team.*` | 18 sous-modules, API REST, 104 tests dédiés, couverture globale 95,82 % (voir docs/53-58) |
 | 12 | **Cabinet Knowledge Engine** ✅ | TMIS apprend progressivement le fonctionnement propre de chaque cabinet : Knowledge Space isolé par tenant, playbooks, clauses, modèles, patterns de raisonnement, style rédactionnel, bonnes pratiques, retours d'expérience, gouvernance (brouillon → validé → obsolète → archivé), traçabilité, qualité, recherche, recommandations explicables — **aucune connaissance n'est ajoutée sans validation humaine** | `tmis.cabinet_knowledge.*` | 18 sous-modules, API REST (25 endpoints), 81 tests dédiés, couverture globale 95,78 % (voir docs/59-64) |
-| 13 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
-| 14 | Billing & abonnements — intégration Stripe réelle | Le mécanisme (plans/quotas/essai gratuit) est déjà livré par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Intégration Stripe (mode test) derrière `PaymentGatewayPort` |
-| 15 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
-| 16 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
-| 17 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
-| 18 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11) plutôt que de redévelopper une orchestration multi-agents distincte |
-| 19 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
-| 20 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
-| 21 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
-| 22 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
-| 23 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
-| 24 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions — s'appuie sur `tmis.cabinet_knowledge.clauses`/`tmis.cabinet_knowledge.templates` (Sprint 12) plutôt que de redévelopper une bibliothèque de clauses ou de modèles distincte |
-| 25 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
-| 26 | Sécurité renforcée & RGPD | Conformité | Transverse | Droits RGPD, suppression sécurisée, audit trail complet — s'appuie sur `tmis.platform.compliance`/`tmis.platform.security` (Sprint 10) plutôt que de reconstruire ces briques |
-| 27 | Facturation avancée — webhooks Stripe réels | Les quotas d'usage sont déjà suivis par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Webhooks Stripe entrants (événements de paiement) |
-| 28 | API publique — webhooks sortants | Clés API/OAuth2/scopes/rate limiting/versionnage déjà livrés par `tmis.cabinet_os.public_api` (Sprint 9) | Transverse | Webhooks sortants vers des intégrations clientes Entreprise |
-| 29 | Performance & scalabilité | Tenue en charge | Transverse | Profiling, cache, tests de charge — s'appuie sur `tmis.platform.performance`/`tmis.platform.cache` (Sprint 10) plutôt que de reconstruire ces briques |
-| 30 | Observabilité complète | Exploitation | Transverse | Traces, métriques, dashboards, alerting — branche un exportateur réel derrière `tmis.platform.monitoring`/`tmis.platform.metrics` (Sprint 10) plutôt que de reconstruire ces briques |
-| 31 | UX polish & accessibilité | Qualité perçue | Frontend | Mode sombre, responsive, accessibilité WCAG |
-| 32 | Durcissement pré-lancement | Mise en production | Transverse | Pentest, audit RGPD final, documentation, bêta pilote |
+| 13 | **TMIS Platform SDK & Marketplace** ✅ | TMIS devient une plateforme extensible : SDK officiel (agents, connecteurs, workflows, modèles documentaires), système de plugins signés et gouvernés, sandbox d'exécution (permissions, quotas, journalisation), fondations Marketplace (catalogue, recherche, avis, installation/mise à jour/désinstallation par cabinet), CLI, portail développeur, 5 plugins d'exemple — **aucune extension n'accède directement à un fournisseur ni ne contourne les règles de sécurité de TMIS** | `tmis.platform_sdk.*` | 19 sous-modules, API REST (14 endpoints), 101 tests dédiés, couverture globale 95,72 % (voir docs/65-72) |
+| 14 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
+| 15 | Billing & abonnements — intégration Stripe réelle | Le mécanisme (plans/quotas/essai gratuit) est déjà livré par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Intégration Stripe (mode test) derrière `PaymentGatewayPort` |
+| 16 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
+| 17 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
+| 18 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
+| 19 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11) et `tmis.platform_sdk.agent_sdk` (Sprint 13) plutôt que de redévelopper une orchestration multi-agents ou une seconde façon de connecter un agent au Kernel |
+| 20 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
+| 21 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
+| 22 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
+| 23 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
+| 24 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
+| 25 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions — s'appuie sur `tmis.cabinet_knowledge.clauses`/`tmis.cabinet_knowledge.templates` (Sprint 12) plutôt que de redévelopper une bibliothèque de clauses ou de modèles distincte |
+| 26 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
+| 27 | Sécurité renforcée & RGPD | Conformité | Transverse | Droits RGPD, suppression sécurisée, audit trail complet — s'appuie sur `tmis.platform.compliance`/`tmis.platform.security` (Sprint 10) plutôt que de reconstruire ces briques |
+| 28 | Facturation avancée — webhooks Stripe réels | Les quotas d'usage sont déjà suivis par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Webhooks Stripe entrants (événements de paiement) |
+| 29 | API publique — webhooks sortants | Clés API/OAuth2/scopes/rate limiting/versionnage déjà livrés par `tmis.cabinet_os.public_api` (Sprint 9) | Transverse | Webhooks sortants vers des intégrations clientes Entreprise |
+| 30 | Performance & scalabilité | Tenue en charge | Transverse | Profiling, cache, tests de charge — s'appuie sur `tmis.platform.performance`/`tmis.platform.cache` (Sprint 10) plutôt que de reconstruire ces briques |
+| 31 | Observabilité complète | Exploitation | Transverse | Traces, métriques, dashboards, alerting — branche un exportateur réel derrière `tmis.platform.monitoring`/`tmis.platform.metrics` (Sprint 10) plutôt que de reconstruire ces briques |
+| 32 | UX polish & accessibilité | Qualité perçue | Frontend | Mode sombre, responsive, accessibilité WCAG |
+| 33 | Durcissement pré-lancement | Mise en production | Transverse | Pentest, audit RGPD final, documentation, bêta pilote |
 
 ## Règles de passage entre sprints
 
@@ -369,3 +395,16 @@ flowchart TB
     gouvernance, de l'isolation par cabinet et de la traçabilité déjà
     écrites une seule fois dans `knowledge/`, `governance/` et
     `lineage/`.
+16. Depuis le Sprint 13 : aucune extension de `tmis.platform_sdk`
+    n'accède directement à un module métier de TMIS — un plugin ne
+    reçoit que `PluginContext` (`kernel`, `events`, `permissions`) en
+    entrée de son `invoke()`, jamais un import direct d'un autre
+    bounded context. Aucun code de plugin n'est chargé dynamiquement
+    ni évalué (`eval`/`exec` interdits sur tout contenu fourni par un
+    plugin) : un workflow est toujours une définition déclarative
+    (`tmis.platform_sdk.workflow_sdk.WorkflowDefinition`), jamais une
+    chaîne de code. Un plugin ne devient exécutable qu'après être
+    passé par `tmis.platform_sdk.publishing` (validation puis
+    signature puis publication) et avoir été installé pour le cabinet
+    concerné (`tmis.platform_sdk.extensions`) — voir
+    docs/69-guide-plugins.md.
