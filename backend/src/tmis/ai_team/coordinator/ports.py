@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.ai_team.coordinator.schemas import Mission
+
+
+class MissionStorePort(Protocol):
+    def save(self, mission: Mission) -> None: ...
+
+    def get(self, mission_id: str) -> Mission | None: ...
+
+    def list_for_firm(self, firm_id: str) -> list[Mission]: ...
+
+    def list_all(self) -> list[Mission]: ...
