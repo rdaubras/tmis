@@ -1,4 +1,4 @@
-# Roadmap détaillée — 35 sprints
+# Roadmap détaillée — 36 sprints
 
 > Le nombre de sprints a évolué au fil des révisions (voir notes
 > ci-dessous) ; l'intitulé et le nom de fichier d'origine ("30 sprints")
@@ -271,11 +271,36 @@ suivant.
 > `tmis.ai_governance.overview.AIGovernancePlatform` plutôt que de
 > laisser une production sans traçabilité ni gouvernance.
 
+> **Note de révision (après Sprint 16)** : le Sprint 16 livre le
+> **Strategic Litigation & Advisory Intelligence** (SLAI,
+> `tmis.strategic_intelligence`, docs/86-91) — un moteur d'assistance
+> stratégique qui, à partir d'un dossier, génère plusieurs stratégies
+> possibles (négociation, procédurale, transactionnelle...), les
+> compare, identifie leurs risques, leurs éléments de preuve manquants
+> et leurs prochaines actions pertinentes — **le SLAI ne rend jamais de
+> décision juridique définitive** ; toute proposition reste une
+> recommandation soumise à l'analyse et à la validation d'un
+> professionnel du droit. Comme les Sprints 10 à 15, ce sprint ne
+> couvre par anticipation aucun sprint futur : il s'insère avant
+> `Identity & Firm`, qui glisse à nouveau d'un cran (ainsi que tous les
+> sprints suivants). **Le total passe de 35 à 36 sprints.**
+>
+> Ce choix suit la même logique que les insertions précédentes : livrer
+> l'assistance stratégique — la capacité pour un avocat de comparer
+> plusieurs approches argumentées avant de choisir sa ligne de défense
+> — avant l'authentification réelle, pour que les cabinets pilotes de
+> la bêta privée (préparée au Sprint 10) disposent de cette capacité
+> dès leurs premiers usages. Tout futur agent ou module métier
+> produisant une stratégie, un scénario ou une recommandation d'action
+> devra s'appuyer sur `tmis.strategic_intelligence.overview.
+> StrategicIntelligencePlatform` plutôt que de redévelopper un moteur
+> de stratégie distinct.
+
 ## Vue d'ensemble
 
 ```mermaid
 flowchart TB
-    subgraph Phase1["Phase 1 — Socle (S1-S17)"]
+    subgraph Phase1["Phase 1 — Socle (S1-S18)"]
         S1[S1 Vision & architecture]
         S2[S2 AI Kernel]
         S3[S3 Document Intelligence Engine]
@@ -291,34 +316,35 @@ flowchart TB
         S13[S13 Platform SDK & Marketplace]
         S14[S14 AI Intelligence Fabric]
         S15[S15 AI Governance & Explainability Platform]
-        S16[S16 Identity & Firm]
-        S17[S17 Billing & abonnements]
+        S16[S16 Strategic Litigation & Advisory Intelligence]
+        S17[S17 Identity & Firm]
+        S18[S18 Billing & abonnements]
     end
-    subgraph Phase2["Phase 2 — RAG & Recherche (S18-S20)"]
-        S18[S18 Module Document + Persistance]
-        S19[S19 RAG et connecteurs branchés sur données réelles]
-        S20[S20 Cache Redis en production + reranker appris]
+    subgraph Phase2["Phase 2 — RAG & Recherche (S19-S21)"]
+        S19[S19 Module Document + Persistance]
+        S20[S20 RAG et connecteurs branchés sur données réelles]
+        S21[S21 Cache Redis en production + reranker appris]
     end
-    subgraph Phase3["Phase 3 — Agents IA (S21-S28)"]
-        S21[S21 Intégration agents métier au Kernel + Agent Analyse]
-        S22[S22 Agent Synthèse narrative]
-        S23[S23 Agent Vérificateur]
-        S24[S24 Chat IA]
-        S25[S25 Agent Recherche Documentaire]
-        S26[S26 Agent Jurisprudence]
-        S27[S27 Module Contrats + Agent Contrat]
-        S28[S28 Agent Veille]
+    subgraph Phase3["Phase 3 — Agents IA (S22-S29)"]
+        S22[S22 Intégration agents métier au Kernel + Agent Analyse]
+        S23[S23 Agent Synthèse narrative]
+        S24[S24 Agent Vérificateur]
+        S25[S25 Chat IA]
+        S26[S26 Agent Recherche Documentaire]
+        S27[S27 Agent Jurisprudence]
+        S28[S28 Module Contrats + Agent Contrat]
+        S29[S29 Agent Veille]
     end
-    subgraph Phase4["Phase 4 — Pilotage & Plateforme (S29-S31)"]
-        S29[S29 Sécurité renforcée & RGPD]
-        S30[S30 Facturation avancée — webhooks Stripe]
-        S31[S31 API publique — webhooks sortants]
+    subgraph Phase4["Phase 4 — Pilotage & Plateforme (S30-S32)"]
+        S30[S30 Sécurité renforcée & RGPD]
+        S31[S31 Facturation avancée — webhooks Stripe]
+        S32[S32 API publique — webhooks sortants]
     end
-    subgraph Phase5["Phase 5 — Qualité & Lancement (S32-S35)"]
-        S32[S32 Performance & scalabilité]
-        S33[S33 Observabilité complète]
-        S34[S34 UX polish & accessibilité]
-        S35[S35 Durcissement pré-lancement]
+    subgraph Phase5["Phase 5 — Qualité & Lancement (S33-S36)"]
+        S33[S33 Performance & scalabilité]
+        S34[S34 Observabilité complète]
+        S35[S35 UX polish & accessibilité]
+        S36[S36 Durcissement pré-lancement]
     end
     Phase1 --> Phase2 --> Phase3 --> Phase4 --> Phase5
 ```
@@ -342,26 +368,27 @@ flowchart TB
 | 13 | **TMIS Platform SDK & Marketplace** ✅ | TMIS devient une plateforme extensible : SDK officiel (agents, connecteurs, workflows, modèles documentaires), système de plugins signés et gouvernés, sandbox d'exécution (permissions, quotas, journalisation), fondations Marketplace (catalogue, recherche, avis, installation/mise à jour/désinstallation par cabinet), CLI, portail développeur, 5 plugins d'exemple — **aucune extension n'accède directement à un fournisseur ni ne contourne les règles de sécurité de TMIS** | `tmis.platform_sdk.*` | 19 sous-modules, API REST (14 endpoints), 101 tests dédiés, couverture globale 95,72 % (voir docs/65-72) |
 | 14 | **AI Intelligence Fabric** ✅ | Couche d'orchestration intelligente des modèles d'IA : registre de modèles (coût/latence/scores qualité/juridique/rédaction/recherche/raisonnement), routeur explicable, planificateur de pipelines (analyse documentaire → extraction → recherche → raisonnement → rédaction → contrôle), benchmark/comparaison/consensus/fusion, critique déterministe (n'évalue jamais ne génère jamais), optimiseurs coût/latence/qualité, fallback/retry, cache, gouvernance et quotas — **toutes les interactions IA passent par la Fabric ; aucun module métier ne connaît directement un fournisseur** | `tmis.ai_fabric.*` | 26 sous-modules, API REST (20+ endpoints), 103 tests dédiés, couverture globale 96 % (voir docs/73-79) |
 | 15 | **AI Governance & Explainability Platform** ✅ | Garantit que chaque décision, recommandation ou brouillon IA reste explicable, traçable, gouverné et auditable : chaîne de raisonnement visualisable (Question→...→Brouillon), provenance à 4 niveaux de granularité, score de confiance décomposé en 5 facteurs, risques classés par gravité, détection de biais/hallucinations extensible (n'efface jamais de contenu), politiques configurables par cabinet, validation humaine simple/multiple/hiérarchique, audit IA spécialisé, rapports de gouvernance — **aucune production IA n'est considérée comme définitive sans respecter les politiques du cabinet** | `tmis.ai_governance.*` | 18 sous-modules, API REST (30+ endpoints), 90 tests dédiés, couverture globale 96,13 % (voir docs/80-85) |
-| 16 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
-| 17 | Billing & abonnements — intégration Stripe réelle | Le mécanisme (plans/quotas/essai gratuit) est déjà livré par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Intégration Stripe (mode test) derrière `PaymentGatewayPort` |
-| 18 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
-| 19 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
-| 20 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
-| 21 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle et `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, ou une gouvernance de production parallèle |
-| 22 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
-| 23 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
-| 24 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
-| 25 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
-| 26 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
-| 27 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions — s'appuie sur `tmis.cabinet_knowledge.clauses`/`tmis.cabinet_knowledge.templates` (Sprint 12) plutôt que de redévelopper une bibliothèque de clauses ou de modèles distincte |
-| 28 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
-| 29 | Sécurité renforcée & RGPD | Conformité | Transverse | Droits RGPD, suppression sécurisée, audit trail complet — s'appuie sur `tmis.platform.compliance`/`tmis.platform.security` (Sprint 10) plutôt que de reconstruire ces briques |
-| 30 | Facturation avancée — webhooks Stripe réels | Les quotas d'usage sont déjà suivis par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Webhooks Stripe entrants (événements de paiement) |
-| 31 | API publique — webhooks sortants | Clés API/OAuth2/scopes/rate limiting/versionnage déjà livrés par `tmis.cabinet_os.public_api` (Sprint 9) | Transverse | Webhooks sortants vers des intégrations clientes Entreprise |
-| 32 | Performance & scalabilité | Tenue en charge | Transverse | Profiling, cache, tests de charge — s'appuie sur `tmis.platform.performance`/`tmis.platform.cache` (Sprint 10) plutôt que de reconstruire ces briques |
-| 33 | Observabilité complète | Exploitation | Transverse | Traces, métriques, dashboards, alerting — branche un exportateur réel derrière `tmis.platform.monitoring`/`tmis.platform.metrics` (Sprint 10) plutôt que de reconstruire ces briques |
-| 34 | UX polish & accessibilité | Qualité perçue | Frontend | Mode sombre, responsive, accessibilité WCAG |
-| 35 | Durcissement pré-lancement | Mise en production | Transverse | Pentest, audit RGPD final, documentation, bêta pilote |
+| 16 | **Strategic Litigation & Advisory Intelligence** ✅ | Génère plusieurs stratégies possibles à partir d'un dossier (négociation, prud'homale, transactionnelle, procédurale), les compare, identifie leurs risques, leurs éléments de preuve manquants et leurs prochaines actions pertinentes — laboratoire d'hypothèses historisé, matrice de risques configurable, scénarios what-if, plan d'action modifiable, comparaison sans vainqueur désigné, vraisemblance qualitative sur des sous-éléments, simulation structurelle, réutilisation des playbooks/recommandations/validation existants — **le SLAI ne rend jamais de décision juridique définitive et aucune prédiction de résultat de procès n'est présentée comme certaine** | `tmis.strategic_intelligence.*` | 17 sous-modules, API REST (24 endpoints), 56 tests dédiés, couverture globale 95,95 % (voir docs/86-91) |
+| 17 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
+| 18 | Billing & abonnements — intégration Stripe réelle | Le mécanisme (plans/quotas/essai gratuit) est déjà livré par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Intégration Stripe (mode test) derrière `PaymentGatewayPort` |
+| 19 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
+| 20 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
+| 21 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
+| 22 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle, `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, et `tmis.strategic_intelligence.overview.StrategicIntelligencePlatform` (Sprint 16) pour toute proposition de stratégie, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, une gouvernance de production parallèle, ou un moteur de stratégie distinct |
+| 23 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
+| 24 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
+| 25 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
+| 26 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
+| 27 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
+| 28 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions — s'appuie sur `tmis.cabinet_knowledge.clauses`/`tmis.cabinet_knowledge.templates` (Sprint 12) plutôt que de redévelopper une bibliothèque de clauses ou de modèles distincte |
+| 29 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
+| 30 | Sécurité renforcée & RGPD | Conformité | Transverse | Droits RGPD, suppression sécurisée, audit trail complet — s'appuie sur `tmis.platform.compliance`/`tmis.platform.security` (Sprint 10) plutôt que de reconstruire ces briques |
+| 31 | Facturation avancée — webhooks Stripe réels | Les quotas d'usage sont déjà suivis par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Webhooks Stripe entrants (événements de paiement) |
+| 32 | API publique — webhooks sortants | Clés API/OAuth2/scopes/rate limiting/versionnage déjà livrés par `tmis.cabinet_os.public_api` (Sprint 9) | Transverse | Webhooks sortants vers des intégrations clientes Entreprise |
+| 33 | Performance & scalabilité | Tenue en charge | Transverse | Profiling, cache, tests de charge — s'appuie sur `tmis.platform.performance`/`tmis.platform.cache` (Sprint 10) plutôt que de reconstruire ces briques |
+| 34 | Observabilité complète | Exploitation | Transverse | Traces, métriques, dashboards, alerting — branche un exportateur réel derrière `tmis.platform.monitoring`/`tmis.platform.metrics` (Sprint 10) plutôt que de reconstruire ces briques |
+| 35 | UX polish & accessibilité | Qualité perçue | Frontend | Mode sombre, responsive, accessibilité WCAG |
+| 36 | Durcissement pré-lancement | Mise en production | Transverse | Pentest, audit RGPD final, documentation, bêta pilote |
 
 ## Règles de passage entre sprints
 
@@ -493,3 +520,23 @@ flowchart TB
     `tmis.cabinet_knowledge.governance.GovernanceEngine` (statut d'une
     connaissance, Sprint 12) — trois portées différentes, jamais
     confondues.
+19. Depuis le Sprint 16 : aucun module de
+    `tmis.strategic_intelligence` ne rend de décision juridique
+    définitive ni ne présente une prédiction de résultat de procès
+    comme certaine (voir docs/86-architecture-strategic-intelligence.md).
+    `probability.ProbabilityAssessment` ne porte qu'une vraisemblance
+    qualitative sur un sous-élément d'une stratégie, jamais sur
+    l'issue globale d'un dossier ; `simulation.SimulationResult` est
+    purement structurel et ne contient aucun champ de score,
+    probabilité ou issue. `decision_support.StrategyComparison` et
+    `tradeoffs.TradeoffAnalysis` ne désignent jamais de stratégie
+    "gagnante" ou "recommandée" — seul l'avocat choisit. Trois
+    sous-modules réutilisent directement des moteurs existants plutôt
+    que de les redévelopper : `playbooks` enveloppe
+    `tmis.cabinet_knowledge.playbooks.PlaybookEngine`,
+    `recommendations` compose
+    `tmis.cabinet_knowledge.recommendations.RecommendationEngine`, et
+    `review` enveloppe
+    `tmis.ai_governance.human_validation.HumanValidationEngine` —
+    aucun de ces trois sous-modules ne doit jamais réimplémenter la
+    logique qu'il enveloppe.
