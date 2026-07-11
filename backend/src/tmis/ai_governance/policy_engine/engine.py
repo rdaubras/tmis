@@ -1,8 +1,10 @@
 from tmis.ai_governance.policy_engine.ports import GovernancePolicyStorePort
 from tmis.ai_governance.policy_engine.schemas import (
+    GovernancePolicy,
     GovernancePolicyType,
     PolicyEvaluation,
     PolicyEvaluationContext,
+    new_governance_policy_id,
     new_policy_evaluation_id,
 )
 
@@ -16,6 +18,34 @@ class PolicyEngine:
 
     def __init__(self, store: GovernancePolicyStorePort) -> None:
         self._store = store
+
+    def create_policy(
+        self,
+        firm_id: str,
+        policy_type: GovernancePolicyType,
+        reason: str,
+        *,
+        min_confidence: float | None = None,
+        forbidden_model_name: str | None = None,
+        case_type: str | None = None,
+    ) -> GovernancePolicy:
+        policy = GovernancePolicy(
+            id=new_governance_policy_id(),
+            firm_id=firm_id,
+            type=policy_type,
+            reason=reason,
+            min_confidence=min_confidence,
+            forbidden_model_name=forbidden_model_name,
+            case_type=case_type,
+        )
+        self._store.add(policy)
+        return policy
+
+    def list_policies(self, firm_id: str) -> list[GovernancePolicy]:
+        return self._store.list_for_firm(firm_id)
+
+    def deactivate_policy(self, policy_id: str) -> None:
+        self._store.deactivate(policy_id)
 
     def evaluate(self, context: PolicyEvaluationContext) -> PolicyEvaluation:
         reasons: list[str] = []
