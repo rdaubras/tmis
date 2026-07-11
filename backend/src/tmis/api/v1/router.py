@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from tmis.ai_fabric.api.routes import router as ai_fabric_router
 from tmis.ai_team.api.routes import router as ai_team_router
 from tmis.api.v1.case.routes import router as case_router
 from tmis.api.v1.case_intelligence.routes import router as case_intelligence_router
@@ -24,3 +25,4 @@ api_router.include_router(cabinet_os_router)
 api_router.include_router(ai_team_router)
 api_router.include_router(cabinet_knowledge_router)
 api_router.include_router(platform_sdk_router)
+api_router.include_router(ai_fabric_router)

@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.ai_fabric.quotas.schemas import Quota
+
+
+class QuotaStorePort(Protocol):
+    def set_quota(self, quota: Quota) -> None: ...
+
+    def get_quota(self, scope: str, scope_id: str) -> Quota | None: ...
+
+    def record_call(self, scope: str, scope_id: str) -> None: ...
+
+    def calls_in_period(self, scope: str, scope_id: str, period_days: int) -> int: ...

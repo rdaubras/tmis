@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.ai_fabric.policies.schemas import Policy
+
+
+class PolicyStorePort(Protocol):
+    def add(self, policy: Policy) -> None: ...
+
+    def list_for_model(self, model_name: str) -> list[Policy]: ...
+
+    def list_all(self) -> list[Policy]: ...
+
+    def deactivate(self, policy_id: str) -> None: ...

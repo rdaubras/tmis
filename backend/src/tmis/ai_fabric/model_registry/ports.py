@@ -1,0 +1,19 @@
+from typing import Protocol
+
+from tmis.ai_fabric.capabilities.schemas import Capability
+from tmis.ai_fabric.model_profiles.schemas import ModelProfile
+from tmis.ai_fabric.model_registry.schemas import ModelDescriptor
+
+
+class ModelRegistryPort(Protocol):
+    def register(self, descriptor: ModelDescriptor) -> None: ...
+
+    def get(self, name: str) -> ModelDescriptor | None: ...
+
+    def list_all(self) -> list[ModelDescriptor]: ...
+
+    def list_by_capability(self, capability: Capability) -> list[ModelDescriptor]: ...
+
+    def list_by_profile(self, profile: ModelProfile) -> list[ModelDescriptor]: ...
+
+    def set_availability(self, name: str, available: bool) -> None: ...
