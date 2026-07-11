@@ -14,6 +14,7 @@ from tmis.legal_reasoning.api.routes import router as legal_reasoning_router
 from tmis.legal_research.api.routes import router as legal_research_router
 from tmis.platform_sdk.api.routes import router as platform_sdk_router
 from tmis.strategic_intelligence.api.routes import router as strategic_intelligence_router
+from tmis.workflow_automation.api.routes import router as workflow_automation_router
 
 api_router = APIRouter()
 api_router.include_router(health_router)
@@ -30,3 +31,4 @@ api_router.include_router(platform_sdk_router)
 api_router.include_router(ai_fabric_router)
 api_router.include_router(ai_governance_router)
 api_router.include_router(strategic_intelligence_router)
+api_router.include_router(workflow_automation_router)
