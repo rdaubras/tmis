@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     license_signing_key: str = "change-me-in-production"
+    plugin_signing_key: str = "change-me-in-production"
     backup_storage_dir: str = "var/backups"
 
     default_model_provider: str = "openai"
