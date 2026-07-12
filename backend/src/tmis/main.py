@@ -15,6 +15,7 @@ from tmis.platform.security.headers import (
     SecurityHeadersMiddleware,
     validate_cors_origins,
 )
+from tmis.runtime_platform.api.routes import router as runtime_platform_router
 
 settings = get_settings()
 configure_logging(debug=settings.debug)
@@ -46,6 +47,7 @@ app.middleware("http")(SecurityHeadersMiddleware())
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 app.include_router(platform_router)
 app.include_router(cloud_operations_router)
+app.include_router(runtime_platform_router)
 
 
 @app.get("/")

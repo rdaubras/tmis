@@ -12,6 +12,7 @@ from tmis.legal_research.ranking.configurable_ranker import ConfigurableRanker
 from tmis.legal_research.search.hybrid_search import HybridResearchSearch
 from tmis.legal_research.search.orchestrator import ResearchOrchestrator
 from tmis.legal_research.sources.registry import SourceRegistry
+from tmis.runtime_platform.distributed_cache.engine import DistributedCacheEngine
 
 
 @lru_cache
@@ -35,7 +36,7 @@ def get_research_orchestrator() -> ResearchOrchestrator:
         normalizer=SourceNormalizer(),
         ranker=ConfigurableRanker(source_registry),
         citation_engine=CitationEngine(),
-        cache=ResearchCache(kernel.cache),
+        cache=ResearchCache(DistributedCacheEngine(kernel.cache)),
         history=InMemoryResearchHistory(),
         evaluator=ResearchEvaluator(),
     )

@@ -16,6 +16,15 @@ class ProductionChaosTestingForbiddenError(RuntimeError):
     production sans autorisation explicite")."""
 
 
+def ensure_chaos_authorized(environment: str, authorized: bool, scenario_name: str) -> None:
+    """The production safety guard, extracted so
+    `runtime_platform.chaos_engineering.RuntimeChaosEngine` (Sprint
+    23) can apply the exact same rule to its own additional scenarios
+    instead of re-deriving or weakening it."""
+    if environment == "production" and not authorized:
+        raise ProductionChaosTestingForbiddenError(scenario_name)
+
+
 class ChaosTestingEngine:
     """Resilience test architecture simulating the four failure types
     the sprint asks for. Each scenario forces the matching named
@@ -32,8 +41,7 @@ class ChaosTestingEngine:
     def run_scenario(
         self, scenario: ChaosScenarioType, *, authorized: bool = False
     ) -> ChaosScenarioResult:
-        if self._environment == "production" and not authorized:
-            raise ProductionChaosTestingForbiddenError(scenario.value)
+        ensure_chaos_authorized(self._environment, authorized, scenario.value)
         dependency = _DEPENDENCY_FOR_SCENARIO[scenario]
         self._resilience.force_open(dependency)
         detail = f"Forced circuit '{dependency}' open to simulate {scenario.value}"
