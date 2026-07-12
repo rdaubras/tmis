@@ -2,6 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from tmis.ai_governance.human_validation.schemas import ValidationDecisionType
+from tmis.business_platform.bootstrap import get_business_quota_engine, get_metering_engine
+from tmis.business_platform.metering.engine import MeteringEngine
+from tmis.business_platform.metering.schemas import MeteredDimension
+from tmis.business_platform.quotas.engine import BusinessQuotaEngine
+from tmis.business_platform.quotas.schemas import QuotaDimension
 from tmis.identity_platform.api.guard import authorize_or_403
 from tmis.identity_platform.permissions.schemas import Permission
 from tmis.workflow_automation.action_engine.schemas import Action, new_action_id
@@ -301,12 +306,24 @@ async def start_execution(
     payload: ExecutionStartRequest,
     workflow_engine: WorkflowEngine = Depends(get_workflow_engine),
     execution_engine: ExecutionEngine = Depends(get_execution_engine),
+    business_quotas: BusinessQuotaEngine = Depends(get_business_quota_engine),
+    metering: MeteringEngine = Depends(get_metering_engine),
 ) -> ExecutionResponse:
     try:
         workflow = workflow_engine.get(payload.firm_id, payload.workflow_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        used = metering.total_for_dimension(payload.firm_id, MeteredDimension.WORKFLOWS_EXECUTED)
+        result = business_quotas.check(payload.firm_id, QuotaDimension.WORKFLOWS, int(used))
+        if not result.allowed:
+            raise HTTPException(
+                status_code=429, detail="workflow execution quota exceeded for this firm's plan"
+            )
+    except KeyError:
+        pass  # firm has no business_platform subscription yet — not gated
     execution = await execution_engine.start(workflow, payload.context)
+    metering.record(payload.firm_id, MeteredDimension.WORKFLOWS_EXECUTED, 1)
     return ExecutionResponse(
         id=execution.id,
         firm_id=execution.firm_id,

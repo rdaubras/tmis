@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.business_platform.plans.schemas import Plan, PlanName
+
+
+class PlanStorePort(Protocol):
+    def save(self, plan: Plan) -> None: ...
+
+    def get(self, plan_id: str) -> Plan | None: ...
+
+    def list_versions(self, name: PlanName) -> list[Plan]: ...
+
+    def list_latest(self) -> list[Plan]: ...

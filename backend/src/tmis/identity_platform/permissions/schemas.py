@@ -18,3 +18,4 @@ class Permission(StrEnum):
     ORGANIZATION_MANAGE = "organization.manage"
     USER_MANAGE = "user.manage"
     SECRET_MANAGE = "secret.manage"
+    BUSINESS_PLATFORM_MANAGE = "business_platform.manage"
