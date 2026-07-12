@@ -1,4 +1,4 @@
-# Référence API — Cloud Operations & Observability Platform (Sprint 21)
+# Référence API — Cloud Operations & Observability Platform (Sprint 21 + 22)
 
 Base path : `/cloud-operations` — **délibérément hors** de
 `/api/v1`, **non authentifié**, monté directement sur `app` dans
@@ -30,6 +30,28 @@ opérationnelle, pas une API métier versionnée ».
 | GET | `/runbooks/{slug}` | Détail d'un runbook (404 si inconnu) |
 | GET | `/diagnostics` | Rapport composé santé/performance/erreurs/trace (`?firm_id=&trace_id=`) |
 | POST | `/chaos/{scenario}` | Exécute un scénario de chaos testing (`?authorized=`) |
+
+### Sprint 22 — 14 endpoints supplémentaires
+
+| Méthode | Chemin | Description |
+|---|---|---|
+| GET | `/audit/{firm_id}` | Timeline d'audit fusionnée (sécurité + IA + workflow), triée par date |
+| GET | `/cost/{firm_id}` | Snapshot de coût IA (par modèle, par utilisateur, franchissements de seuil) |
+| GET | `/ai-quality/{firm_id}` | Snapshot télémétrie modèle (délégué à `ai_fabric.telemetry`) |
+| POST | `/ai-quality/{firm_id}/scan` | Scanne un texte (`?text=`) pour hallucination/biais et historise les incidents détectés |
+| GET | `/ai-quality/incidents/recent` | Derniers incidents qualité IA historisés (`?limit=`) |
+| GET | `/workflow-monitoring` | Snapshot agrégé des exécutions de workflow (durée, erreurs, annulations) |
+| GET | `/integration-monitoring` | Vue d'ensemble par connecteur (opérations, taux de réussite, durée) |
+| GET | `/tenants/{firm_id}` | Snapshot tenant (MRR, coût IA, quotas, incidents ouverts) — 404 si le cabinet n'a pas d'abonnement |
+| GET | `/security-monitoring` | Vue d'ensemble plateforme des événements de sécurité par type |
+| GET | `/retention/{category}` | Politique de rétention pour une catégorie de données d'observabilité |
+| POST | `/retention/{category}` | Définit la rétention (`?retention_days=`) pour une catégorie |
+| GET | `/exports/incidents` | Exporte les incidents (`?export_format=csv\|json&firm_id=`) |
+| GET | `/exports/metrics/{category}` | Exporte l'historique d'une catégorie de métrique (`?export_format=`) |
+
+Voir docs/126-architecture-cloud-operations-sprint22.md pour le détail
+architectural de ces 9 sous-modules et docs/127 à docs/131 pour les
+guides associés.
 
 Les fonctions de route retournent des `dict[str, object]` directement
 (pas de couche `schemas.py` Pydantic dédiée), sur le même patron que

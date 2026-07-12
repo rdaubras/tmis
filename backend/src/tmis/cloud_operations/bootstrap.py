@@ -1,22 +1,43 @@
 from functools import lru_cache
 
-from tmis.ai_fabric.bootstrap import get_fallback_engine, get_model_registry, get_quality_optimizer
-from tmis.business_platform.bootstrap import get_analytics_engine, get_subscription_engine
+from tmis.ai_fabric.bootstrap import (
+    get_fallback_engine,
+    get_model_registry,
+    get_quality_optimizer,
+    get_telemetry_dashboard,
+)
+from tmis.ai_governance.bootstrap import (
+    get_ai_audit_engine,
+    get_bias_detection_engine,
+    get_hallucination_detection_engine,
+)
+from tmis.business_platform.bootstrap import (
+    get_analytics_engine,
+    get_export_engine,
+    get_subscription_engine,
+    get_usage_engine,
+)
+from tmis.cloud_operations.ai_monitoring.engine import AIMonitoringEngine
+from tmis.cloud_operations.ai_monitoring.store import InMemoryAIQualityIncidentStore
 from tmis.cloud_operations.alerting.engine import AlertingEngine
 from tmis.cloud_operations.alerting.store import InMemoryAlertEventStore, InMemoryAlertRuleStore
+from tmis.cloud_operations.audit_pipeline.engine import AuditPipelineEngine
 from tmis.cloud_operations.cache.engine import CacheObservabilityEngine
 from tmis.cloud_operations.capacity.engine import CapacityEngine
 from tmis.cloud_operations.chaos_testing.engine import ChaosTestingEngine
+from tmis.cloud_operations.cost_monitoring.engine import CostMonitoringEngine
 from tmis.cloud_operations.dashboards.engine import DashboardsEngine
 from tmis.cloud_operations.diagnostics.engine import DiagnosticsEngine
 from tmis.cloud_operations.error_tracking.engine import ErrorTrackingEngine
 from tmis.cloud_operations.error_tracking.store import InMemoryErrorEventStore
+from tmis.cloud_operations.exports.engine import ObservabilityExportEngine
 from tmis.cloud_operations.health_checks.engine import register_business_context_health_checks
 from tmis.cloud_operations.incident_management.engine import IncidentManagementEngine
 from tmis.cloud_operations.incident_management.store import (
     InMemoryIncidentStore,
     InMemoryIncidentUpdateStore,
 )
+from tmis.cloud_operations.integration_monitoring.engine import IntegrationMonitoringEngine
 from tmis.cloud_operations.logging.engine import LoggingGovernanceEngine
 from tmis.cloud_operations.logging.store import InMemoryLogRetentionPolicyStore
 from tmis.cloud_operations.metrics.engine import MetricsEngine
@@ -26,29 +47,43 @@ from tmis.cloud_operations.profiling.engine import ProfilingEngine
 from tmis.cloud_operations.profiling.store import InMemoryProfilingSampleStore
 from tmis.cloud_operations.queue_monitoring.engine import QueueObservabilityEngine
 from tmis.cloud_operations.resilience.engine import CircuitBreaker
+from tmis.cloud_operations.retention.engine import RetentionEngine
+from tmis.cloud_operations.retention.store import InMemoryObservabilityRetentionPolicyStore
 from tmis.cloud_operations.runbooks.engine import RunbooksEngine
+from tmis.cloud_operations.security_monitoring.engine import SecurityMonitoringEngine
 from tmis.cloud_operations.sla.engine import SLAEngine
 from tmis.cloud_operations.sla.store import InMemorySLASampleStore, InMemorySLATargetStore
 from tmis.cloud_operations.slo.engine import SLOEngine
 from tmis.cloud_operations.slo.store import InMemorySLOTargetStore
 from tmis.cloud_operations.telemetry.engine import TelemetryEngine
 from tmis.cloud_operations.telemetry.store import InMemoryTelemetryEventStore
+from tmis.cloud_operations.tenant_monitoring.engine import TenantMonitoringEngine
 from tmis.cloud_operations.tracing.engine import TracingEngine
 from tmis.cloud_operations.tracing.store import InMemorySpanStore
+from tmis.cloud_operations.workflow_monitoring.engine import WorkflowMonitoringEngine
 from tmis.collaboration.bootstrap import get_notification_engine
 from tmis.core.config import get_settings
 from tmis.identity_platform.bootstrap import (
     get_authorization_engine,
     get_identity_monitoring_engine,
+    get_security_audit_engine,
+    get_security_event_bus,
 )
-from tmis.integration_hub.bootstrap import get_connector_registry_engine
-from tmis.platform.cost_control.bootstrap import get_cost_tracker_engine
+from tmis.integration_hub.bootstrap import (
+    get_connector_metrics_sink,
+    get_connector_registry_engine,
+)
+from tmis.platform.cost_control.bootstrap import get_cost_entry_store, get_cost_tracker_engine
 from tmis.platform.health.bootstrap import get_health_check_engine
 from tmis.platform.health.engine import HealthCheckEngine
 from tmis.platform.metrics.bootstrap import get_metrics_registry
 from tmis.platform.monitoring.bootstrap import get_monitoring_engine
 from tmis.platform_sdk.bootstrap import get_plugin_registry
-from tmis.workflow_automation.bootstrap import get_workflow_engine
+from tmis.workflow_automation.bootstrap import (
+    get_workflow_audit_engine,
+    get_workflow_engine,
+    get_workflow_metrics_sink,
+)
 
 
 @lru_cache
@@ -192,3 +227,58 @@ def get_circuit_breaker() -> CircuitBreaker:
 @lru_cache
 def get_chaos_testing_engine() -> ChaosTestingEngine:
     return ChaosTestingEngine(get_settings().environment, get_circuit_breaker())
+
+
+@lru_cache
+def get_audit_pipeline_engine() -> AuditPipelineEngine:
+    return AuditPipelineEngine(
+        get_security_audit_engine(), get_ai_audit_engine(), get_workflow_audit_engine()
+    )
+
+
+@lru_cache
+def get_cost_monitoring_engine() -> CostMonitoringEngine:
+    return CostMonitoringEngine(get_cost_tracker_engine(), get_cost_entry_store())
+
+
+@lru_cache
+def get_ai_monitoring_engine() -> AIMonitoringEngine:
+    return AIMonitoringEngine(
+        get_hallucination_detection_engine(),
+        get_bias_detection_engine(),
+        InMemoryAIQualityIncidentStore(),
+        get_metrics_engine(),
+        get_telemetry_dashboard,
+    )
+
+
+@lru_cache
+def get_workflow_monitoring_engine() -> WorkflowMonitoringEngine:
+    return WorkflowMonitoringEngine(get_workflow_metrics_sink())
+
+
+@lru_cache
+def get_integration_monitoring_engine() -> IntegrationMonitoringEngine:
+    return IntegrationMonitoringEngine(get_connector_metrics_sink())
+
+
+@lru_cache
+def get_tenant_monitoring_engine() -> TenantMonitoringEngine:
+    return TenantMonitoringEngine(
+        get_analytics_engine(), get_usage_engine(), get_incident_management_engine()
+    )
+
+
+@lru_cache
+def get_security_monitoring_engine() -> SecurityMonitoringEngine:
+    return SecurityMonitoringEngine(get_security_event_bus())
+
+
+@lru_cache
+def get_retention_engine() -> RetentionEngine:
+    return RetentionEngine(InMemoryObservabilityRetentionPolicyStore())
+
+
+@lru_cache
+def get_observability_export_engine() -> ObservabilityExportEngine:
+    return ObservabilityExportEngine(get_export_engine())

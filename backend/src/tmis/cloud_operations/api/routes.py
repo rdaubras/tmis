@@ -1,25 +1,38 @@
 from fastapi import APIRouter, Depends, HTTPException
 
+from tmis.ai_fabric.telemetry.schemas import FabricTelemetry
+from tmis.business_platform.exports.schemas import ExportFormat
+from tmis.cloud_operations.ai_monitoring.engine import AIMonitoringEngine
 from tmis.cloud_operations.alerting.engine import AlertingEngine, UnknownAlertRuleError
 from tmis.cloud_operations.alerting.schemas import AlertComparison, AlertSeverity
+from tmis.cloud_operations.audit_pipeline.engine import AuditPipelineEngine
 from tmis.cloud_operations.bootstrap import (
     ensure_business_context_health_checks_registered,
+    get_ai_monitoring_engine,
     get_alerting_engine,
+    get_audit_pipeline_engine,
     get_cache_observability_engine,
     get_capacity_engine,
     get_chaos_testing_engine,
+    get_cost_monitoring_engine,
     get_dashboards_engine,
     get_diagnostics_engine,
     get_error_tracking_engine,
     get_incident_management_engine,
+    get_integration_monitoring_engine,
     get_metrics_engine,
+    get_observability_export_engine,
     get_performance_engine,
     get_profiling_engine,
     get_queue_observability_engine,
+    get_retention_engine,
     get_runbooks_engine,
+    get_security_monitoring_engine,
     get_sla_engine,
     get_slo_engine,
+    get_tenant_monitoring_engine,
     get_tracing_engine,
+    get_workflow_monitoring_engine,
 )
 from tmis.cloud_operations.cache.engine import CacheObservabilityEngine
 from tmis.cloud_operations.capacity.engine import CapacityEngine
@@ -28,25 +41,33 @@ from tmis.cloud_operations.chaos_testing.engine import (
     ProductionChaosTestingForbiddenError,
 )
 from tmis.cloud_operations.chaos_testing.schemas import ChaosScenarioType
+from tmis.cloud_operations.cost_monitoring.engine import CostMonitoringEngine
 from tmis.cloud_operations.dashboards.engine import DashboardsEngine
 from tmis.cloud_operations.diagnostics.engine import DiagnosticsEngine
 from tmis.cloud_operations.error_tracking.engine import ErrorTrackingEngine
+from tmis.cloud_operations.exports.engine import ObservabilityExportEngine
 from tmis.cloud_operations.incident_management.engine import (
     IncidentManagementEngine,
     UnknownIncidentError,
 )
 from tmis.cloud_operations.incident_management.schemas import IncidentSeverity
+from tmis.cloud_operations.integration_monitoring.engine import IntegrationMonitoringEngine
 from tmis.cloud_operations.metrics.engine import MetricsEngine
 from tmis.cloud_operations.metrics.schemas import MetricCategory
 from tmis.cloud_operations.performance.engine import PerformanceEngine
 from tmis.cloud_operations.profiling.engine import ProfilingEngine
 from tmis.cloud_operations.profiling.schemas import ProfilingFindingType
 from tmis.cloud_operations.queue_monitoring.engine import QueueObservabilityEngine
+from tmis.cloud_operations.retention.engine import RetentionEngine
+from tmis.cloud_operations.retention.schemas import ObservabilityDataCategory
 from tmis.cloud_operations.runbooks.engine import RunbooksEngine
+from tmis.cloud_operations.security_monitoring.engine import SecurityMonitoringEngine
 from tmis.cloud_operations.sla.engine import SLAEngine
 from tmis.cloud_operations.sla.schemas import SLAMetricType
 from tmis.cloud_operations.slo.engine import SLOEngine
+from tmis.cloud_operations.tenant_monitoring.engine import TenantMonitoringEngine
 from tmis.cloud_operations.tracing.engine import TracingEngine
+from tmis.cloud_operations.workflow_monitoring.engine import WorkflowMonitoringEngine
 from tmis.platform.health.schemas import HealthStatus
 
 router = APIRouter(prefix="/cloud-operations", tags=["cloud-operations"])
@@ -398,3 +419,196 @@ def run_chaos_scenario(
             detail=f"chaos scenario '{exc}' forbidden in production without authorization",
         ) from exc
     return {"scenario": result.scenario.value, "detail": result.detail}
+
+
+@router.get("/audit/{firm_id}")
+def audit_timeline(
+    firm_id: str, engine: AuditPipelineEngine = Depends(get_audit_pipeline_engine)
+) -> list[dict[str, object]]:
+    return [
+        {
+            "source": e.source.value,
+            "action": e.action,
+            "summary": e.summary,
+            "occurred_at": e.occurred_at.isoformat(),
+        }
+        for e in engine.timeline(firm_id)
+    ]
+
+
+@router.get("/cost/{firm_id}")
+def cost_snapshot(
+    firm_id: str, engine: CostMonitoringEngine = Depends(get_cost_monitoring_engine)
+) -> dict[str, object]:
+    snapshot = engine.snapshot(firm_id)
+    return {
+        "firm_id": snapshot.firm_id,
+        "total_cost_usd": snapshot.total_cost_usd,
+        "cost_by_model": snapshot.cost_by_model,
+        "cost_by_user": snapshot.cost_by_user,
+        "cache_hit_rate": snapshot.cache_hit_rate,
+        "breach_count": snapshot.breach_count,
+    }
+
+
+def _fabric_telemetry_response(telemetry: FabricTelemetry) -> dict[str, object]:
+    return {
+        "fallback_rate": telemetry.fallback_rate,
+        "cache_hit_rate": telemetry.cache_hit_rate,
+        "models": [
+            {
+                "model_name": m.model_name,
+                "quality_score": m.quality_score,
+                "average_latency_ms": m.average_latency_ms,
+                "cost_per_1k_tokens_usd": m.cost_per_1k_tokens_usd,
+                "error_rate": m.error_rate,
+                "total_calls": m.total_calls,
+            }
+            for m in telemetry.models
+        ],
+    }
+
+
+@router.get("/ai-quality/{firm_id}")
+def ai_model_snapshot(
+    firm_id: str, engine: AIMonitoringEngine = Depends(get_ai_monitoring_engine)
+) -> dict[str, object]:
+    return _fabric_telemetry_response(engine.model_snapshot(firm_id))
+
+
+@router.post("/ai-quality/{firm_id}/scan")
+def ai_quality_scan(
+    firm_id: str, text: str, engine: AIMonitoringEngine = Depends(get_ai_monitoring_engine)
+) -> list[dict[str, object]]:
+    incidents = engine.scan_and_record(text, firm_id=firm_id)
+    return [{"kind": i.kind.value, "excerpt": i.excerpt, "detail": i.detail} for i in incidents]
+
+
+@router.get("/ai-quality/incidents/recent")
+def ai_quality_recent_incidents(
+    limit: int = 50, engine: AIMonitoringEngine = Depends(get_ai_monitoring_engine)
+) -> list[dict[str, object]]:
+    return [
+        {
+            "kind": i.kind.value,
+            "excerpt": i.excerpt,
+            "detail": i.detail,
+            "firm_id": i.firm_id,
+            "detected_at": i.detected_at.isoformat(),
+        }
+        for i in engine.recent_incidents(limit)
+    ]
+
+
+@router.get("/workflow-monitoring")
+def workflow_monitoring_snapshot(
+    engine: WorkflowMonitoringEngine = Depends(get_workflow_monitoring_engine),
+) -> dict[str, object]:
+    snapshot = engine.snapshot()
+    return {
+        "total_runs": snapshot.total_runs,
+        "average_duration_ms": snapshot.average_duration_ms,
+        "total_errors": snapshot.total_errors,
+        "total_retries": snapshot.total_retries,
+        "total_validations": snapshot.total_validations,
+        "total_cancellations": snapshot.total_cancellations,
+    }
+
+
+@router.get("/integration-monitoring")
+def integration_monitoring_overview(
+    engine: IntegrationMonitoringEngine = Depends(get_integration_monitoring_engine),
+) -> list[dict[str, object]]:
+    return [
+        {
+            "connector_id": s.connector_id,
+            "total_operations": s.total_operations,
+            "success_rate": s.success_rate,
+            "average_duration_ms": s.average_duration_ms,
+        }
+        for s in engine.overview()
+    ]
+
+
+@router.get("/tenants/{firm_id}")
+def tenant_monitoring_snapshot(
+    firm_id: str, engine: TenantMonitoringEngine = Depends(get_tenant_monitoring_engine)
+) -> dict[str, object]:
+    try:
+        snapshot = engine.snapshot(firm_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="firm has no subscription") from exc
+    return {
+        "firm_id": snapshot.firm_id,
+        "monthly_recurring_revenue_usd": snapshot.monthly_recurring_revenue_usd,
+        "total_ai_cost_usd": snapshot.total_ai_cost_usd,
+        "active_modules_count": snapshot.active_modules_count,
+        "open_incidents_count": snapshot.open_incidents_count,
+        "quota_usage": [
+            {
+                "dimension": u.dimension.value,
+                "used": u.used,
+                "limit": u.limit,
+                "percent_used": u.percent_used,
+            }
+            for u in snapshot.quota_usage
+        ],
+    }
+
+
+@router.get("/security-monitoring")
+def security_monitoring_overview(
+    engine: SecurityMonitoringEngine = Depends(get_security_monitoring_engine),
+) -> dict[str, object]:
+    snapshot = engine.overview()
+    return {"total_events": snapshot.total_events, "events_by_type": snapshot.events_by_type}
+
+
+@router.get("/retention/{category}")
+def retention_for_category(
+    category: ObservabilityDataCategory, engine: RetentionEngine = Depends(get_retention_engine)
+) -> dict[str, object]:
+    return {"category": category.value, "retention_days": engine.retention_for(category)}
+
+
+@router.post("/retention/{category}")
+def set_retention_for_category(
+    category: ObservabilityDataCategory,
+    retention_days: int,
+    engine: RetentionEngine = Depends(get_retention_engine),
+) -> dict[str, object]:
+    policy = engine.set_retention(category, retention_days)
+    return {"category": policy.category.value, "retention_days": policy.retention_days}
+
+
+@router.get("/exports/incidents")
+def export_incidents(
+    export_format: ExportFormat = ExportFormat.CSV,
+    firm_id: str | None = None,
+    incidents_engine: IncidentManagementEngine = Depends(get_incident_management_engine),
+    export_engine: ObservabilityExportEngine = Depends(get_observability_export_engine),
+) -> dict[str, str]:
+    incidents = incidents_engine.open_incidents(firm_id)
+    result = export_engine.export_incidents(incidents, export_format)
+    return {
+        "filename": result.filename,
+        "media_type": result.media_type,
+        "content": result.content.decode("utf-8"),
+    }
+
+
+@router.get("/exports/metrics/{category}")
+def export_metrics(
+    category: MetricCategory,
+    export_format: ExportFormat = ExportFormat.CSV,
+    firm_id: str | None = None,
+    metrics_engine: MetricsEngine = Depends(get_metrics_engine),
+    export_engine: ObservabilityExportEngine = Depends(get_observability_export_engine),
+) -> dict[str, str]:
+    events = metrics_engine.history_for_category(category, firm_id)
+    result = export_engine.export_metrics(events, export_format)
+    return {
+        "filename": result.filename,
+        "media_type": result.media_type,
+        "content": result.content.decode("utf-8"),
+    }
