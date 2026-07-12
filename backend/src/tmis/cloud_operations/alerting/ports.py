@@ -1,0 +1,19 @@
+from typing import Protocol
+
+from tmis.cloud_operations.alerting.schemas import AlertEvent, AlertRule
+
+
+class AlertRuleStorePort(Protocol):
+    def save(self, rule: AlertRule) -> None: ...
+
+    def get(self, rule_id: str) -> AlertRule | None: ...
+
+    def list_active(self, firm_id: str | None = None) -> list[AlertRule]: ...
+
+
+class AlertEventStorePort(Protocol):
+    def save(self, event: AlertEvent) -> None: ...
+
+    def list_for_firm(self, firm_id: str | None) -> list[AlertEvent]: ...
+
+    def list_all(self) -> list[AlertEvent]: ...

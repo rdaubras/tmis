@@ -1,0 +1,19 @@
+from typing import Protocol
+
+from tmis.cloud_operations.incident_management.schemas import Incident, IncidentUpdate
+
+
+class IncidentStorePort(Protocol):
+    def save(self, incident: Incident) -> None: ...
+
+    def get(self, incident_id: str) -> Incident | None: ...
+
+    def list_open(self, firm_id: str | None = None) -> list[Incident]: ...
+
+    def list_all(self, firm_id: str | None = None) -> list[Incident]: ...
+
+
+class IncidentUpdateStorePort(Protocol):
+    def save(self, update: IncidentUpdate) -> None: ...
+
+    def list_for_incident(self, incident_id: str) -> list[IncidentUpdate]: ...
