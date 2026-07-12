@@ -9,11 +9,13 @@ from tmis.api.v1.health.routes import router as health_router
 from tmis.cabinet_knowledge.api.routes import router as cabinet_knowledge_router
 from tmis.cabinet_os.api.routes import router as cabinet_os_router
 from tmis.collaboration.api.routes import router as collaboration_router
+from tmis.integration_hub.api.routes import router as integration_hub_router
 from tmis.legal_drafting.api.routes import router as legal_drafting_router
 from tmis.legal_reasoning.api.routes import router as legal_reasoning_router
 from tmis.legal_research.api.routes import router as legal_research_router
 from tmis.platform_sdk.api.routes import router as platform_sdk_router
 from tmis.strategic_intelligence.api.routes import router as strategic_intelligence_router
+from tmis.workflow_automation.api.routes import router as workflow_automation_router
 
 api_router = APIRouter()
 api_router.include_router(health_router)
@@ -30,3 +32,5 @@ api_router.include_router(platform_sdk_router)
 api_router.include_router(ai_fabric_router)
 api_router.include_router(ai_governance_router)
 api_router.include_router(strategic_intelligence_router)
+api_router.include_router(workflow_automation_router)
+api_router.include_router(integration_hub_router)

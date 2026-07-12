@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.workflow_automation.workflow_engine.schemas import Workflow
+
+
+class WorkflowStorePort(Protocol):
+    def add(self, workflow: Workflow) -> None: ...
+
+    def get(self, firm_id: str, workflow_id: str) -> Workflow | None: ...
+
+    def list_versions(self, firm_id: str, workflow_key: str) -> list[Workflow]: ...
+
+    def list_for_firm(self, firm_id: str) -> list[Workflow]: ...
