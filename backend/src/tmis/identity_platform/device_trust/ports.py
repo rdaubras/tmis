@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.identity_platform.device_trust.schemas import Device
+
+
+class DeviceStorePort(Protocol):
+    def save(self, device: Device) -> None: ...
+
+    def get(self, firm_id: str, device_id: str) -> Device | None: ...
+
+    def list_for_user(self, firm_id: str, user_id: str) -> list[Device]: ...
+
+    def list_for_firm(self, firm_id: str) -> list[Device]: ...

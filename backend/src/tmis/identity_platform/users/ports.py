@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.identity_platform.users.schemas import User
+
+
+class UserStorePort(Protocol):
+    def save(self, user: User) -> None: ...
+
+    def get(self, firm_id: str, user_id: str) -> User | None: ...
+
+    def get_by_email(self, firm_id: str, email: str) -> User | None: ...
+
+    def list_for_firm(self, firm_id: str) -> list[User]: ...

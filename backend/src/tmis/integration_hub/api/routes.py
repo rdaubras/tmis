@@ -3,6 +3,8 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from tmis.identity_platform.api.guard import authorize_or_403
+from tmis.identity_platform.permissions.schemas import Permission
 from tmis.integration_hub.api.schemas import (
     ComponentHealthResponse,
     ConnectorConfigurationRequest,
@@ -107,6 +109,8 @@ def set_connector_configuration(
         descriptor = registry.get_descriptor(connector_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if payload.actor_id is not None:
+        authorize_or_403(payload.firm_id, payload.actor_id, Permission.ORGANIZATION_MANAGE)
     try:
         configuration = config_engine.set_configuration(
             connector_id, payload.firm_id, payload.values, descriptor

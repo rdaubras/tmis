@@ -350,6 +350,30 @@ suivant.
 > `tmis.integration_hub.connector_framework.ConnectorPort` plutôt que
 > de redévelopper un client d'intégration ad hoc.
 
+> **Note de révision (après Sprint 19)** : le Sprint 19 livre l'**Enterprise
+> Identity & Trust Platform** (EITP, `tmis.identity_platform`,
+> docs/103-110) au créneau déjà réservé pour `Identity & Firm` — ce
+> sprint ne s'insère donc pas, il occupe la place prévue depuis la
+> révision post-Sprint 4, et **le total reste fixé à 38 sprints**. Il
+> livre nettement plus que ce que l'intitulé d'origine laissait
+> présager : authentification complète (OAuth2, OpenID Connect, MFA,
+> WebAuthn/passkeys, passwordless, magic link), hiérarchie tenant
+> complète (organisation/départements/équipes/utilisateurs), moteur
+> d'autorisation Zero Trust (RBAC → ABAC → politiques, jamais d'accès
+> implicite), gestion des sessions/appareils, délégation et
+> impersonation journalisées, coffre-fort de secrets, bus d'événements
+> de sécurité et audit, moteur de risque, conformité RGPD et
+> configuration par cabinet. Tous les modules construits depuis le
+> Sprint 2 doivent désormais passer par cette plateforme pour toute
+> action sensible ; ce sprint migre 5 points d'entrée représentatifs
+> (`workflow_automation.decide_approval`,
+> `ai_governance.decide_validation`,
+> `cabinet_knowledge.decide_validation_request`,
+> `integration_hub.set_connector_configuration`,
+> `ai_team.launch_mission`) et documente le reste comme travail de
+> migration progressif (voir docs/109-guide-migration-identity-platform.md)
+> plutôt que de réécrire chaque endpoint existant en un seul sprint.
+
 ## Vue d'ensemble
 
 ```mermaid
@@ -373,7 +397,7 @@ flowchart TB
         S16[S16 Strategic Litigation & Advisory Intelligence]
         S17[S17 Autonomous Legal Workflow Platform]
         S18[S18 Legal Integration Hub]
-        S19[S19 Identity & Firm]
+        S19[S19 Enterprise Identity & Trust Platform]
         S20[S20 Billing & abonnements]
     end
     subgraph Phase2["Phase 2 — RAG & Recherche (S21-S23)"]
@@ -427,7 +451,7 @@ flowchart TB
 | 16 | **Strategic Litigation & Advisory Intelligence** ✅ | Génère plusieurs stratégies possibles à partir d'un dossier (négociation, prud'homale, transactionnelle, procédurale), les compare, identifie leurs risques, leurs éléments de preuve manquants et leurs prochaines actions pertinentes — laboratoire d'hypothèses historisé, matrice de risques configurable, scénarios what-if, plan d'action modifiable, comparaison sans vainqueur désigné, vraisemblance qualitative sur des sous-éléments, simulation structurelle, réutilisation des playbooks/recommandations/validation existants — **le SLAI ne rend jamais de décision juridique définitive et aucune prédiction de résultat de procès n'est présentée comme certaine** | `tmis.strategic_intelligence.*` | 17 sous-modules, API REST (24 endpoints), 56 tests dédiés, couverture globale 95,95 % (voir docs/86-91) |
 | 17 | **Autonomous Legal Workflow Platform** ✅ | Automatise les processus métier d'un cabinet grâce à des workflows pilotés par événements (import de document → analyse, création d'audience → checklist, échéance → tâches/notifications, brouillon validé → circuit de signature) : moteur de workflows versionné, déclencheurs extensibles (7 types), moteur de règles/conditions configurable sans code, moteur d'actions journalisé, validation humaine des actions critiques, exécution séquentielle/parallèle avec retry/timeout/reprise, rollback des actions réversibles, simulation sur données fictives, bibliothèque de 6 modèles personnalisables, audit spécialisé — **le système ne remplace jamais l'avocat dans les décisions juridiques ; il n'automatise que les tâches administratives, documentaires, organisationnelles et les analyses préparatoires** | `tmis.workflow_automation.*` | 17 sous-modules, API REST (24 endpoints), 60 tests dédiés, couverture globale 95,70 % (voir docs/92-96) |
 | 18 | **Legal Integration Hub** ✅ | Connecte TMIS à l'écosystème applicatif d'un cabinet (messagerie, agenda, stockage documentaire, signature électronique, GED, facturation, CRM) sans dépendance forte à un fournisseur : framework et registre de connecteurs, authentification multi-méthode, synchronisation configurable (pull/push/bidirectionnelle, full/incrémentale), mapping et transformation de champs, résolution de conflits (local/remote/last-write/validation humaine), webhooks entrants/sortants signés HMAC, pont vers `tmis.workflow_automation`, file/planification/retry dédiés, supervision et sandbox par connecteur, SDK développeur, 7 connecteurs de référence — **le LIH ne contient aucune logique métier propre à un fournisseur ; le cabinet reste maître de ses données** | `tmis.integration_hub.*` | 19 sous-modules, API REST (13 endpoints), 92 tests dédiés, couverture globale 95,81 % (97 % sur le module, voir docs/97-102) |
-| 19 | Identity & Firm | Authentification, multi-tenant, RBAC | `identity`, `firm` | OAuth2, MFA, gestion cabinet/utilisateurs, tests d'isolation tenant |
+| 19 | **Enterprise Identity & Trust Platform** ✅ | Socle de sécurité, d'identité, de gouvernance et de confiance de TMIS : authentification complète (OAuth2 authorization code, OpenID Connect, MFA TOTP, WebAuthn/passkeys, passwordless, magic link), hiérarchie tenant (Organisation → Départements → Équipes → Utilisateurs), autorisation RBAC + ABAC + politiques configurables (Zero Trust — jamais d'accès implicite), gestionnaire de sessions et d'appareils de confiance, délégation temporaire et impersonation journalisées, coffre-fort de secrets chiffrés, bus d'événements de sécurité, audit, moteur de risque, conformité RGPD, configuration et tableau de bord par cabinet | `tmis.identity_platform.*` | 32 sous-modules, API REST (35+ endpoints), 69 tests dédiés, migration réelle de 5 endpoints sensibles dans `workflow_automation`/`ai_governance`/`cabinet_knowledge`/`integration_hub`/`ai_team` (voir docs/103-110) |
 | 20 | Billing & abonnements — intégration Stripe réelle | Le mécanisme (plans/quotas/essai gratuit) est déjà livré par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Intégration Stripe (mode test) derrière `PaymentGatewayPort` |
 | 21 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
 | 22 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
@@ -648,3 +672,40 @@ flowchart TB
     `IntegrationEventReceived` sur `WorkflowEventBus` — c'est
     précisément son rôle de pont, pas une exception à la règle
     d'isolation entre bounded contexts.
+22. Depuis le Sprint 19 : aucun module ne peut plus être utilisé sans
+    passer par l'Enterprise Identity & Trust Platform
+    (`tmis.identity_platform`, voir
+    docs/103-architecture-identity-platform.md) — toutes les
+    autorisations passent par `authorization.AuthorizationEngine.check`
+    (Zero Trust : jamais d'accès implicite), qui combine RBAC → ABAC →
+    politiques configurables du cabinet, chaque couche pouvant refuser
+    ce que la précédente a accordé, jamais l'inverse.
+    `identity_platform.roles.Role` (firm-wide : PARTNER/ASSOCIATE/
+    COUNSEL/PARALEGAL/ASSISTANT/IT_ADMIN) reste distinct de
+    `tmis.collaboration.roles.Role` (rôles d'un espace de travail,
+    Sprint 8) — même principe que les collisions `GovernanceEngine`/
+    `PolicyEngine` déjà actées ; `identity_platform.policy_engine.
+    PolicyEngine` en est la quatrième occurrence, gouvernant cette
+    fois l'autorisation d'accès. `identity_platform.oauth2.
+    OAuth2Client` (Authorization Code, connexion utilisateur) reste
+    distinct de `cabinet_os.public_api.OAuthClient` (Client
+    Credentials, accès machine-à-machine, Sprint 9) — deux grant types
+    OAuth2 différents, jamais confondus.
+    `identity_platform.tenant_context` réutilise directement
+    `tmis.platform.security.tenant_isolation.TenantContext` (Sprint
+    10) plutôt que de redévelopper l'isolation multi-tenant ;
+    `identity_platform.secret_manager` compose `tmis.platform.
+    security.encryption`/`secrets_rotation` (Sprint 10, même
+    convention que `integration_hub.security`, Sprint 18) ;
+    `identity_platform.risk_engine` compose `tmis.platform.
+    rate_limiting.brute_force.BruteForceProtector` (Sprint 10) ;
+    `identity_platform.compliance` enregistre les données du module
+    (utilisateurs, sessions, appareils, délégations) comme sources
+    auprès de `tmis.platform.compliance.ComplianceEngine` (Sprint 10)
+    plutôt que de réimplémenter l'export/suppression RGPD — aucun de
+    ces modules ne doit jamais redévelopper la brique qu'il compose.
+    Cinq points d'entrée existants ont été migrés ce sprint pour
+    démontrer le passage effectif par la plateforme (voir
+    docs/109-guide-migration-identity-platform.md) ; les endpoints
+    restants suivent le même schéma d'intégration au fil de leurs
+    prochaines évolutions.

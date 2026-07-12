@@ -14,6 +14,7 @@ class ConnectorResponse(BaseModel):
 class ConnectorConfigurationRequest(BaseModel):
     firm_id: str
     values: dict[str, str]
+    actor_id: str | None = None
 
 
 class ConnectorConfigurationResponse(BaseModel):

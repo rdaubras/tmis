@@ -44,6 +44,7 @@ class MissionCreateRequest(BaseModel):
     request_description: str
     team_id: str
     case_type: str = "full_case_analysis"
+    requested_by: str | None = None
 
 
 class SubTaskResponse(BaseModel):

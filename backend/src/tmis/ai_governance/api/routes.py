@@ -95,6 +95,8 @@ from tmis.ai_governance.reasoning_chain.schemas import ChainStageType
 from tmis.ai_governance.risk_engine.engine import RiskEngine
 from tmis.ai_governance.traceability.engine import TraceabilityEngine
 from tmis.ai_governance.traceability.schemas import TraceEntryKind
+from tmis.identity_platform.api.guard import authorize_or_403
+from tmis.identity_platform.permissions.schemas import Permission
 
 router = APIRouter(prefix="/ai-governance", tags=["ai-governance"])
 
@@ -564,6 +566,7 @@ def decide_validation(
     request: ValidationDecisionRequest,
     engine: HumanValidationEngine = Depends(get_human_validation_engine),
 ) -> ValidationRequestResponse:
+    authorize_or_403(request.firm_id, request.approver_id, Permission.STRATEGY_DRAFT_VALIDATE)
     try:
         result = engine.decide(
             request.firm_id,
