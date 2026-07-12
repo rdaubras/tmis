@@ -1,0 +1,19 @@
+from typing import Protocol
+
+from tmis.business_platform.licenses.schemas import FloatingLicensePool, LicenseGrant
+
+
+class LicenseGrantStorePort(Protocol):
+    def save(self, grant: LicenseGrant) -> None: ...
+
+    def get(self, firm_id: str, grant_id: str) -> LicenseGrant | None: ...
+
+    def list_for_firm(self, firm_id: str) -> list[LicenseGrant]: ...
+
+    def list_for_holder(self, firm_id: str, holder_id: str) -> list[LicenseGrant]: ...
+
+
+class FloatingPoolStorePort(Protocol):
+    def save(self, pool: FloatingLicensePool) -> None: ...
+
+    def get(self, firm_id: str) -> FloatingLicensePool | None: ...

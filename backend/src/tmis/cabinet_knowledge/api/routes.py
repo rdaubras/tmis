@@ -1,5 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 
+from tmis.business_platform.bootstrap import (
+    CABINET_KNOWLEDGE_QUALITY_FLAG_KEY,
+    get_business_feature_flag_engine,
+)
+from tmis.business_platform.feature_flags.engine import BusinessFeatureFlagEngine
+from tmis.business_platform.feature_flags.schemas import BusinessFlagContext
 from tmis.cabinet_knowledge.api.schemas import (
     ApprovalPublishRequest,
     BestPracticeCreateRequest,
@@ -316,7 +322,11 @@ def evaluate_quality(
     firm_id: str,
     quality: QualityEngine = Depends(get_quality_engine),
     knowledge_space: KnowledgeSpace = Depends(get_knowledge_space),
+    flags: BusinessFeatureFlagEngine = Depends(get_business_feature_flag_engine),
 ) -> KnowledgeObjectResponse:
+    context = BusinessFlagContext(firm_id=firm_id)
+    if not flags.is_enabled(CABINET_KNOWLEDGE_QUALITY_FLAG_KEY, context):
+        raise HTTPException(status_code=403, detail="quality evaluation is disabled for this firm")
     try:
         quality.evaluate_and_store(firm_id, object_id)
     except KeyError as exc:

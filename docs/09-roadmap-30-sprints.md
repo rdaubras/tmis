@@ -374,6 +374,34 @@ suivant.
 > migration progressif (voir docs/109-guide-migration-identity-platform.md)
 > plutôt que de réécrire chaque endpoint existant en un seul sprint.
 
+> **Note de révision (après Sprint 20)** : le Sprint 20 livre la **SaaS
+> Business Platform** (`tmis.business_platform`, docs/111-117) au
+> créneau réservé pour `Billing & abonnements` — ce sprint ne s'insère
+> donc pas, **le total reste fixé à 38 sprints**. Il livre nettement
+> plus que ce que l'intitulé d'origine (« intégration Stripe réelle »)
+> laissait présager : cinq plans commerciaux versionnés, quatre types
+> de licence, sept dimensions de quota, métrologie IA historisée,
+> facturation d'abonnement indépendante de tout prestataire de
+> paiement (compose `cabinet_os.billing`, Sprint 9), feature flags
+> étendus (environnement/groupe/fenêtre/expérimentation, compose
+> `platform.feature_flags`, Sprint 10), activation par bounded
+> context, portail client agrégé, abonnements Marketplace payants
+> (compose `platform_sdk.marketplace`, Sprint 13), dashboard
+> commercial. Tous les modules métier peuvent désormais interroger
+> les quotas/modules/feature flags de la plateforme avant d'agir ; ce
+> sprint migre 4 points d'entrée représentatifs
+> (`ai_fabric.route_request`, `workflow_automation.start_execution`,
+> `integration_hub.set_connector_configuration`,
+> `cabinet_knowledge.evaluate_quality`) et documente le reste comme
+> travail de migration progressif (voir
+> docs/116-guide-migration-business-platform.md) plutôt que de
+> réécrire chaque endpoint existant en un seul sprint. L'intégration
+> Stripe réelle elle-même reste un choix de production différé — le
+> système reste "indépendant d'un prestataire de paiement" par
+> conception (`PaymentGatewayPort`, Sprint 9), une intégration réelle
+> pouvant être branchée derrière ce port sans modification du reste
+> de la plateforme.
+
 ## Vue d'ensemble
 
 ```mermaid
@@ -398,7 +426,7 @@ flowchart TB
         S17[S17 Autonomous Legal Workflow Platform]
         S18[S18 Legal Integration Hub]
         S19[S19 Enterprise Identity & Trust Platform]
-        S20[S20 Billing & abonnements]
+        S20[S20 SaaS Business Platform]
     end
     subgraph Phase2["Phase 2 — RAG & Recherche (S21-S23)"]
         S21[S21 Module Document + Persistance]
@@ -452,7 +480,7 @@ flowchart TB
 | 17 | **Autonomous Legal Workflow Platform** ✅ | Automatise les processus métier d'un cabinet grâce à des workflows pilotés par événements (import de document → analyse, création d'audience → checklist, échéance → tâches/notifications, brouillon validé → circuit de signature) : moteur de workflows versionné, déclencheurs extensibles (7 types), moteur de règles/conditions configurable sans code, moteur d'actions journalisé, validation humaine des actions critiques, exécution séquentielle/parallèle avec retry/timeout/reprise, rollback des actions réversibles, simulation sur données fictives, bibliothèque de 6 modèles personnalisables, audit spécialisé — **le système ne remplace jamais l'avocat dans les décisions juridiques ; il n'automatise que les tâches administratives, documentaires, organisationnelles et les analyses préparatoires** | `tmis.workflow_automation.*` | 17 sous-modules, API REST (24 endpoints), 60 tests dédiés, couverture globale 95,70 % (voir docs/92-96) |
 | 18 | **Legal Integration Hub** ✅ | Connecte TMIS à l'écosystème applicatif d'un cabinet (messagerie, agenda, stockage documentaire, signature électronique, GED, facturation, CRM) sans dépendance forte à un fournisseur : framework et registre de connecteurs, authentification multi-méthode, synchronisation configurable (pull/push/bidirectionnelle, full/incrémentale), mapping et transformation de champs, résolution de conflits (local/remote/last-write/validation humaine), webhooks entrants/sortants signés HMAC, pont vers `tmis.workflow_automation`, file/planification/retry dédiés, supervision et sandbox par connecteur, SDK développeur, 7 connecteurs de référence — **le LIH ne contient aucune logique métier propre à un fournisseur ; le cabinet reste maître de ses données** | `tmis.integration_hub.*` | 19 sous-modules, API REST (13 endpoints), 92 tests dédiés, couverture globale 95,81 % (97 % sur le module, voir docs/97-102) |
 | 19 | **Enterprise Identity & Trust Platform** ✅ | Socle de sécurité, d'identité, de gouvernance et de confiance de TMIS : authentification complète (OAuth2 authorization code, OpenID Connect, MFA TOTP, WebAuthn/passkeys, passwordless, magic link), hiérarchie tenant (Organisation → Départements → Équipes → Utilisateurs), autorisation RBAC + ABAC + politiques configurables (Zero Trust — jamais d'accès implicite), gestionnaire de sessions et d'appareils de confiance, délégation temporaire et impersonation journalisées, coffre-fort de secrets chiffrés, bus d'événements de sécurité, audit, moteur de risque, conformité RGPD, configuration et tableau de bord par cabinet | `tmis.identity_platform.*` | 32 sous-modules, API REST (35+ endpoints), 69 tests dédiés, migration réelle de 5 endpoints sensibles dans `workflow_automation`/`ai_governance`/`cabinet_knowledge`/`integration_hub`/`ai_team` (voir docs/103-110) |
-| 20 | Billing & abonnements — intégration Stripe réelle | Le mécanisme (plans/quotas/essai gratuit) est déjà livré par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Intégration Stripe (mode test) derrière `PaymentGatewayPort` |
+| 20 | **SaaS Business Platform** ✅ | Exploitation commerciale de TMIS en mode SaaS multi-cabinet : abonnements (5 plans versionnés), licences (4 types), quotas (7 dimensions), consommation IA historisée, facturation indépendante d'un prestataire de paiement (compose `cabinet_os.billing`), feature flags (4 dimensions supplémentaires sur le socle Sprint 10), activation par module, portail client agrégé, abonnements Marketplace payants, dashboard commercial — migration de 4 endpoints représentatifs (`ai_fabric.route_request`, `workflow_automation.start_execution`, `integration_hub.set_connector_configuration`, `cabinet_knowledge.evaluate_quality`) | `tmis.business_platform.*` | 20 sous-modules, API REST (20 endpoints), 52 tests dédiés, migration réelle de 4 endpoints dans `ai_fabric`/`workflow_automation`/`integration_hub`/`cabinet_knowledge` (voir docs/111-117) |
 | 21 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
 | 22 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
 | 23 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
@@ -707,5 +735,35 @@ flowchart TB
     Cinq points d'entrée existants ont été migrés ce sprint pour
     démontrer le passage effectif par la plateforme (voir
     docs/109-guide-migration-identity-platform.md) ; les endpoints
+    restants suivent le même schéma d'intégration au fil de leurs
+    prochaines évolutions.
+23. Depuis le Sprint 20 : tout module métier peut interroger la SaaS
+    Business Platform (`tmis.business_platform`, voir
+    docs/111-architecture-business-platform.md) avant d'agir — quotas
+    (`quotas.BusinessQuotaEngine`, 7 dimensions), activation par
+    module (`modules.ModuleRegistry`), feature flags étendus
+    (`feature_flags.BusinessFeatureFlagEngine`). `business_platform.
+    plans.PlanName` (5 tiers, versionné) reste distinct de
+    `cabinet_os.subscriptions.PlanTier` (Sprint 9, 3 tiers) — même
+    principe de coexistence documentée que les collisions
+    `GovernanceEngine`/`PolicyEngine` déjà actées ;
+    `business_platform.licenses.LicenseType`/`LicenseGrant` (licence
+    individuelle par détenteur, 4 types) reste distinct de
+    `platform.licensing.License` (Sprint 10, une licence signée par
+    cabinet). `business_platform.billing`/`payments` composent
+    `cabinet_os.billing.BillingEngine` (Sprint 9) ; `business_platform.
+    quotas`/`metering` composent `ai_fabric.quotas.QuotaEngine`/
+    `ai_fabric.token_manager.TokenManager` (Sprint 14) ; `business_
+    platform.licenses` compose `platform.licensing.signing.
+    LicenseKeySigner` (Sprint 10) ; `business_platform.feature_flags`
+    compose `platform.feature_flags.FeatureFlagEngine` (Sprint 10) ;
+    `business_platform.marketplace_subscriptions` compose
+    `platform_sdk.marketplace.MarketplaceEngine` (Sprint 13) ;
+    `business_platform.customer_portal` compose `identity_platform.
+    users`/`roles` (Sprint 19) — aucun de ces modules ne doit jamais
+    redévelopper la brique qu'il compose. Quatre points d'entrée
+    existants ont été migrés ce sprint pour démontrer l'application
+    effective des quotas/modules/feature flags (voir
+    docs/116-guide-migration-business-platform.md) ; les endpoints
     restants suivent le même schéma d'intégration au fil de leurs
     prochaines évolutions.

@@ -3,6 +3,9 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from tmis.business_platform.bootstrap import get_module_registry
+from tmis.business_platform.modules.engine import ModuleRegistry
+from tmis.business_platform.modules.schemas import TmisModule
 from tmis.identity_platform.api.guard import authorize_or_403
 from tmis.identity_platform.permissions.schemas import Permission
 from tmis.integration_hub.api.schemas import (
@@ -104,6 +107,7 @@ def set_connector_configuration(
     payload: ConnectorConfigurationRequest,
     registry: ConnectorRegistryEngine = Depends(get_connector_registry_engine),
     config_engine: ConfigurationEngine = Depends(get_configuration_engine),
+    modules: ModuleRegistry = Depends(get_module_registry),
 ) -> ConnectorConfigurationResponse:
     try:
         descriptor = registry.get_descriptor(connector_id)
@@ -111,6 +115,13 @@ def set_connector_configuration(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if payload.actor_id is not None:
         authorize_or_403(payload.firm_id, payload.actor_id, Permission.ORGANIZATION_MANAGE)
+    try:
+        if not modules.is_active(payload.firm_id, TmisModule.INTEGRATION_HUB):
+            raise HTTPException(
+                status_code=409, detail="integration_hub module is not active for this firm"
+            )
+    except KeyError:
+        pass  # firm has no business_platform subscription yet — not gated
     try:
         configuration = config_engine.set_configuration(
             connector_id, payload.firm_id, payload.values, descriptor

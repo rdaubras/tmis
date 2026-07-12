@@ -6,6 +6,7 @@ from tmis.ai_team.api.routes import router as ai_team_router
 from tmis.api.v1.case.routes import router as case_router
 from tmis.api.v1.case_intelligence.routes import router as case_intelligence_router
 from tmis.api.v1.health.routes import router as health_router
+from tmis.business_platform.api.routes import router as business_platform_router
 from tmis.cabinet_knowledge.api.routes import router as cabinet_knowledge_router
 from tmis.cabinet_os.api.routes import router as cabinet_os_router
 from tmis.collaboration.api.routes import router as collaboration_router
@@ -36,3 +37,4 @@ api_router.include_router(strategic_intelligence_router)
 api_router.include_router(workflow_automation_router)
 api_router.include_router(integration_hub_router)
 api_router.include_router(identity_platform_router)
+api_router.include_router(business_platform_router)

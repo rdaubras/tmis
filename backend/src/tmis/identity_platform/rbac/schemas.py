@@ -11,6 +11,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.WORKFLOW_USE_TEAM_RESTRICTED,
             Permission.ORGANIZATION_MANAGE,
             Permission.USER_MANAGE,
+            Permission.BUSINESS_PLATFORM_MANAGE,
         }
     ),
     Role.ASSOCIATE: frozenset(
@@ -22,5 +23,11 @@ DEFAULT_ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.COUNSEL: frozenset({Permission.EXPORT_DATA}),
     Role.PARALEGAL: frozenset(),
     Role.ASSISTANT: frozenset(),
-    Role.IT_ADMIN: frozenset({Permission.ORGANIZATION_MANAGE, Permission.SECRET_MANAGE}),
+    Role.IT_ADMIN: frozenset(
+        {
+            Permission.ORGANIZATION_MANAGE,
+            Permission.SECRET_MANAGE,
+            Permission.BUSINESS_PLATFORM_MANAGE,
+        }
+    ),
 }

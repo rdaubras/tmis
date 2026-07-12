@@ -55,6 +55,8 @@ from tmis.ai_fabric.policies.ports import PolicyStorePort
 from tmis.ai_fabric.policies.schemas import Policy, PolicyType, new_policy_id
 from tmis.ai_fabric.provider_registry import FabricProviderRegistry
 from tmis.ai_fabric.router.schemas import NoEligibleModelError, QuotaExceededError, RoutingRequest
+from tmis.business_platform.bootstrap import get_business_quota_engine
+from tmis.business_platform.quotas.engine import BusinessQuotaEngine
 from tmis.platform.cost_control.bootstrap import get_cost_tracker_engine
 from tmis.platform.cost_control.engine import CostTrackerEngine
 
@@ -154,7 +156,15 @@ def list_providers(
 def route_request(
     payload: RoutingRequestPayload,
     fabric: AIIntelligenceFabric = Depends(get_ai_intelligence_fabric),
+    business_quotas: BusinessQuotaEngine = Depends(get_business_quota_engine),
 ) -> RoutingDecisionResponse:
+    try:
+        if not business_quotas.check_ai_calls(payload.firm_id):
+            raise HTTPException(
+                status_code=429, detail="AI call quota exceeded for this firm's plan"
+            )
+    except KeyError:
+        pass  # firm has no business_platform subscription yet — not gated
     request = RoutingRequest(
         firm_id=payload.firm_id,
         task_type=payload.task_type,
