@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.identity_platform.delegation.schemas import Delegation
+
+
+class DelegationStorePort(Protocol):
+    def save(self, delegation: Delegation) -> None: ...
+
+    def get(self, firm_id: str, delegation_id: str) -> Delegation | None: ...
+
+    def list_for_delegate(self, firm_id: str, delegate_id: str) -> list[Delegation]: ...
+
+    def list_for_firm(self, firm_id: str) -> list[Delegation]: ...

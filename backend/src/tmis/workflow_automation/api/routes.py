@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from tmis.ai_governance.human_validation.schemas import ValidationDecisionType
+from tmis.identity_platform.api.guard import authorize_or_403
+from tmis.identity_platform.permissions.schemas import Permission
 from tmis.workflow_automation.action_engine.schemas import Action, new_action_id
 from tmis.workflow_automation.api.schemas import (
     ApprovalConfigureRequest,
@@ -71,22 +73,35 @@ def create_workflow(
     engine: WorkflowEngine = Depends(get_workflow_engine),
 ) -> WorkflowResponse:
     triggers = tuple(
-        Trigger(id=new_trigger_id(), workflow_id="", trigger_type=TriggerType(t.trigger_type),
-                config=t.config)
+        Trigger(
+            id=new_trigger_id(),
+            workflow_id="",
+            trigger_type=TriggerType(t.trigger_type),
+            config=t.config,
+        )
         for t in payload.triggers
     )
     steps = tuple(
         WorkflowStep(
-            order=s.order, name=s.name,
-            action=Action(id=new_action_id(), workflow_id="", action_type=s.action_type,
-                          config=s.action_config),
+            order=s.order,
+            name=s.name,
+            action=Action(
+                id=new_action_id(),
+                workflow_id="",
+                action_type=s.action_type,
+                config=s.action_config,
+            ),
             parallel_group=s.parallel_group,
         )
         for s in payload.steps
     )
     workflow = engine.create(
-        payload.firm_id, payload.name, payload.owner,
-        description=payload.description, triggers=triggers, steps=steps,
+        payload.firm_id,
+        payload.name,
+        payload.owner,
+        description=payload.description,
+        triggers=triggers,
+        steps=steps,
     )
     return _workflow_response(workflow)
 
@@ -103,16 +118,24 @@ def new_workflow_version(
         if payload.steps is not None:
             steps = tuple(
                 WorkflowStep(
-                    order=s.order, name=s.name,
-                    action=Action(id=new_action_id(), workflow_id="", action_type=s.action_type,
-                                  config=s.action_config),
+                    order=s.order,
+                    name=s.name,
+                    action=Action(
+                        id=new_action_id(),
+                        workflow_id="",
+                        action_type=s.action_type,
+                        config=s.action_config,
+                    ),
                     parallel_group=s.parallel_group,
                 )
                 for s in payload.steps
             )
         new_version = engine.new_version(
-            payload.firm_id, current.workflow_key, payload.owner,
-            description=payload.description, steps=steps,
+            payload.firm_id,
+            current.workflow_key,
+            payload.owner,
+            description=payload.description,
+            steps=steps,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -174,7 +197,10 @@ def list_templates(
 ) -> list[TemplateResponse]:
     return [
         TemplateResponse(
-            id=t.id, name=t.name, case_type=t.case_type, description=t.description,
+            id=t.id,
+            name=t.name,
+            case_type=t.case_type,
+            description=t.description,
             customizable=t.customizable,
         )
         for t in library.list_templates(case_type)
@@ -208,7 +234,10 @@ def create_rule(
     condition = cond_compare(payload.field, comparator, payload.value)
     rule = engine.create_rule(payload.firm_id, payload.name, condition, payload.description)
     return RuleResponse(
-        id=rule.id, firm_id=rule.firm_id, name=rule.name, description=rule.description,
+        id=rule.id,
+        firm_id=rule.firm_id,
+        name=rule.name,
+        description=rule.description,
         active=rule.active,
     )
 
@@ -238,7 +267,10 @@ def deactivate_rule(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return RuleResponse(
-        id=rule.id, firm_id=rule.firm_id, name=rule.name, description=rule.description,
+        id=rule.id,
+        firm_id=rule.firm_id,
+        name=rule.name,
+        description=rule.description,
         active=rule.active,
     )
 
@@ -276,8 +308,11 @@ async def start_execution(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     execution = await execution_engine.start(workflow, payload.context)
     return ExecutionResponse(
-        id=execution.id, firm_id=execution.firm_id, workflow_id=execution.workflow_id,
-        status=execution.status.value, current_step_index=execution.current_step_index,
+        id=execution.id,
+        firm_id=execution.firm_id,
+        workflow_id=execution.workflow_id,
+        status=execution.status.value,
+        current_step_index=execution.current_step_index,
         failure_reason=execution.failure_reason,
         step_results=[_step_result_response(r) for r in execution.step_results],
     )
@@ -297,8 +332,11 @@ async def resume_execution(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     execution = await execution_engine.resume(execution, workflow, payload.context)
     return ExecutionResponse(
-        id=execution.id, firm_id=execution.firm_id, workflow_id=execution.workflow_id,
-        status=execution.status.value, current_step_index=execution.current_step_index,
+        id=execution.id,
+        firm_id=execution.firm_id,
+        workflow_id=execution.workflow_id,
+        status=execution.status.value,
+        current_step_index=execution.current_step_index,
         failure_reason=execution.failure_reason,
         step_results=[_step_result_response(r) for r in execution.step_results],
     )
@@ -315,8 +353,11 @@ def get_execution(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return ExecutionResponse(
-        id=execution.id, firm_id=execution.firm_id, workflow_id=execution.workflow_id,
-        status=execution.status.value, current_step_index=execution.current_step_index,
+        id=execution.id,
+        firm_id=execution.firm_id,
+        workflow_id=execution.workflow_id,
+        status=execution.status.value,
+        current_step_index=execution.current_step_index,
         failure_reason=execution.failure_reason,
         step_results=[_step_result_response(r) for r in execution.step_results],
     )
@@ -339,7 +380,9 @@ def simulate_workflow(
         workflow_condition_failure=report.workflow_condition_failure,
         steps=[
             SimulatedStepOutcomeResponse(
-                step_order=s.step_order, name=s.name, would_run=s.would_run,
+                step_order=s.step_order,
+                name=s.name,
+                would_run=s.would_run,
                 skip_reason=s.skip_reason,
             )
             for s in report.steps
@@ -388,6 +431,7 @@ def decide_approval(
         decision = ValidationDecisionType(payload.decision)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    authorize_or_403(payload.firm_id, payload.approver_id, Permission.CONSULTATION_VALIDATE)
     try:
         request = engine.decide(
             payload.firm_id, request_id, payload.approver_id, decision, payload.comment
@@ -406,8 +450,12 @@ def list_audit(
 ) -> list[AuditEntryResponse]:
     return [
         AuditEntryResponse(
-            id=e.id, workflow_id=e.workflow_id, execution_id=e.execution_id,
-            actor_id=e.actor_id, action=e.action, detail=e.detail,
+            id=e.id,
+            workflow_id=e.workflow_id,
+            execution_id=e.execution_id,
+            actor_id=e.actor_id,
+            action=e.action,
+            detail=e.detail,
         )
         for e in engine.list_for_firm(firm_id)
     ]

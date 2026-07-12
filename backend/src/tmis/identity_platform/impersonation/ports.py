@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.identity_platform.impersonation.schemas import ImpersonationSession
+
+
+class ImpersonationStorePort(Protocol):
+    def save(self, session: ImpersonationSession) -> None: ...
+
+    def get(self, firm_id: str, session_id: str) -> ImpersonationSession | None: ...
+
+    def active_for_admin(self, firm_id: str, admin_id: str) -> ImpersonationSession | None: ...
+
+    def list_for_firm(self, firm_id: str) -> list[ImpersonationSession]: ...

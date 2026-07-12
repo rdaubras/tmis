@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from tmis.identity_platform.bootstrap import get_role_engine
+from tmis.identity_platform.roles.schemas import Role
 from tmis.main import app
 
 
@@ -124,6 +126,7 @@ def test_approval_gateway_workflow_via_api() -> None:
     assert requested.status_code == 200
     request_id = requested.json()["id"]
 
+    get_role_engine().assign("firm-api-approval", "associe-1", Role.PARTNER)
     decided = client.post(
         f"/api/v1/workflow-automation/approvals/{request_id}/decide",
         json={"firm_id": "firm-api-approval", "approver_id": "associe-1", "decision": "approve"},

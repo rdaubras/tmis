@@ -86,6 +86,8 @@ from tmis.cabinet_knowledge.templates.schemas import CabinetTemplate
 from tmis.cabinet_knowledge.validation.engine import ValidationEngine
 from tmis.cabinet_knowledge.validation.schemas import ValidationDecision, ValidationRequest
 from tmis.cabinet_knowledge.writing_style.engine import WritingStyleEngine
+from tmis.identity_platform.api.guard import authorize_or_403
+from tmis.identity_platform.permissions.schemas import Permission
 from tmis.legal_drafting.templates.schemas import DocumentType
 from tmis.platform.security.tenant_isolation import TenantAccessError
 
@@ -332,9 +334,7 @@ def submit_for_validation(
     validation: ValidationEngine = Depends(get_validation_engine),
 ) -> ValidationRequestResponse:
     try:
-        result = validation.submit_for_validation(
-            request.firm_id, object_id, request.requested_by
-        )
+        result = validation.submit_for_validation(request.firm_id, object_id, request.requested_by)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"object {object_id} not found") from exc
     except ValueError as exc:
@@ -349,9 +349,7 @@ def list_pending_validation_requests(
     return [_to_validation_response(r) for r in validation.pending_for_firm(firm_id)]
 
 
-@router.post(
-    "/validation-requests/{request_id}/decide", response_model=ValidationRequestResponse
-)
+@router.post("/validation-requests/{request_id}/decide", response_model=ValidationRequestResponse)
 def decide_validation_request(
     request_id: str,
     request: ValidationDecisionRequest,
@@ -363,6 +361,7 @@ def decide_validation_request(
         raise HTTPException(
             status_code=400, detail=f"unknown decision {request.decision!r}"
         ) from exc
+    authorize_or_403(request.firm_id, request.reviewer, Permission.CONSULTATION_VALIDATE)
     try:
         result = validation.decide(
             request.firm_id, request_id, decision, request.reviewer, request.comment
@@ -485,9 +484,7 @@ def get_playbook(
         raise HTTPException(status_code=404, detail=f"playbook {playbook_id} not found") from exc
 
 
-def _to_instance_response(
-    instance: PlaybookInstance, progress: float
-) -> PlaybookInstanceResponse:
+def _to_instance_response(instance: PlaybookInstance, progress: float) -> PlaybookInstanceResponse:
     return PlaybookInstanceResponse(
         id=instance.id,
         firm_id=instance.firm_id,
@@ -572,10 +569,7 @@ def search_clauses(
     clauses: ClauseEngine = Depends(get_clause_engine),
 ) -> list[ClauseResponse]:
     domain_ = LegalDomain(domain) if domain else None
-    return [
-        _to_clause_response(c)
-        for c in clauses.search(firm_id, domain_, clause_type, keyword)
-    ]
+    return [_to_clause_response(c) for c in clauses.search(firm_id, domain_, clause_type, keyword)]
 
 
 @router.get("/clauses/{clause_id}", response_model=ClauseResponse)
@@ -782,9 +776,7 @@ def get_recommendations(
     request: RecommendationRequest,
     recommendations: RecommendationEngine = Depends(get_recommendation_engine),
 ) -> list[RecommendationResponse]:
-    context = RecommendationContext(
-        domain_tag=request.domain_tag, keywords=tuple(request.keywords)
-    )
+    context = RecommendationContext(domain_tag=request.domain_tag, keywords=tuple(request.keywords))
     return [
         RecommendationResponse(
             knowledge_object_id=r.knowledge_object_id,

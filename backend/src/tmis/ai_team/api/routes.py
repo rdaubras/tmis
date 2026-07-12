@@ -36,6 +36,8 @@ from tmis.ai_team.teams.schemas import Team
 from tmis.ai_team.teams.store import InMemoryTeamStore
 from tmis.ai_team.work_queue.engine import InMemoryWorkQueue
 from tmis.ai_team.work_queue.schemas import WorkItemStatus
+from tmis.identity_platform.api.guard import authorize_or_403
+from tmis.identity_platform.permissions.schemas import Permission
 
 router = APIRouter(prefix="/ai-team", tags=["ai-team"])
 
@@ -138,6 +140,8 @@ def launch_mission(
     team_store: InMemoryTeamStore = Depends(get_team_store),
 ) -> MissionResponse:
     team = _get_team_or_404(request.team_id, team_store)
+    if request.requested_by is not None:
+        authorize_or_403(request.firm_id, request.requested_by, Permission.AI_MODEL_RESTRICTED_USE)
     mission = coordinator.launch_mission(
         request.firm_id, request.request_description, team, case_type=request.case_type
     )

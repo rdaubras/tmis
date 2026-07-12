@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from tmis.identity_platform.bootstrap import get_role_engine
+from tmis.identity_platform.roles.schemas import Role
 from tmis.main import app
 
 
@@ -20,9 +22,7 @@ def test_chain_step_lifecycle_via_api() -> None:
         json={"stage": "brouillon", "summary": "Brouillon rédigé."},
     )
 
-    chain = client.get(
-        "/api/v1/ai-governance/chain/prod-chain-1", params={"firm_id": "firm-api-1"}
-    )
+    chain = client.get("/api/v1/ai-governance/chain/prod-chain-1", params={"firm_id": "firm-api-1"})
     assert chain.status_code == 200
     assert len(chain.json()["steps"]) == 2
 
@@ -208,6 +208,8 @@ def test_human_validation_hierarchical_flow_via_api() -> None:
     request_id = request.json()["id"]
     assert request.json()["status"] == "pending"
 
+    get_role_engine().assign("firm-api-1", "associate-1", Role.PARTNER)
+    get_role_engine().assign("firm-api-1", "partner-1", Role.PARTNER)
     tier_one = client.post(
         f"/api/v1/ai-governance/validations/{request_id}/decide",
         json={"firm_id": "firm-api-1", "approver_id": "associate-1", "decision": "approve"},
@@ -229,6 +231,7 @@ def test_human_validation_hierarchical_flow_via_api() -> None:
 def test_decide_on_unknown_validation_request_returns_404() -> None:
     client = TestClient(app)
 
+    get_role_engine().assign("firm-api-1", "approver-1", Role.PARTNER)
     response = client.post(
         "/api/v1/ai-governance/validations/unknown-id/decide",
         json={"firm_id": "firm-api-1", "approver_id": "approver-1", "decision": "approve"},

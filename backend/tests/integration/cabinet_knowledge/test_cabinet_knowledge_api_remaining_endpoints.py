@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from tmis.identity_platform.bootstrap import get_role_engine
+from tmis.identity_platform.roles.schemas import Role
 from tmis.main import app
 
 
@@ -106,9 +108,7 @@ def test_reasoning_patterns_create_and_list() -> None:
     )
     assert created.status_code == 200
 
-    listed = client.get(
-        "/api/v1/cabinet-knowledge/reasoning-patterns", params={"firm_id": firm_id}
-    )
+    listed = client.get("/api/v1/cabinet-knowledge/reasoning-patterns", params={"firm_id": firm_id})
     assert len(listed.json()) == 1
 
 
@@ -231,6 +231,7 @@ def test_playbook_get_by_id_and_unknown_returns_404() -> None:
 def test_validation_decide_on_unknown_request_returns_404() -> None:
     client = TestClient(app)
 
+    get_role_engine().assign("firm-api-remaining-10", "a", Role.PARTNER)
     response = client.post(
         "/api/v1/cabinet-knowledge/validation-requests/unknown/decide",
         json={"firm_id": "firm-api-remaining-10", "decision": "approve", "reviewer": "a"},

@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from tmis.identity_platform.bootstrap import get_role_engine
+from tmis.identity_platform.roles.schemas import Role
 from tmis.main import app
 
 
@@ -76,6 +78,7 @@ def test_playbook_create_validate_publish_and_instantiate() -> None:
         f"/api/v1/cabinet-knowledge/objects/{playbook['id']}/submit-for-validation",
         json={"firm_id": firm_id, "requested_by": "avocat1"},
     ).json()
+    get_role_engine().assign(firm_id, "associe1", Role.PARTNER)
     client.post(
         f"/api/v1/cabinet-knowledge/validation-requests/{submitted['id']}/decide",
         json={"firm_id": firm_id, "decision": "approve", "reviewer": "associe1"},
@@ -127,6 +130,7 @@ def test_search_and_recommendations_only_surface_published_objects() -> None:
         f"/api/v1/cabinet-knowledge/objects/{clause['id']}/submit-for-validation",
         json={"firm_id": firm_id, "requested_by": "avocat1"},
     ).json()
+    get_role_engine().assign(firm_id, "associe1", Role.PARTNER)
     client.post(
         f"/api/v1/cabinet-knowledge/validation-requests/{submitted['id']}/decide",
         json={"firm_id": firm_id, "decision": "approve", "reviewer": "associe1"},
@@ -182,9 +186,7 @@ def test_feedback_and_evaluation_endpoints() -> None:
     )
     assert len(history.json()) == 1
 
-    evaluation = client.get(
-        "/api/v1/cabinet-knowledge/evaluation", params={"firm_id": firm_id}
-    )
+    evaluation = client.get("/api/v1/cabinet-knowledge/evaluation", params={"firm_id": firm_id})
     assert evaluation.status_code == 200
     assert evaluation.json()["total_objects"] == 1
 

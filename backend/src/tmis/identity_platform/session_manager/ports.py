@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.identity_platform.session_manager.schemas import Session
+
+
+class SessionStorePort(Protocol):
+    def save(self, session: Session) -> None: ...
+
+    def get(self, firm_id: str, session_id: str) -> Session | None: ...
+
+    def list_for_user(self, firm_id: str, user_id: str) -> list[Session]: ...
+
+    def list_for_firm(self, firm_id: str) -> list[Session]: ...
