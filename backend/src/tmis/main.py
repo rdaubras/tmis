@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from tmis.api.v1.router import api_router
+from tmis.cloud_operations.api.routes import router as cloud_operations_router
 from tmis.core.config import get_settings
 from tmis.core.logging import configure_logging
 from tmis.core.observability import trace_id_middleware
@@ -14,6 +15,7 @@ from tmis.platform.security.headers import (
     SecurityHeadersMiddleware,
     validate_cors_origins,
 )
+from tmis.runtime_platform.api.routes import router as runtime_platform_router
 
 settings = get_settings()
 configure_logging(debug=settings.debug)
@@ -44,6 +46,8 @@ app.middleware("http")(SecurityHeadersMiddleware())
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 app.include_router(platform_router)
+app.include_router(cloud_operations_router)
+app.include_router(runtime_platform_router)
 
 
 @app.get("/")

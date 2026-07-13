@@ -1,3 +1,5 @@
+import time
+
 from tmis.ai_fabric.governance.engine import GovernanceEngine
 from tmis.ai_fabric.model_registry.ports import ModelRegistryPort
 from tmis.ai_fabric.model_registry.schemas import ModelDescriptor
@@ -32,6 +34,17 @@ class RouterEngine:
         self._quota_engine = quota_engine
 
     def route(self, request: RoutingRequest) -> RoutingDecision:
+        started = time.perf_counter()
+        try:
+            decision = self._route(request)
+        except (NoEligibleModelError, QuotaExceededError) as exc:
+            self._record_routing_error(request, exc)
+            raise
+        finally:
+            self._record_routing_duration(request, (time.perf_counter() - started) * 1000)
+        return decision
+
+    def _route(self, request: RoutingRequest) -> RoutingDecision:
         reasons: list[str] = []
 
         candidates = (
@@ -68,6 +81,32 @@ class RouterEngine:
         self._quota_engine.record_call(_QUOTA_SCOPE, request.firm_id)
 
         return RoutingDecision(model=best, reasons=tuple(reasons))
+
+    def _record_routing_duration(self, request: RoutingRequest, duration_ms: float) -> None:
+        """Publishes the "AI Fabric" hop of the sprint's end-to-end
+        request trace: every routing decision (the mandatory gateway
+        in front of any model call, per this class's own docstring)
+        reports its own decision latency as an `AI_CALL_DURATION`
+        sample. A local import avoids a hard dependency from
+        `ai_fabric` on `cloud_operations` at module-import time."""
+        from tmis.cloud_operations.bootstrap import get_metrics_engine
+        from tmis.cloud_operations.metrics.schemas import MetricCategory
+
+        get_metrics_engine().record(
+            MetricCategory.AI_CALL_DURATION,
+            "router.route",
+            duration_ms,
+            firm_id=request.firm_id,
+        )
+
+    def _record_routing_error(
+        self, request: RoutingRequest, exc: NoEligibleModelError | QuotaExceededError
+    ) -> None:
+        from tmis.cloud_operations.bootstrap import get_error_tracking_engine
+
+        get_error_tracking_engine().record(
+            "ai_fabric", type(exc).__name__, str(exc), firm_id=request.firm_id
+        )
 
     def _filter_available(
         self, candidates: list[ModelDescriptor], reasons: list[str]

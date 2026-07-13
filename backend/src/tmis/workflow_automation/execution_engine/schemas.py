@@ -42,3 +42,8 @@ class WorkflowExecution:
     failure_reason: str | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    telemetry_span_id: str | None = None
+    """Set by `ExecutionEngine._record_started` when this execution was
+    started under an HTTP request's `trace_id` — lets `_run_from` close
+    the matching `cloud_operations.tracing` span on completion/failure
+    without a second lookup."""

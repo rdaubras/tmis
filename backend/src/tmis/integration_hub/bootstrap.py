@@ -167,7 +167,9 @@ def get_conflict_resolution_engine() -> ConflictResolutionEngine:
 
 @lru_cache
 def get_synchronization_engine() -> SynchronizationEngine:
-    return SynchronizationEngine(get_connector_invoker(), get_conflict_resolution_engine())
+    return SynchronizationEngine(
+        get_connector_invoker(), get_conflict_resolution_engine(), get_connector_monitoring_engine()
+    )
 
 
 @lru_cache

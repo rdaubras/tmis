@@ -21,7 +21,12 @@ def test_platform_health_ready_reports_component_statuses() -> None:
     body = response.json()
     assert "status" in body
     assert isinstance(body["components"], list)
-    assert len(body["components"]) == 7
+    # 7 platform checks (Sprint 10) plus, once `cloud_operations`
+    # (Sprint 21) has registered its five business-context checks into
+    # this same shared engine, 12 — the exact count depends on whether
+    # a `cloud_operations` endpoint has already run in this process, so
+    # this asserts the floor rather than an exact, ever-growing number.
+    assert len(body["components"]) >= 7
 
 
 def test_platform_metrics_exposes_prometheus_text_format() -> None:

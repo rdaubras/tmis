@@ -1,4 +1,4 @@
-# Roadmap détaillée — 38 sprints
+# Roadmap détaillée — 39 sprints
 
 > Le nombre de sprints a évolué au fil des révisions (voir notes
 > ci-dessous) ; l'intitulé et le nom de fichier d'origine ("30 sprints")
@@ -402,11 +402,142 @@ suivant.
 > pouvant être branchée derrière ce port sans modification du reste
 > de la plateforme.
 
+> **Note de révision (après Sprint 21)** : le Sprint 21 livre la
+> **Cloud Operations & Observability Platform** (`tmis.cloud_operations`,
+> docs/118-125) — télémétrie, métriques historisées, traces distribuées,
+> logs, alerting, health checks, SLA/SLO, capacité, performance,
+> profiling, observabilité cache/files, error tracking, gestion
+> d'incidents, runbooks, diagnostics, résilience (circuit breaker) et
+> chaos testing. Ce n'est **pas** l'ancien Sprint 21 "Module Document" :
+> par instruction utilisateur explicite, ce numéro de sprint a été
+> réattribué à un contenu entièrement différent, qui livre — et dépasse
+> largement — ce que l'ancien **Sprint 36 "Observabilité complète"**
+> prévoyait ("traces, métriques, dashboards, alerting — branche un
+> exportateur réel derrière `tmis.platform.monitoring`/
+> `tmis.platform.metrics`").
+>
+> Contrairement aux révisions précédentes où un sprint livré
+> anticipait un sprint futur sans le remplacer, ici **une insertion et
+> une absorption se compensent** : le nouveau Sprint 21 s'insère avant
+> l'ancien Sprint 21 "Module Document" (qui glisse d'un cran, ainsi que
+> tous les sprints suivants jusqu'à l'ancien Sprint 35 "Performance &
+> scalabilité" devenu Sprint 36), et l'ancien Sprint 36 "Observabilité
+> complète" — désormais livré par ce Sprint 21 — disparaît de la
+> roadmap comme sprint dédié, sur le même principe que les anciennes
+> absorptions (Sprints 19/20/22/23 des révisions précédentes). **Le
+> total reste fixé à 38 sprints.**
+>
+> "Module Document + Persistance" (désormais Sprint 22) reste donc
+> **non livré** et demeure la priorité proposée pour le prochain
+> sprint (voir la proposition de Sprint 22 dans
+> docs/reports/sprint-21-rapport-architecture.md) — ce report n'efface
+> pas le besoin, il le replace simplement après ce sprint
+> d'exploitation transverse, sur le même principe que l'insertion du
+> Sprint 10 avant `Identity & Firm` en son temps. Comme pour l'Enterprise
+> Platform (Sprint 10), ce sprint **n'ajoute aucune fonctionnalité
+> métier et ne modifie aucun module existant** — il instrumente 3
+> points représentatifs (middleware API, `workflow_automation.
+> execution_engine`, `ai_fabric.router`) et documente le reste comme
+> travail d'instrumentation progressif, plutôt que de réécrire chaque
+> module existant en un seul sprint.
+
+> **Note de révision (après Sprint 22)** : le Sprint 22 livre neuf
+> nouveaux sous-modules de `tmis.cloud_operations` (docs/126-131) :
+> `audit_pipeline` (fusionne les trois journaux d'audit déjà
+> firm-scopés d'`identity_platform`/`ai_governance`/
+> `workflow_automation` en une seule chronologie corrélée),
+> `cost_monitoring` (coût par modèle/utilisateur, composé sur
+> `platform.cost_control`), `ai_monitoring` (historise les
+> hallucinations/biais détectés par `ai_governance`, jusqu'ici de
+> simples résultats de scan jamais conservés), `workflow_monitoring`
+> et `integration_monitoring` (branchés sur les sinks de métriques de
+> `workflow_automation`/`integration_hub`, Sprints 17/18, qui
+> n'avaient encore aucun appelant), `tenant_monitoring` (tableau de
+> bord par cabinet composé sur `business_platform`),
+> `security_monitoring` (agrégation plateforme des événements de
+> sécurité), `retention` (politique de rétention propre aux données
+> d'observabilité, distincte de `platform.compliance` et de
+> `cloud_operations.logging`), `exports` (CSV/JSON, délègue à
+> `business_platform.exports` plutôt que de réimplémenter l'export).
+>
+> Ce n'est ni l'ancien Sprint 22 "Module Document" ni un doublon du
+> Sprint 21 : c'est une extension du même package, sur un périmètre
+> délibérément non couvert par lui. Le sprint a d'abord été proposé
+> sous le nom « Enterprise Observability & Reliability Platform »
+> (`tmis.observability`, ~22 modules) — après consultation explicite
+> de l'utilisateur sur le chevauchement massif avec le Sprint 21 déjà
+> livré, la portée a été réduite aux neuf domaines réellement
+> nouveaux plutôt que de dupliquer telemetry/metrics/tracing/
+> logging/alerting/dashboards/health_checks/sla/slo/capacity/
+> performance/profiling/error_tracking/incident_management/
+> diagnostics sous un second nom.
+>
+> Contrairement au Sprint 21, aucun sprint futur n'est absorbé : les
+> neuf domaines ne recoupent aucun placeholder existant de la
+> roadmap. `Module Document`, les deux sprints RAG/recherche, et tous
+> les sprints suivants glissent donc chacun d'un cran (S22→S23,
+> S23→S24, ..., S38→S39) — une insertion nette, sans compensation,
+> comme pour le Sprint 10. **Le total passe de 38 à 39 sprints.**
+>
+> Deux points d'instrumentation réels démontrent que ces nouveaux
+> modules lisent de vraies données plutôt que des sinks vides :
+> `integration_hub.synchronization.SynchronizationEngine.run_pull`
+> publie désormais dans `integration_hub.monitoring.
+> ConnectorMonitoringEngine` (paramètre optionnel, aucun appelant
+> existant cassé), et `workflow_automation.execution_engine.
+> ExecutionEngine._run_from` publie dans `workflow_automation.
+> metrics.WorkflowMetricsEngine` — les deux sinks Sprint 17/18
+> n'avaient auparavant aucun appelant dans tout le code, confirmé par
+> recherche directe.
+
+> **Note de révision (après Sprint 23)** : le prompt utilisateur pour
+> ce sprint s'intitulait explicitement « Sprint 23 » et décrivait une
+> « Cloud Native Runtime Platform » : exécution, scalabilité,
+> résilience, performances. Une Phase 1 d'audit exhaustif, exigée par
+> le prompt lui-même avant toute implémentation, a recensé
+> précisément ce qui existait déjà (moteurs d'exécution, files, bus
+> d'événements, cache, HA/DR, chaos testing) et ce qui manquait
+> réellement (Dead Letter Queue, delta événementiel générique, Event
+> Store, fondations CQRS, load testing) — voir
+> docs/132-architecture-runtime-platform.md pour le détail complet.
+>
+> Le nouveau package `tmis.runtime_platform` (12 sous-modules) ne
+> reconstruit aucun moteur existant : il étend `platform.
+> disaster_recovery`/`.backup`/`.restore`/`.autoscaling` (Sprint 10),
+> `ai.cache.CachePort`/`RedisCache` (Sprint 2), `cloud_operations.
+> performance`/`.capacity`/`.profiling`/`.resilience`/`.
+> chaos_testing`/`.workflow_monitoring` (Sprints 21-22), et
+> `workflow_automation.execution_engine` (Sprint 17, via un
+> adaptateur, sans modifier son code) — chacune de ces compositions
+> est documentée dans le rapport d'architecture du sprint.
+>
+> Le contenu de ce sprint recoupe largement ce que l'ancien **Sprint
+> 37 "Performance & scalabilité"** promettait (« profiling, cache,
+> tests de charge ») et le dépasse — `runtime_optimizer`/
+> `autoscaling_advisor` couvrent le profiling appliqué à des
+> recommandations concrètes, `distributed_cache` étend le cache,
+> `load_testing` livre l'infrastructure de tests de charge qui
+> n'existait nulle part ailleurs dans le dépôt. Ce sprint absorbe donc
+> l'ancien Sprint 37, qui disparaît de la table (son contenu est
+> couvert et dépassé). `Module Document` et tous les sprints suivants
+> glissent chacun d'un cran pour l'insertion (S23→S24, ..., S36→S37),
+> puis reculent d'un cran pour l'absorption de l'ancien Sprint 37
+> (l'ancien S38 devient S38 au lieu de S39, l'ancien S39 devient S39
+> au lieu de S40) — le même mécanisme net-neutre que le Sprint 21.
+> **Le total reste fixé à 39 sprints.**
+>
+> Une migration représentative démontre un bénéfice réel plutôt que
+> théorique : `legal_research.bootstrap.get_research_orchestrator`
+> construit désormais `ResearchCache` sur un `DistributedCacheEngine`
+> plutôt qu'un `CachePort` brut — invalidation par listener,
+> warming, compression et statistiques d'usage gratuits pour le
+> Legal Research Engine, sans changement de son API publique.
+
 ## Vue d'ensemble
 
 ```mermaid
 flowchart TB
-    subgraph Phase1["Phase 1 — Socle (S1-S20)"]
+    subgraph Phase1["Phase 1 — Socle (S1-S23)"]
         S1[S1 Vision & architecture]
         S2[S2 AI Kernel]
         S3[S3 Document Intelligence Engine]
@@ -427,32 +558,33 @@ flowchart TB
         S18[S18 Legal Integration Hub]
         S19[S19 Enterprise Identity & Trust Platform]
         S20[S20 SaaS Business Platform]
+        S21[S21 Cloud Operations & Observability Platform]
+        S22[S22 Enterprise Observability & Reliability — Extensions]
+        S23[S23 Cloud Native Runtime Platform]
     end
-    subgraph Phase2["Phase 2 — RAG & Recherche (S21-S23)"]
-        S21[S21 Module Document + Persistance]
-        S22[S22 RAG et connecteurs branchés sur données réelles]
-        S23[S23 Cache Redis en production + reranker appris]
+    subgraph Phase2["Phase 2 — RAG & Recherche (S24-S26)"]
+        S24[S24 Module Document + Persistance]
+        S25[S25 RAG et connecteurs branchés sur données réelles]
+        S26[S26 Cache Redis en production + reranker appris]
     end
-    subgraph Phase3["Phase 3 — Agents IA (S24-S31)"]
-        S24[S24 Intégration agents métier au Kernel + Agent Analyse]
-        S25[S25 Agent Synthèse narrative]
-        S26[S26 Agent Vérificateur]
-        S27[S27 Chat IA]
-        S28[S28 Agent Recherche Documentaire]
-        S29[S29 Agent Jurisprudence]
-        S30[S30 Module Contrats + Agent Contrat]
-        S31[S31 Agent Veille]
+    subgraph Phase3["Phase 3 — Agents IA (S27-S34)"]
+        S27[S27 Intégration agents métier au Kernel + Agent Analyse]
+        S28[S28 Agent Synthèse narrative]
+        S29[S29 Agent Vérificateur]
+        S30[S30 Chat IA]
+        S31[S31 Agent Recherche Documentaire]
+        S32[S32 Agent Jurisprudence]
+        S33[S33 Module Contrats + Agent Contrat]
+        S34[S34 Agent Veille]
     end
-    subgraph Phase4["Phase 4 — Pilotage & Plateforme (S32-S34)"]
-        S32[S32 Sécurité renforcée & RGPD]
-        S33[S33 Facturation avancée — webhooks Stripe]
-        S34[S34 API publique — webhooks sortants]
+    subgraph Phase4["Phase 4 — Pilotage & Plateforme (S35-S37)"]
+        S35[S35 Sécurité renforcée & RGPD]
+        S36[S36 Facturation avancée — webhooks Stripe]
+        S37[S37 API publique — webhooks sortants]
     end
-    subgraph Phase5["Phase 5 — Qualité & Lancement (S35-S38)"]
-        S35[S35 Performance & scalabilité]
-        S36[S36 Observabilité complète]
-        S37[S37 UX polish & accessibilité]
-        S38[S38 Durcissement pré-lancement]
+    subgraph Phase5["Phase 5 — Qualité & Lancement (S38-S39)"]
+        S38[S38 UX polish & accessibilité]
+        S39[S39 Durcissement pré-lancement]
     end
     Phase1 --> Phase2 --> Phase3 --> Phase4 --> Phase5
 ```
@@ -481,24 +613,25 @@ flowchart TB
 | 18 | **Legal Integration Hub** ✅ | Connecte TMIS à l'écosystème applicatif d'un cabinet (messagerie, agenda, stockage documentaire, signature électronique, GED, facturation, CRM) sans dépendance forte à un fournisseur : framework et registre de connecteurs, authentification multi-méthode, synchronisation configurable (pull/push/bidirectionnelle, full/incrémentale), mapping et transformation de champs, résolution de conflits (local/remote/last-write/validation humaine), webhooks entrants/sortants signés HMAC, pont vers `tmis.workflow_automation`, file/planification/retry dédiés, supervision et sandbox par connecteur, SDK développeur, 7 connecteurs de référence — **le LIH ne contient aucune logique métier propre à un fournisseur ; le cabinet reste maître de ses données** | `tmis.integration_hub.*` | 19 sous-modules, API REST (13 endpoints), 92 tests dédiés, couverture globale 95,81 % (97 % sur le module, voir docs/97-102) |
 | 19 | **Enterprise Identity & Trust Platform** ✅ | Socle de sécurité, d'identité, de gouvernance et de confiance de TMIS : authentification complète (OAuth2 authorization code, OpenID Connect, MFA TOTP, WebAuthn/passkeys, passwordless, magic link), hiérarchie tenant (Organisation → Départements → Équipes → Utilisateurs), autorisation RBAC + ABAC + politiques configurables (Zero Trust — jamais d'accès implicite), gestionnaire de sessions et d'appareils de confiance, délégation temporaire et impersonation journalisées, coffre-fort de secrets chiffrés, bus d'événements de sécurité, audit, moteur de risque, conformité RGPD, configuration et tableau de bord par cabinet | `tmis.identity_platform.*` | 32 sous-modules, API REST (35+ endpoints), 69 tests dédiés, migration réelle de 5 endpoints sensibles dans `workflow_automation`/`ai_governance`/`cabinet_knowledge`/`integration_hub`/`ai_team` (voir docs/103-110) |
 | 20 | **SaaS Business Platform** ✅ | Exploitation commerciale de TMIS en mode SaaS multi-cabinet : abonnements (5 plans versionnés), licences (4 types), quotas (7 dimensions), consommation IA historisée, facturation indépendante d'un prestataire de paiement (compose `cabinet_os.billing`), feature flags (4 dimensions supplémentaires sur le socle Sprint 10), activation par module, portail client agrégé, abonnements Marketplace payants, dashboard commercial — migration de 4 endpoints représentatifs (`ai_fabric.route_request`, `workflow_automation.start_execution`, `integration_hub.set_connector_configuration`, `cabinet_knowledge.evaluate_quality`) | `tmis.business_platform.*` | 20 sous-modules, API REST (20 endpoints), 52 tests dédiés, migration réelle de 4 endpoints dans `ai_fabric`/`workflow_automation`/`integration_hub`/`cabinet_knowledge` (voir docs/111-117) |
-| 21 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
-| 22 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
-| 23 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
-| 24 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle, `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, `tmis.strategic_intelligence.overview.StrategicIntelligencePlatform` (Sprint 16) pour toute proposition de stratégie, `tmis.workflow_automation.event_bus.WorkflowEventBus` (Sprint 17) pour toute automatisation déclenchée, et `tmis.integration_hub.connector_framework.ConnectorPort` (Sprint 18) pour tout échange avec un système externe, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, une gouvernance de production parallèle, un moteur de stratégie distinct, un moteur de règles/déclencheurs ad hoc, ou un client d'intégration ad hoc |
-| 25 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
-| 26 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
-| 27 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
-| 28 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
-| 29 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
-| 30 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions — s'appuie sur `tmis.cabinet_knowledge.clauses`/`tmis.cabinet_knowledge.templates` (Sprint 12) plutôt que de redévelopper une bibliothèque de clauses ou de modèles distincte |
-| 31 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
-| 32 | Sécurité renforcée & RGPD | Conformité | Transverse | Droits RGPD, suppression sécurisée, audit trail complet — s'appuie sur `tmis.platform.compliance`/`tmis.platform.security` (Sprint 10) plutôt que de reconstruire ces briques |
-| 33 | Facturation avancée — webhooks Stripe réels | Les quotas d'usage sont déjà suivis par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Webhooks Stripe entrants (événements de paiement) |
-| 34 | API publique — webhooks sortants | Clés API/OAuth2/scopes/rate limiting/versionnage déjà livrés par `tmis.cabinet_os.public_api` (Sprint 9) | Transverse | Webhooks sortants vers des intégrations clientes Entreprise |
-| 35 | Performance & scalabilité | Tenue en charge | Transverse | Profiling, cache, tests de charge — s'appuie sur `tmis.platform.performance`/`tmis.platform.cache` (Sprint 10) plutôt que de reconstruire ces briques |
-| 36 | Observabilité complète | Exploitation | Transverse | Traces, métriques, dashboards, alerting — branche un exportateur réel derrière `tmis.platform.monitoring`/`tmis.platform.metrics` (Sprint 10) plutôt que de reconstruire ces briques |
-| 37 | UX polish & accessibilité | Qualité perçue | Frontend | Mode sombre, responsive, accessibilité WCAG |
-| 38 | Durcissement pré-lancement | Mise en production | Transverse | Pentest, audit RGPD final, documentation, bêta pilote |
+| 21 | **Cloud Operations & Observability Platform** ✅ | Exploitation de TMIS à grande échelle : télémétrie (façade façon OpenTelemetry, remplaçable par un vrai SDK sans changer un appelant), métriques historisées (10 catégories), traces distribuées bout-en-bout (Utilisateur → API → Workflow → AI Fabric → Réponse, sous un `trace_id` unique), logs (rétention par catégorie, anonymisation), alerting configurable, health checks des 5 contextes métier manquants, SLA/SLO, capacité, performance, profiling, observabilité cache/files, error tracking, incidents (ouverture → suivi → résolution → post-mortem), bibliothèque de runbooks, diagnostics composés, circuit breaker, chaos testing (verrou production) — absorbe et dépasse largement l'ancien Sprint 36 « Observabilité complète » | `tmis.cloud_operations.*` | 20 sous-modules, API REST (21 endpoints), 36 tests dédiés, instrumentation réelle de 3 points représentatifs (middleware API, `workflow_automation.execution_engine`, `ai_fabric.router`) (voir docs/118-125) |
+| 22 | **Enterprise Observability & Reliability — Extensions** ✅ | Neuf domaines de supervision transverses qui ne recoupent pas le Sprint 21 : pipeline d'audit corrélé (identity_platform/ai_governance/workflow_automation), suivi des coûts par modèle/utilisateur, monitoring qualité IA (hallucinations/biais historisés, composé sur `ai_fabric.telemetry`), monitoring workflows/connecteurs (branché sur des sinks Sprint 17/18 jusque-là sans appelant), tableau de bord par cabinet (activité/consommation/quotas/incidents), monitoring sécurité plateforme, politique de rétention des données d'observabilité, export CSV/JSON — insertion nette, sans absorption d'un sprint futur | `tmis.cloud_operations.*` (9 nouveaux sous-modules) | 14 nouveaux endpoints REST, 27 tests dédiés, instrumentation réelle de `integration_hub.synchronization` et `workflow_automation.execution_engine` vers des sinks jusqu'alors sans appelant (voir docs/126-131) |
+| 23 | **Cloud Native Runtime Platform** ✅ | Exécution, scalabilité, résilience et performances de TMIS à l'échelle : orchestrateur runtime domaine-agnostique (dépendances, priorité, parallélisme, annulation, reprise — réutilise le Workflow Engine), traitement asynchrone étendu (Dead Letter Queue, délai programmé — absents partout ailleurs), streaming d'événements (replay/idempotence/versionnage/archivage, décore les 7 bus existants sans les remplacer), cache distribué étendu (invalidation, warming, compression, stats — sur `ai.cache.CachePort`/`RedisCache` déjà réel), Event Store générique (Event Sourcing, snapshots, replay, archivage), fondations CQRS (Command/Query Bus, adoption progressive), Runtime Optimizer (recommandations CPU/mémoire/IA/workflow/API), haute disponibilité et reprise après sinistre étendues (heartbeat, supervision de nœuds, simulation de restauration, RPO/RTO), conseiller d'autoscaling indépendant du cloud, tests de charge in-process (100/1 000/10 000 utilisateurs simulés), chaos engineering étendu (perte de nœud/cache/bus de messages, mesure automatique de reprise/disponibilité/pertes) — absorbe et dépasse l'ancien Sprint 37 « Performance & scalabilité » | `tmis.runtime_platform.*` (12 nouveaux sous-modules) | 30+ endpoints REST, 71 tests dédiés, migration représentative de `legal_research.bootstrap` vers `DistributedCacheEngine`, extraction de `ensure_chaos_authorized` dans `cloud_operations.chaos_testing` pour réutilisation (voir docs/132-138) |
+| 24 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
+| 25 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
+| 26 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
+| 27 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle, `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, `tmis.strategic_intelligence.overview.StrategicIntelligencePlatform` (Sprint 16) pour toute proposition de stratégie, `tmis.workflow_automation.event_bus.WorkflowEventBus` (Sprint 17) pour toute automatisation déclenchée, et `tmis.integration_hub.connector_framework.ConnectorPort` (Sprint 18) pour tout échange avec un système externe, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, une gouvernance de production parallèle, un moteur de stratégie distinct, un moteur de règles/déclencheurs ad hoc, ou un client d'intégration ad hoc |
+| 28 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
+| 29 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
+| 30 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
+| 31 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
+| 32 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
+| 33 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions — s'appuie sur `tmis.cabinet_knowledge.clauses`/`tmis.cabinet_knowledge.templates` (Sprint 12) plutôt que de redévelopper une bibliothèque de clauses ou de modèles distincte |
+| 34 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
+| 35 | Sécurité renforcée & RGPD | Conformité | Transverse | Droits RGPD, suppression sécurisée, audit trail complet — s'appuie sur `tmis.platform.compliance`/`tmis.platform.security` (Sprint 10) plutôt que de reconstruire ces briques |
+| 36 | Facturation avancée — webhooks Stripe réels | Les quotas d'usage sont déjà suivis par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Webhooks Stripe entrants (événements de paiement) |
+| 37 | API publique — webhooks sortants | Clés API/OAuth2/scopes/rate limiting/versionnage déjà livrés par `tmis.cabinet_os.public_api` (Sprint 9) | Transverse | Webhooks sortants vers des intégrations clientes Entreprise |
+| 38 | UX polish & accessibilité | Qualité perçue | Frontend | Mode sombre, responsive, accessibilité WCAG |
+| 39 | Durcissement pré-lancement | Mise en production | Transverse | Pentest, audit RGPD final, documentation, bêta pilote |
 
 ## Règles de passage entre sprints
 
