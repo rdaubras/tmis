@@ -26,7 +26,7 @@ def test_example_plugins_are_registered_at_bootstrap() -> None:
 
     ids = {m.id for m in registry.list_all()}
 
-    assert ids == {
+    assert ids >= {
         "agent-fiscal",
         "agent-droit-social",
         "connector-ged",

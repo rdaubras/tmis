@@ -27,6 +27,7 @@ _MODULE_FEATURE_MAPPING: dict[TmisModule, str] = {
     TmisModule.INTEGRATION_HUB: "integration_hub",
     TmisModule.STRATEGIC_INTELLIGENCE: "advanced_analytics",
     TmisModule.PLATFORM_SDK: "public_api",
+    TmisModule.LEGAL_COPILOT_FRAMEWORK: "ai_assist",
 }
 """Maps a bounded context to the `Plan.features` string that gates
 it commercially (see `plans.engine._DEFAULT_FEATURES`). A module

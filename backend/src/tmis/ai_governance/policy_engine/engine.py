@@ -28,6 +28,7 @@ class PolicyEngine:
         min_confidence: float | None = None,
         forbidden_model_name: str | None = None,
         case_type: str | None = None,
+        required_role: str | None = None,
     ) -> GovernancePolicy:
         policy = GovernancePolicy(
             id=new_governance_policy_id(),
@@ -37,6 +38,7 @@ class PolicyEngine:
             min_confidence=min_confidence,
             forbidden_model_name=forbidden_model_name,
             case_type=case_type,
+            required_role=required_role,
         )
         self._store.add(policy)
         return policy
@@ -90,6 +92,14 @@ class PolicyEngine:
                             f"relecture obligatoire pour ce type de dossier "
                             f"({policy.case_type}) : {policy.reason}"
                         )
+                case GovernancePolicyType.RESTRICTED_TO_ROLE:
+                    role_mismatch = (
+                        policy.required_role is not None
+                        and context.user_role != policy.required_role
+                    )
+                    if role_mismatch:
+                        allowed = False
+                        reasons.append(f"rôle requis ({policy.required_role}) : {policy.reason}")
 
         if not reasons:
             reasons.append("aucune politique restrictive applicable")

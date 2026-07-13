@@ -18,6 +18,11 @@ _KIND_FOR_CATEGORY: dict[MetricCategory, MetricKind] = {
     MetricCategory.ERRORS: MetricKind.COUNTER,
     MetricCategory.THROUGHPUT: MetricKind.COUNTER,
     MetricCategory.CACHE: MetricKind.COUNTER,
+    MetricCategory.COPILOT_USAGE: MetricKind.COUNTER,
+    MetricCategory.AI_COST: MetricKind.GAUGE,
+    MetricCategory.VALIDATION_RATE: MetricKind.GAUGE,
+    MetricCategory.PACK_REUSE: MetricKind.COUNTER,
+    MetricCategory.SATISFACTION: MetricKind.GAUGE,
 }
 
 

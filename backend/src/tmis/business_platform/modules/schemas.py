@@ -26,6 +26,7 @@ class TmisModule(StrEnum):
     WORKFLOW_AUTOMATION = "workflow_automation"
     INTEGRATION_HUB = "integration_hub"
     IDENTITY_PLATFORM = "identity_platform"
+    LEGAL_COPILOT_FRAMEWORK = "legal_copilot_framework"
 
 
 @dataclass(slots=True)

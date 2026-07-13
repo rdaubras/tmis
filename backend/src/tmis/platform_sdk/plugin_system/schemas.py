@@ -9,6 +9,10 @@ class PluginType(StrEnum):
     WORKFLOW = "workflow"
     DOCUMENT_TEMPLATE = "document_template"
     TOOL = "tool"
+    # Added in Sprint 24 — a Legal Copilot (tmis.legal_copilot_framework)
+    # publishes as a plugin of this type, reusing install/update/
+    # dependency/licensing here rather than a fourth marketplace layer.
+    COPILOT = "copilot"
 
 
 class PublishingStatus(StrEnum):
