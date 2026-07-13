@@ -18,6 +18,10 @@ class GovernancePolicyType(StrEnum):
     FORBIDDEN_MODEL = "forbidden_model"
     MANDATORY_CITATIONS = "mandatory_citations"
     MANDATORY_REVIEW_FOR_CASE_TYPE = "mandatory_review_for_case_type"
+    # Added in Sprint 24 (Legal Copilot Framework) for its Validation
+    # Policies ("restrictions selon le rôle") — reuses identity_platform's
+    # role vocabulary via `required_role` rather than a parallel check.
+    RESTRICTED_TO_ROLE = "restricted_to_role"
 
 
 def new_governance_policy_id() -> str:
@@ -36,6 +40,7 @@ class GovernancePolicy:
     min_confidence: float | None = None
     forbidden_model_name: str | None = None
     case_type: str | None = None
+    required_role: str | None = None
     active: bool = True
 
 
@@ -56,6 +61,7 @@ class PolicyEvaluationContext:
     citation_count: int | None = None
     case_type: str | None = None
     human_validated: bool = False
+    user_role: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

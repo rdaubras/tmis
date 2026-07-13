@@ -20,6 +20,14 @@ class MetricCategory(StrEnum):
     WORKFLOW_COUNT = "workflow_count"
     ERRORS = "errors"
     THROUGHPUT = "throughput"
+    # Added in Sprint 24 (Legal Copilot Framework) — same additive
+    # pattern as Sprint 22: new categories on the same MetricsEngine,
+    # never a second metrics store.
+    COPILOT_USAGE = "copilot_usage"
+    AI_COST = "ai_cost"
+    VALIDATION_RATE = "validation_rate"
+    PACK_REUSE = "pack_reuse"
+    SATISFACTION = "satisfaction"
 
 
 class MetricKind(StrEnum):

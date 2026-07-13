@@ -12,6 +12,7 @@ from tmis.cabinet_os.api.routes import router as cabinet_os_router
 from tmis.collaboration.api.routes import router as collaboration_router
 from tmis.identity_platform.api.routes import router as identity_platform_router
 from tmis.integration_hub.api.routes import router as integration_hub_router
+from tmis.legal_copilot_framework.api.routes import router as legal_copilot_framework_router
 from tmis.legal_drafting.api.routes import router as legal_drafting_router
 from tmis.legal_reasoning.api.routes import router as legal_reasoning_router
 from tmis.legal_research.api.routes import router as legal_research_router
@@ -38,3 +39,4 @@ api_router.include_router(workflow_automation_router)
 api_router.include_router(integration_hub_router)
 api_router.include_router(identity_platform_router)
 api_router.include_router(business_platform_router)
+api_router.include_router(legal_copilot_framework_router)

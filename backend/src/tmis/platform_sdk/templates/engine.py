@@ -36,6 +36,29 @@ _WORKFLOW_STUB = {
     "validations": [],
 }
 
+# A copilot is a declarative CopilotSpec (see tmis.
+# legal_copilot_framework.sdk.schemas), not a Python class implementing
+# invoke() — scaffolded as JSON like PluginType.WORKFLOW, not a .py
+# stub, and deliberately without importing legal_copilot_framework
+# here (this module sits below it in the dependency graph).
+_COPILOT_STUB: dict[str, object] = {
+    "id": "{plugin_id}",
+    "name": "{plugin_id}",
+    "domain": "general",
+    "description": "TODO: describe this copilot",
+    "version": "0.1.0",
+    "dependencies": [],
+    "agents": [],
+    "compatible_models": [],
+    "workflow_pack_ids": [],
+    "document_pack_ids": [],
+    "knowledge_pack_ids": [],
+    "reasoning_pack_ids": [],
+    "prompt_pack_id": None,
+    "validation_policy_ids": [],
+    "permissions": [],
+}
+
 
 def _class_name(plugin_id: str) -> str:
     return "".join(part.capitalize() for part in plugin_id.replace("-", "_").split("_")) + "Plugin"
@@ -72,6 +95,11 @@ def render_plugin_scaffold(
         workflow["id"] = plugin_id
         workflow["name"] = plugin_id
         files["workflow.json"] = json.dumps(workflow, indent=2, ensure_ascii=False)
+    elif plugin_type is PluginType.COPILOT:
+        copilot = dict(_COPILOT_STUB)
+        copilot["id"] = plugin_id
+        copilot["name"] = plugin_id
+        files["copilot.json"] = json.dumps(copilot, indent=2, ensure_ascii=False)
     else:
         module, base_class = _BASE_CLASS_BY_TYPE[plugin_type]
         files["plugin.py"] = _PYTHON_STUB.format(
