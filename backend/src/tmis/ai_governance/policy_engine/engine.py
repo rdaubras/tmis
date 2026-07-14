@@ -29,7 +29,6 @@ class PolicyEngine:
         forbidden_model_name: str | None = None,
         case_type: str | None = None,
         required_role: str | None = None,
-        restricted_entity_id: str | None = None,
     ) -> GovernancePolicy:
         policy = GovernancePolicy(
             id=new_governance_policy_id(),
@@ -40,7 +39,6 @@ class PolicyEngine:
             forbidden_model_name=forbidden_model_name,
             case_type=case_type,
             required_role=required_role,
-            restricted_entity_id=restricted_entity_id,
         )
         self._store.add(policy)
         return policy
@@ -102,20 +100,6 @@ class PolicyEngine:
                     if role_mismatch:
                         allowed = False
                         reasons.append(f"rôle requis ({policy.required_role}) : {policy.reason}")
-                case GovernancePolicyType.RESTRICTED_ENTITY_VISIBILITY:
-                    entity_matches = (
-                        policy.restricted_entity_id is not None
-                        and context.entity_id == policy.restricted_entity_id
-                    )
-                    role_mismatch = (
-                        policy.required_role is not None
-                        and context.user_role != policy.required_role
-                    )
-                    if entity_matches and role_mismatch:
-                        allowed = False
-                        reasons.append(
-                            f"entité restreinte au rôle {policy.required_role} : {policy.reason}"
-                        )
 
         if not reasons:
             reasons.append("aucune politique restrictive applicable")

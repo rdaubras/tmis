@@ -15,9 +15,9 @@ connaissances concurrent de l'existant.
 
 ## Phase 1 — Audit préalable (résumé)
 
-Un audit exhaustif (docs/reports/sprint-25-rapport-audit.md) a précédé
-tout code, comme l'exigeait le prompt du sprint. Constat central :
-**trois graphes fragmentés existaient déjà**, aucun unifié :
+Un audit exhaustif a précédé tout code, comme l'exigeait le prompt du
+sprint. Constat central : **trois graphes fragmentés existaient
+déjà**, aucun unifié :
 
 | Graphe existant | Sprint | Portée | Multi-tenant |
 |---|---|---|---|
@@ -122,8 +122,6 @@ backend/src/tmis/legal_knowledge_graph/
 
 ## Voir aussi
 
-- docs/reports/sprint-25-rapport-audit.md — l'audit complet (Phase 1)
-- docs/reports/sprint-25-rapport-architecture.md — rapport d'architecture détaillé
 - docs/reports/sprint-25-demo-legal-knowledge-graph.md — démonstration avec sorties réelles
 - docs/146-guide-ingestion-knowledge-graph.md
 - docs/147-guide-validation-humaine-graphe.md

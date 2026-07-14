@@ -169,7 +169,5 @@ ci-dessus provient de l'exécution réelle de
 ## Voir aussi
 
 - docs/145-architecture-legal-knowledge-graph.md
-- docs/reports/sprint-25-rapport-audit.md
-- docs/reports/sprint-25-rapport-architecture.md
 - `backend/tests/integration/legal_knowledge_graph/test_legal_knowledge_graph_demo_scenario.py`
   — les assertions automatisées sur ce même scénario

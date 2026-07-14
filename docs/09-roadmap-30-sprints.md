@@ -577,65 +577,12 @@ suivant.
 > 39 à 40 sprints.**
 
 > **Note de révision (après Sprint 25)** : le prompt utilisateur pour
-> ce sprint s'intitulait explicitement « Knowledge Graph Federation &
-> Semantic Intelligence » et imposait, comme les Sprints 23 et 24, une
-> Phase 0 de ré-audit direct des fichiers concernés avant tout code.
-> Cette relecture (docs/reports/sprint-25-rapport-audit.md) a confirmé
-> qu'aucun des neuf fichiers de référence désignés par le prompt n'avait
-> dévié de l'analyse CTO : les trois graphes existants
-> (`case_intelligence.relationships`, `document_intelligence.knowledge`,
-> `cabinet_knowledge.ontology`) gardent exactement le périmètre déjà
-> documenté, et le prompt lui-même l'interdisait explicitement : **pas
-> de quatrième moteur de graphe**.
->
-> Une Phase 1 de refactoring DRY (zéro nouvelle fonctionnalité, zéro
-> rupture) a précédé la nouvelle capacité : `InMemoryCaseGraph` et
-> `InMemoryKnowledgeGraph` dupliquaient à l'identique le même mécanisme
-> de stockage (dict de nodes, liste d'edges, adjacency list en
-> `defaultdict`). `tmis.core.graph.AdjacencyGraphStore` (générique,
-> contraint par des protocoles structurels) factorise ce mécanisme ; les
-> deux classes le composent désormais par délégation, sans changement de
-> leurs ports (`CaseGraphPort`/`KnowledgeGraphPort`) ni d'un seul test
-> existant.
->
-> Le nouveau package `tmis.knowledge_graph` (6 sous-modules) ne
-> réimplémente aucune logique de stockage/traversal des trois graphes :
-> `federation.FederationQueryEngine` est une couche de lecture pure qui
-> interroge `CaseGraphPort`/`KnowledgeGraphPort`/`OntologyEngine` pour
-> répondre à des requêtes cross-scope. Seuls deux composants sont
-> réellement nouveaux au sens strict, exactement comme l'exigeait le
-> prompt : `entity_resolution` (aucun autre module ne décide qu'un
-> identifiant différent dans chaque graphe désigne la même entité
-> réelle ; toute résolution sous le seuil de confiance passe par
-> `ai_governance.human_validation.HumanValidationEngine`, jamais un
-> second mécanisme de validation) et `semantic_intelligence` (des
-> `SemanticLink` calculés via `tmis.ai.embeddings`/`tmis.ai.rag`,
-> explicitement distincts des edges « connecté à » des trois graphes).
-> `analytics` et `governance` suivent la même convention additive que le
-> Sprint 24 : trois nouvelles catégories `cloud_operations.metrics.
-> MetricCategory` (`GRAPH_COVERAGE`, `ENTITY_RESOLUTION_RATE`,
-> `SEMANTIC_LINK_DENSITY`) et un nouveau
-> `ai_governance.policy_engine.GovernancePolicyType.
-> RESTRICTED_ENTITY_VISIBILITY`, jamais un entrepôt de métriques ou un
-> moteur de politique parallèle. `copilot_bridge` étend
-> `legal_copilot_framework.knowledge_packs.KnowledgePack` avec
-> `resolved_entity_ids`/`federated_relation_refs` (tuples vides par
-> défaut, additifs) plutôt que d'ouvrir un second chemin d'intégration
-> vers les copilotes — voir docs/145-architecture-knowledge-graph.md et
-> docs/reports/sprint-25-rapport-audit.md pour le tableau complet
-> composants réutilisés / étendus / réellement nouveaux.
->
-> Ce sprint ne recoupe aucun placeholder existant de la roadmap :
-> `Module Document` et tous les sprints suivants glissent chacun d'un
-> cran (S25→S26, ..., S40→S41) — une insertion nette, sans compensation,
-> comme pour les Sprints 10, 22 et 24. **Le total passe de 40 à 41
-> sprints.**
 > ce sprint s'intitulait explicitement « Sprint 25 » et décrivait un
 > « Legal Knowledge Graph & Semantic Intelligence Platform » (LKG-SIP),
-> avec une Phase 1 d'audit obligatoire avant tout code. Cet audit
-> (docs/reports/sprint-25-rapport-audit.md) a recensé trois graphes
-> déjà existants et fragmentés — `document_intelligence.knowledge`
-> (Sprint 3, scope un seul document), `case_intelligence.
+> avec une Phase 1 d'audit obligatoire avant tout code. Cet audit a
+> recensé trois graphes déjà existants et fragmentés —
+> `document_intelligence.knowledge` (Sprint 3, scope un seul
+> document), `case_intelligence.
 > relationships` (Sprint 4, scope un seul dossier) et `cabinet_
 > knowledge.ontology` (Sprint 12, seul fragment multi-tenant mais
 > restreint aux relations entre deux `KnowledgeObject`) — et a choisi
@@ -645,6 +592,16 @@ suivant.
 > knowledge` et `case_intelligence.relationships` restent inchangés :
 > ils alimentent le nouveau graphe via l'ingestion, sans être
 > remplacés.
+>
+> Une Phase 1 de refactoring DRY (zéro nouvelle fonctionnalité, zéro
+> rupture), indépendante du choix d'architecture ci-dessous, a précédé
+> la nouvelle capacité : `InMemoryCaseGraph` et `InMemoryKnowledgeGraph`
+> dupliquaient à l'identique le même mécanisme de stockage (dict de
+> nodes, liste d'edges, adjacency list en `defaultdict`).
+> `tmis.core.graph.AdjacencyGraphStore` (générique, contraint par des
+> protocoles structurels) factorise ce mécanisme ; les deux classes le
+> composent désormais par délégation, sans changement de leurs ports
+> (`CaseGraphPort`/`KnowledgeGraphPort`) ni d'un seul test existant.
 >
 > Le nouveau package `tmis.legal_knowledge_graph` (11 sous-modules)
 > ajoute une abstraction `GraphNode` par pointeur (`ref_id` vers
@@ -719,7 +676,6 @@ flowchart TB
         S22[S22 Enterprise Observability & Reliability — Extensions]
         S23[S23 Cloud Native Runtime Platform]
         S24[S24 Legal Copilot Framework]
-        S25[S25 Knowledge Graph Federation & Semantic Intelligence]
         S25[S25 Legal Knowledge Graph & Semantic Intelligence Platform]
     end
     subgraph Phase2["Phase 2 — RAG & Recherche (S26-S28)"]
@@ -777,8 +733,7 @@ flowchart TB
 | 22 | **Enterprise Observability & Reliability — Extensions** ✅ | Neuf domaines de supervision transverses qui ne recoupent pas le Sprint 21 : pipeline d'audit corrélé (identity_platform/ai_governance/workflow_automation), suivi des coûts par modèle/utilisateur, monitoring qualité IA (hallucinations/biais historisés, composé sur `ai_fabric.telemetry`), monitoring workflows/connecteurs (branché sur des sinks Sprint 17/18 jusque-là sans appelant), tableau de bord par cabinet (activité/consommation/quotas/incidents), monitoring sécurité plateforme, politique de rétention des données d'observabilité, export CSV/JSON — insertion nette, sans absorption d'un sprint futur | `tmis.cloud_operations.*` (9 nouveaux sous-modules) | 14 nouveaux endpoints REST, 27 tests dédiés, instrumentation réelle de `integration_hub.synchronization` et `workflow_automation.execution_engine` vers des sinks jusqu'alors sans appelant (voir docs/126-131) |
 | 23 | **Cloud Native Runtime Platform** ✅ | Exécution, scalabilité, résilience et performances de TMIS à l'échelle : orchestrateur runtime domaine-agnostique (dépendances, priorité, parallélisme, annulation, reprise — réutilise le Workflow Engine), traitement asynchrone étendu (Dead Letter Queue, délai programmé — absents partout ailleurs), streaming d'événements (replay/idempotence/versionnage/archivage, décore les 7 bus existants sans les remplacer), cache distribué étendu (invalidation, warming, compression, stats — sur `ai.cache.CachePort`/`RedisCache` déjà réel), Event Store générique (Event Sourcing, snapshots, replay, archivage), fondations CQRS (Command/Query Bus, adoption progressive), Runtime Optimizer (recommandations CPU/mémoire/IA/workflow/API), haute disponibilité et reprise après sinistre étendues (heartbeat, supervision de nœuds, simulation de restauration, RPO/RTO), conseiller d'autoscaling indépendant du cloud, tests de charge in-process (100/1 000/10 000 utilisateurs simulés), chaos engineering étendu (perte de nœud/cache/bus de messages, mesure automatique de reprise/disponibilité/pertes) — absorbe et dépasse l'ancien Sprint 37 « Performance & scalabilité » | `tmis.runtime_platform.*` (12 nouveaux sous-modules) | 30+ endpoints REST, 71 tests dédiés, migration représentative de `legal_research.bootstrap` vers `DistributedCacheEngine`, extraction de `ensure_chaos_authorized` dans `cloud_operations.chaos_testing` pour réutilisation (voir docs/132-138) |
 | 24 | **Legal Copilot Framework** ✅ | Plateforme d'orchestration pour créer, déployer, versionner et maintenir des copilotes juridiques spécialisés, composés d'agents IA, de packs de prompts/connaissances/raisonnement/documents/workflows et de politiques de validation — Copilot SDK déclaratif (identifiant, domaine, agents, modèles compatibles, packs, permissions), Copilot Registry versionné (plusieurs versions simultanées), Context Engine (contexte utilisateur/cabinet/dossier agrégé sans duplication, composé sur `identity_platform.tenant_context`), 5 familles de Packs (Prompt/Knowledge/Reasoning/Document/Workflow, chacune un pointeur versionné vers un moteur existant, jamais une copie), Validation Policies spécialisées (validation associé, double validation, revue humaine, seuil de confiance, restriction par rôle), 5 copilotes MVP démontrant l'architecture de bout en bout avec des données fictives (Contentieux, Droit des sociétés, Droit fiscal, Droit social, Contrats) — un nouveau domaine juridique s'ajoute par un nouveau `CopilotSpec`, sans modifier le noyau TMIS | `tmis.legal_copilot_framework.*` | 11 sous-modules, API REST (14 endpoints), 78 tests dédiés, extension de `platform_sdk.plugin_system` (nouveau `PluginType.COPILOT`) pour préparer un futur Marketplace de copilotes via `platform_sdk.marketplace` existant, extension de `ai_governance.policy_engine` (`GovernancePolicyType.RESTRICTED_TO_ROLE`), 5 nouvelles catégories `cloud_operations.metrics` (voir docs/139-144) |
-| 25 | **Knowledge Graph Federation & Semantic Intelligence** ✅ | Fédère en lecture les trois graphes existants (`case_intelligence.relationships`, `document_intelligence.knowledge`, `cabinet_knowledge.ontology`) sans en créer un quatrième : requêtes cross-scope (`FederationQueryEngine`), résolution d'entités à travers les graphes avec validation humaine sous le seuil de confiance (`EntityResolutionEngine`), liens de similarité sémantique via les embeddings existants (`SemanticLinkEngine`, distinct des edges "connecté à"), métriques et gouvernance étendues sur les moteurs existants, pont vers les Knowledge Packs du Legal Copilot Framework — extraction au passage d'un `AdjacencyGraphStore` générique partagé par les deux graphes en mémoire pré-existants, sans changement de leurs ports ni régression d'un seul test | `tmis.knowledge_graph.*` | 6 sous-modules, API REST (14 endpoints), 43 tests dédiés, extension de `cloud_operations.metrics.MetricCategory` (3 catégories), extension de `ai_governance.policy_engine.GovernancePolicyType` (`RESTRICTED_ENTITY_VISIBILITY`), extension additive de `legal_copilot_framework.knowledge_packs.KnowledgePack` (voir docs/145-148) |
-| 25 | **Legal Knowledge Graph & Semantic Intelligence Platform** ✅ | Transforme les connaissances dispersées du cabinet (documents, jurisprudence, contrats, notes internes, raisonnements, modèles, validations humaines) en un réseau de connaissances exploitable par les Copilotes juridiques — graphe de connaissances explicable (concepts juridiques, articles de loi, jurisprudences, décisions, contrats, clauses, parties, dossiers, arguments, risques, procédures, documents, chaque relation portant une explication en français), moteur sémantique (recherche par intention, similarité, classification — orchestration, jamais un second moteur d'embeddings), résolution d'entités (scoring, correspondance automatique uniquement sur nom normalisé identique, sinon toujours une décision humaine, historique complet), pipeline d'ingestion (Import → Extraction → Classification → Enrichissement → Validation → Publication, jamais d'auto-publication), boucle de validation humaine, gouvernance (confidentialité/rétention par nœud, décision d'accès toujours déléguée à l'Enterprise Identity & Trust Platform), moteur de qualité (doublons, incohérences, sources manquantes → score de confiance composé), analytics (taille du graphe, latence de recherche, qualité des réponses, validations humaines, enrichissements), intégration Copilotes (connaissances pertinentes, documents similaires, raisonnements historiques, modèles validés, risques identifiés, injectés dans le `CopilotContext` sans modifier le Context Engine du Sprint 24) | `tmis.legal_knowledge_graph.*` | 11 sous-modules, API REST (13 endpoints), 58 tests dédiés, extension additive de `cabinet_knowledge.ontology` (4 nouveaux `RelationType`), `cabinet_knowledge.knowledge` (`KnowledgeType.CONTRACT`), `identity_platform.permissions` (`Permission.KNOWLEDGE_GRAPH_MANAGE`), `cloud_operations.metrics` (6 nouvelles catégories), `legal_copilot_framework.context_engine` (`CopilotContext.graph_context`, champ optionnel) — aucun graphe concurrent créé, `document_intelligence.knowledge` et `case_intelligence.relationships` restent inchangés (voir docs/145-150 et docs/reports/sprint-25-rapport-audit.md) |
+| 25 | **Legal Knowledge Graph & Semantic Intelligence Platform** ✅ | Transforme les connaissances dispersées du cabinet (documents, jurisprudence, contrats, notes internes, raisonnements, modèles, validations humaines) en un réseau de connaissances exploitable par les Copilotes juridiques — graphe de connaissances explicable (concepts juridiques, articles de loi, jurisprudences, décisions, contrats, clauses, parties, dossiers, arguments, risques, procédures, documents, chaque relation portant une explication en français), moteur sémantique (recherche par intention, similarité, classification — orchestration, jamais un second moteur d'embeddings), résolution d'entités (scoring, correspondance automatique uniquement sur nom normalisé identique, sinon toujours une décision humaine, historique complet), pipeline d'ingestion (Import → Extraction → Classification → Enrichissement → Validation → Publication, jamais d'auto-publication), boucle de validation humaine, gouvernance (confidentialité/rétention par nœud, décision d'accès toujours déléguée à l'Enterprise Identity & Trust Platform), moteur de qualité (doublons, incohérences, sources manquantes → score de confiance composé), analytics (taille du graphe, latence de recherche, qualité des réponses, validations humaines, enrichissements), intégration Copilotes (connaissances pertinentes, documents similaires, raisonnements historiques, modèles validés, risques identifiés, injectés dans le `CopilotContext` sans modifier le Context Engine du Sprint 24) — extraction au passage d'un `AdjacencyGraphStore` générique partagé par les deux graphes en mémoire pré-existants (`InMemoryCaseGraph`/`InMemoryKnowledgeGraph`), sans changement de leurs ports ni régression d'un seul test | `tmis.legal_knowledge_graph.*` | 11 sous-modules, API REST (13 endpoints), 58 tests dédiés, extension additive de `cabinet_knowledge.ontology` (4 nouveaux `RelationType`), `cabinet_knowledge.knowledge` (`KnowledgeType.CONTRACT`), `identity_platform.permissions` (`Permission.KNOWLEDGE_GRAPH_MANAGE`), `cloud_operations.metrics` (6 nouvelles catégories), `legal_copilot_framework.context_engine` (`CopilotContext.graph_context`, champ optionnel) — aucun graphe concurrent créé, `document_intelligence.knowledge` et `case_intelligence.relationships` restent inchangés (voir docs/145-150) |
 | 26 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
 | 27 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
 | 28 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |

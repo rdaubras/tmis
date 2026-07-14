@@ -27,8 +27,6 @@ class KnowledgePackEngine:
         update_rules: tuple[str, ...] = (),
         quality_controls: tuple[str, ...] = (),
         knowledge_object_ids: tuple[str, ...] = (),
-        resolved_entity_ids: tuple[str, ...] = (),
-        federated_relation_refs: tuple[str, ...] = (),
     ) -> KnowledgePack:
         existing = self._store.history(pack_id)
         version = existing[-1].version + 1 if existing else 1
@@ -42,8 +40,6 @@ class KnowledgePackEngine:
             update_rules=update_rules,
             quality_controls=quality_controls,
             knowledge_object_ids=knowledge_object_ids,
-            resolved_entity_ids=resolved_entity_ids,
-            federated_relation_refs=federated_relation_refs,
         )
         self._store.save(pack)
         return pack
