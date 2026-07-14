@@ -18,9 +18,36 @@ class Orchestrator:
     always passes sensitive output through the Verifier, then fuses the
     final response (see docs/05-strategie-multi-agents.md).
 
-    Sprint 1 wires a single demonstrative path (analysis -> verifier) to
-    prove the LangGraph plumbing end-to-end. Additional agents are plugged
-    into the same graph in later sprints without changing this contract.
+    Sprint 1 wired a single demonstrative path (analysis -> verifier) to
+    prove the LangGraph plumbing end-to-end. Sprint 29 makes that path real
+    — "analysis" now runs the real `AnalysisAgent` (`TMISKernel.complete()`,
+    `DocumentStorePort`/`CaseStorePort`, `AIIntelligenceFabric`,
+    `AIGovernancePlatform` — see docs/157-architecture-agent-analyse.md) —
+    without changing this class's wiring: the constructor already accepted
+    an injectable `analysis_agent` for exactly this reason.
+
+    **Pattern for a future agent (Sprint 30 and later)** — add a node to
+    the same graph without changing this contract:
+
+    1. Add a constructor parameter for the new agent (e.g.
+       `synthesis_agent: SynthesisAgent | None = None`), defaulting to its
+       own placeholder/real implementation the same way `analysis_agent`
+       and `verifier_agent` already do.
+    2. In `_build_graph`, add one `async def run_<name>(state)` closure that
+       calls `self._<name>_agent.run(state["agent_input"])` (or, for a
+       post-processing agent like the Verifier, `.verify(state["output"])`
+       on the previous node's output) and returns `{**state, "output":
+       output}`.
+    3. Register it with `graph.add_node(...)` and wire its edges — a new
+       agent that runs *instead of* or *before* Analysis changes the entry
+       point/edges; one that runs *after* Verifier (e.g. Synthesis
+       consuming the verified output) is inserted between `"verifier"` and
+       `END`.
+    4. Every agent in the graph still only implements `AgentPort`
+       (`name` + `async def run(agent_input) -> AgentOutput`, see
+       `tmis.agents.contracts`) — the same contract this Sprint 29 sprint
+       exercises end-to-end for the first time — so `OrchestratorState`
+       and the public `Orchestrator.run()` method never need to change.
     """
 
     def __init__(
