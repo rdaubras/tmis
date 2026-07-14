@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     private_database_connector_base_url: str | None = None
     private_database_connector_api_key: str | None = None
 
+    # --- Sprint 28: learned reranker, behind the Sprint 2 `RerankerPort` ---
+    # "keyword_overlap" keeps `KeywordOverlapReranker` (dev/tests default,
+    # zero external dependency, no download); "cross_encoder" switches to a
+    # local sentence-transformers cross-encoder model (still no API key).
+    reranker_backend: str = "keyword_overlap"
+    cross_encoder_model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
 
 @lru_cache
 def get_settings() -> Settings:
