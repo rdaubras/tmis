@@ -10,6 +10,7 @@ from tmis.ai.embeddings.factory import get_embedding_provider
 from tmis.ai.kernel.kernel import TMISKernel
 from tmis.ai.rag.factory import get_vector_index
 from tmis.ai.rag.pipeline import RagPipeline
+from tmis.ai.reranking.factory import get_reranker
 
 
 @lru_cache
@@ -25,9 +26,10 @@ def get_kernel() -> TMISKernel:
     jurisprudence/doctrine connectors are picked here from central config
     (`tmis.ai.embeddings.factory`, `tmis.ai.rag.factory`,
     `tmis.ai.connectors.factory`) — real adapters if configured, the
-    Sprint 2 in-memory/fixture defaults otherwise. `TMISKernel` itself is
-    unchanged: this is the single place that decides, everything else
-    keeps depending on the ports.
+    Sprint 2 in-memory/fixture defaults otherwise. Sprint 28 adds the
+    reranker (`tmis.ai.reranking.factory.get_reranker`) on the same
+    principle. `TMISKernel` itself is unchanged: this is the single place
+    that decides, everything else keeps depending on the ports.
     """
     embedding_provider = get_embedding_provider()
     connector_manager = ConnectorManager(
@@ -41,5 +43,6 @@ def get_kernel() -> TMISKernel:
         rag=RagPipeline(
             embedding_provider=embedding_provider,
             index=get_vector_index(dimensions=embedding_provider.dimensions),
+            reranker=get_reranker(),
         ),
     )

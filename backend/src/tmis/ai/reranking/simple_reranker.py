@@ -6,9 +6,11 @@ class KeywordOverlapReranker:
     that contain the query as an exact phrase are promoted above chunks
     that only matched on individual tokens or vector similarity.
 
-    A learned cross-encoder reranker is planned for Sprint 9 (see
-    docs/09-roadmap-30-sprints.md); this deterministic rule is enough to
-    prove the reranking stage of the pipeline end-to-end.
+    A learned cross-encoder reranker was added at Sprint 28 (see
+    `tmis.ai.reranking.adapters.cross_encoder_reranker.CrossEncoderReranker`
+    and docs/09-roadmap-30-sprints.md); this deterministic rule remains the
+    default in dev/tests and the fallback whenever the cross-encoder model
+    is unavailable.
     """
 
     def __init__(self, exact_phrase_bonus: float = 0.2) -> None:

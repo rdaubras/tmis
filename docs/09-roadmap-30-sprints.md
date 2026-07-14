@@ -752,6 +752,65 @@ suivant.
 > déjà en usage dans ce dépôt pour la même raison étant `aiosqlite`
 > (Sprint 26). Voir docs/reports/sprint-27-rapport-audit.md.
 
+> **Note de révision (après Sprint 28)** : le prompt utilisateur pour ce
+> sprint s'intitulait explicitement « Sprint 28 » et décrivait le
+> branchement réel de `CachePort` sur `RedisCache` (Sprint 2, jusqu'ici
+> jamais construit en dehors des tests) et le remplacement du reranker
+> heuristique `KeywordOverlapReranker` par un reranker appris, tous deux
+> derrière leurs ports existants sans changement de signature — du
+> câblage, pas de la construction, exactement comme annoncé par la note
+> de révision après le Sprint 5. Ce sprint livre exactement le
+> placeholder déjà présent à la position 28 de la roadmap — aucun sprint
+> suivant ne glisse, le total reste à 41.
+>
+> La Phase 0 d'audit obligatoire a confirmé que les neuf fichiers
+> désignés par le prompt (`ai/cache/ports.py`, `in_memory_cache.py`,
+> `redis_cache.py` ; `ai/kernel/kernel.py`, `platform_sdk/connector_sdk/
+> base.py`, `ai_fabric/bootstrap.py` — les trois câblages en dur sur
+> `InMemoryCache` ; `legal_research/cache/research_cache.py` et
+> `schemas.py`, `legal_research/bootstrap.py` ; `ai/reranking/ports.py`,
+> `simple_reranker.py` ; `ai/retrieval/hybrid_retriever.py` ;
+> `ai/connectors/factory.py`, `legal_research/connectors/factory.py` ;
+> `core/config.py`) avaient exactement la forme attendue — aucun écart,
+> donc aucun arbitrage utilisateur nécessaire avant de commencer, comme
+> au Sprint 27. Un seul point de contexte à noter : `legal_research.
+> bootstrap.get_research_orchestrator` n'avait en réalité aucun câblage
+> en dur à remplacer — il compose déjà `ResearchCache(DistributedCacheEngine
+> (kernel.cache))` depuis le Sprint 23, donc hérite automatiquement du
+> nouveau comportement de `TMISKernel.cache` sans modification de ce
+> fichier ; et `hybrid_retriever.py`, désigné par le prompt comme
+> « consommateur du reranker », ne consomme en réalité que `IndexPort`
+> (le reranking est une étape séparée, dans `RagPipeline`) — n'a donc,
+> comme prévu pour un fichier protégé, reçu aucune modification.
+>
+> Décision de composition la plus notable : `ai.cache.factory.
+> make_cache()` déroge délibérément à la convention établie au Sprint 27
+> (« aucun adaptateur ne sonde son backend à la construction » —
+> `get_qdrant_client()`, `get_connector_http_client()`) en sondant Redis
+> par un `PING` borné (0,5 s) au démarrage plutôt qu'au premier appel
+> réel. Le prompt du sprint demande explicitement cette sémantique
+> (« RedisCache si `redis_url` configuré **et joignable** ») ; `CachePort`
+> est en outre sur le chemin chaud de pratiquement chaque appel du
+> Kernel, contrairement à Qdrant ou aux connecteurs HTTP, ce qui rend le
+> coût borné d'un `PING` unique par process (mis en cache, jamais répété)
+> préférable à laisser une `ConnectionError` non gérée remonter à chaque
+> appelant dès que Redis devient indisponible. Voir
+> docs/155-architecture-cache-production.md pour le détail complet de
+> cet arbitrage.
+>
+> Limite assumée, documentée plutôt que masquée : aucun Redis ni modèle
+> `sentence-transformers` cross-encoder n'a pu être validé contre un
+> service réellement joignable dans cet environnement (pas de Redis en
+> cours d'exécution dans le bac à sable, proxy sortant qui bloque
+> `huggingface.co` avec un `403` — déjà rencontré au Sprint 27 pour
+> l'embedding). Les deux replis (`InMemoryCache`, `KeywordOverlapReranker`)
+> se sont donc déclenchés en conditions réelles pendant le développement,
+> pas seulement en test unitaire monkeypatché — la meilleure preuve
+> possible que « jamais d'échec au démarrage » tient vraiment. Les tests
+> qui exercent les backends réels restent gatés par opt-in
+> (`TMIS_REDIS_URL`, `TMIS_RUN_MODEL_DOWNLOAD_TESTS`), même patron que les
+> Sprints 26/27. Voir docs/reports/sprint-28-rapport-audit.md.
+
 ## Vue d'ensemble
 
 ```mermaid
@@ -841,7 +900,7 @@ flowchart TB
 | 25 | **Legal Knowledge Graph & Semantic Intelligence Platform** ✅ | Transforme les connaissances dispersées du cabinet (documents, jurisprudence, contrats, notes internes, raisonnements, modèles, validations humaines) en un réseau de connaissances exploitable par les Copilotes juridiques — graphe de connaissances explicable (concepts juridiques, articles de loi, jurisprudences, décisions, contrats, clauses, parties, dossiers, arguments, risques, procédures, documents, chaque relation portant une explication en français), moteur sémantique (recherche par intention, similarité, classification — orchestration, jamais un second moteur d'embeddings), résolution d'entités (scoring, correspondance automatique uniquement sur nom normalisé identique, sinon toujours une décision humaine, historique complet), pipeline d'ingestion (Import → Extraction → Classification → Enrichissement → Validation → Publication, jamais d'auto-publication), boucle de validation humaine, gouvernance (confidentialité/rétention par nœud, décision d'accès toujours déléguée à l'Enterprise Identity & Trust Platform), moteur de qualité (doublons, incohérences, sources manquantes → score de confiance composé), analytics (taille du graphe, latence de recherche, qualité des réponses, validations humaines, enrichissements), intégration Copilotes (connaissances pertinentes, documents similaires, raisonnements historiques, modèles validés, risques identifiés, injectés dans le `CopilotContext` sans modifier le Context Engine du Sprint 24) — extraction au passage d'un `AdjacencyGraphStore` générique partagé par les deux graphes en mémoire pré-existants (`InMemoryCaseGraph`/`InMemoryKnowledgeGraph`), sans changement de leurs ports ni régression d'un seul test | `tmis.legal_knowledge_graph.*` | 11 sous-modules, API REST (13 endpoints), 58 tests dédiés, extension additive de `cabinet_knowledge.ontology` (4 nouveaux `RelationType`), `cabinet_knowledge.knowledge` (`KnowledgeType.CONTRACT`), `identity_platform.permissions` (`Permission.KNOWLEDGE_GRAPH_MANAGE`), `cloud_operations.metrics` (6 nouvelles catégories), `legal_copilot_framework.context_engine` (`CopilotContext.graph_context`, champ optionnel) — aucun graphe concurrent créé, `document_intelligence.knowledge` et `case_intelligence.relationships` restent inchangés (voir docs/145-150) |
 | 26 | **Module Document + Persistance** ✅ | Ajoute des adaptateurs SQLAlchemy Postgres derrière les 7 ports de stockage jusqu'ici en mémoire seulement (`DocumentRecord` Sprint 3, `CaseProfile` Sprint 4, historique de recherche Sprint 5, sessions de raisonnement Sprint 6 — nouveau `SessionStorePort` additif, aucun port de stockage n'existait pour ce domaine avant ce sprint —, brouillons Sprint 7, espaces de travail Sprint 8, registre documentaire cabinet Sprint 9) : une seule `Base` déclarative et un seul moteur sync réutilisés (`tmis.core.database`, déjà présents depuis le socle identité/firm), moteur `asyncpg` additionnel réservé à ce qu'aucun port n'expose (historique des versions d'un document), un seul `Celery` (`tmis.core.tasks`, absent du dépôt avant ce sprint), chaque `InMemory*Store` conservé tel quel comme défaut dev/tests — endpoint d'upload multipart qui persiste puis déclenche le pipeline DIE de façon asynchrone, lequel déclenche à son tour le CIE quand un dossier est renseigné, versionning par nouvelle ligne liée à la précédente (jamais d'écrasement en place) | `tmis.core.db.*`, `tmis.core.tasks.*`, `<domaine>/adapters/sqlalchemy_store.py` (7 domaines) | 7 migrations Alembic (une par domaine, chaînées), 7 stores SQLAlchemy, 1 endpoint d'upload + historique de versions, 49 tests d'intégration dédiés (voir docs/151-152) |
 | 27 | **RAG et connecteurs branchés sur données réelles** ✅ | Remplace les implémentations en mémoire/fixture des Sprints 2 et 5 par des adaptateurs réels derrière les mêmes ports (`IndexPort`, `EmbeddingProviderPort`, `ConnectorPort` — aucune signature changée) : `QdrantVectorIndex`, `SentenceTransformerEmbeddingProvider` (modèle local, aucune clé API), `LegifranceConnector`/`JudilibreConnector` (API publiques réelles via la passerelle PISTE) pour codes/jurisprudence, `HttpConnector` générique configurable pour doctrine et pour les 2 connecteurs du LRE — chaque implémentation en mémoire/fixture reste le défaut dev/tests si aucune configuration externe n'est fournie | `tmis.ai.rag.adapters.*`, `tmis.ai.embeddings.adapters.*`, `tmis.ai.connectors.adapters.*`, `tmis.ai.connectors.factory`, `tmis.legal_research.connectors.factory` | 5 adaptateurs réels, 4 factories de composition, `ConnectorBackendHealthCheck` (DEGRADED + détail par connecteur), 48 tests dédiés (voir docs/153-154) |
-| 28 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
+| 28 | **Cache Redis en production + reranker appris** ✅ | Qualité et performance de recherche en production | `tmis.ai.cache`, `tmis.ai.reranking`, `tmis.legal_research.cache` | `ai.cache.factory.make_cache()` (RedisCache si `redis_url` joignable, sinon InMemoryCache — trois câblages en dur remplacés), `CrossEncoderReranker` (sentence-transformers, repli loggé sur `KeywordOverlapReranker`), 20 tests dédiés (voir docs/155-156) |
 | 29 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle, `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, `tmis.strategic_intelligence.overview.StrategicIntelligencePlatform` (Sprint 16) pour toute proposition de stratégie, `tmis.workflow_automation.event_bus.WorkflowEventBus` (Sprint 17) pour toute automatisation déclenchée, et `tmis.integration_hub.connector_framework.ConnectorPort` (Sprint 18) pour tout échange avec un système externe, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, une gouvernance de production parallèle, un moteur de stratégie distinct, un moteur de règles/déclencheurs ad hoc, ou un client d'intégration ad hoc |
 | 30 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
 | 31 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |

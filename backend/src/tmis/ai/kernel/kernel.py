@@ -7,7 +7,7 @@ from typing import cast
 
 from langgraph.graph.state import CompiledStateGraph
 
-from tmis.ai.cache.in_memory_cache import InMemoryCache
+from tmis.ai.cache.factory import make_cache
 from tmis.ai.cache.ports import CachePort
 from tmis.ai.connectors.manager import ConnectorManager
 from tmis.ai.embeddings.hashing_provider import HashingEmbeddingProvider
@@ -67,7 +67,7 @@ class TMISKernel:
 
         self.provider_registry = provider_registry or ProviderRegistry()
         self.connector_manager = connector_manager or ConnectorManager()
-        self.cache: CachePort = cache or InMemoryCache()
+        self.cache: CachePort = cache or make_cache()
         self.event_bus = event_bus or EventBus()
         self.prompt_registry = prompt_registry or PromptRegistry()
         self.tool_registry = tool_registry or ToolRegistry()

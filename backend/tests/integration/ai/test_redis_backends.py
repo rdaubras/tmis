@@ -28,6 +28,27 @@ async def test_redis_cache_roundtrip() -> None:
 
 
 @pytest.mark.asyncio
+async def test_make_cache_selects_redis_when_reachable(monkeypatch: pytest.MonkeyPatch) -> None:
+    from tmis.ai.cache import factory
+    from tmis.ai.cache.redis_cache import RedisCache
+    from tmis.core.config import Settings
+
+    monkeypatch.setattr(
+        factory, "get_settings", lambda: Settings(redis_url=os.environ["TMIS_REDIS_URL"])
+    )
+    factory._shared_redis_client.cache_clear()
+    try:
+        cache = factory.make_cache()
+        assert isinstance(cache, RedisCache)
+
+        await cache.set("factory-roundtrip", "value", ttl_seconds=30)
+        assert await cache.get("factory-roundtrip") == "value"
+        await cache.delete("factory-roundtrip")
+    finally:
+        factory._shared_redis_client.cache_clear()
+
+
+@pytest.mark.asyncio
 async def test_redis_memory_store_roundtrip() -> None:
     import uuid
 

@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from tmis.ai.cache.in_memory_cache import InMemoryCache
+from tmis.ai.cache.factory import make_cache
 from tmis.ai.prompts.registry import PromptRegistry
 from tmis.ai_fabric.benchmark.engine import BenchmarkEngine
 from tmis.ai_fabric.benchmark.store import InMemoryBenchmarkStore
@@ -82,7 +82,7 @@ def get_token_manager() -> TokenManager:
 
 @lru_cache
 def get_response_cache() -> ResponseCache:
-    return ResponseCache(InMemoryCache())
+    return ResponseCache(make_cache())
 
 
 @lru_cache

@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from typing import Any
 
-from tmis.ai.cache.in_memory_cache import InMemoryCache
+from tmis.ai.cache.factory import make_cache
 from tmis.ai.cache.ports import CachePort
 from tmis.platform_sdk.connector_sdk.schemas import ConnectorPage, ConnectorResult
 from tmis.platform_sdk.plugin_system.schemas import PluginType
@@ -18,14 +18,15 @@ class BaseConnectorPlugin(ABC):
     free and only implements `fetch_page()` (one page of raw results)
     and, optionally, `normalize()`. Caching reuses
     `tmis.ai.cache.ports.CachePort` (Sprint 2) rather than a new cache
-    abstraction — `InMemoryCache` by default, swappable for
-    `RedisCache` in the same way the AI Kernel is."""
+    abstraction — `InMemoryCache` by default, `RedisCache` in production
+    when Redis is reachable (Sprint 28, see `tmis.ai.cache.factory.
+    make_cache`), same as the AI Kernel."""
 
     plugin_type = PluginType.CONNECTOR
 
     def __init__(self, plugin_id: str, cache: CachePort | None = None) -> None:
         self.id = plugin_id
-        self._cache: CachePort = cache if cache is not None else InMemoryCache()
+        self._cache: CachePort = cache if cache is not None else make_cache()
 
     async def authenticate(self, context: PluginContext) -> None:  # noqa: B027
         """Override to perform a real handshake; a no-op by default
