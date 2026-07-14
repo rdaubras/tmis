@@ -1,4 +1,4 @@
-# Roadmap détaillée — 40 sprints
+# Roadmap détaillée — 41 sprints
 
 > Le nombre de sprints a évolué au fil des révisions (voir notes
 > ci-dessous) ; l'intitulé et le nom de fichier d'origine ("30 sprints")
@@ -576,11 +576,72 @@ suivant.
 > compensation, comme pour les Sprints 10 et 22. **Le total passe de
 > 39 à 40 sprints.**
 
+> **Note de révision (après Sprint 25)** : le prompt utilisateur pour
+> ce sprint s'intitulait explicitement « Sprint 25 » et décrivait un
+> « Legal Knowledge Graph & Semantic Intelligence Platform » (LKG-SIP),
+> avec une Phase 1 d'audit obligatoire avant tout code. Cet audit
+> (docs/reports/sprint-25-rapport-audit.md) a recensé trois graphes
+> déjà existants et fragmentés — `document_intelligence.knowledge`
+> (Sprint 3, scope un seul document), `case_intelligence.
+> relationships` (Sprint 4, scope un seul dossier) et `cabinet_
+> knowledge.ontology` (Sprint 12, seul fragment multi-tenant mais
+> restreint aux relations entre deux `KnowledgeObject`) — et a choisi
+> d'étendre ce dernier plutôt que de créer un quatrième moteur de
+> graphe, conformément à la consigne du sprint (« ne jamais créer un
+> moteur de connaissances concurrent »). `document_intelligence.
+> knowledge` et `case_intelligence.relationships` restent inchangés :
+> ils alimentent le nouveau graphe via l'ingestion, sans être
+> remplacés.
+>
+> Le nouveau package `tmis.legal_knowledge_graph` (11 sous-modules)
+> ajoute une abstraction `GraphNode` par pointeur (`ref_id` vers
+> l'entité réelle dans son contexte d'origine — jamais une copie de
+> contenu) au-dessus de `cabinet_knowledge.ontology.KnowledgeRelation`/
+> `RelationType`, réutilisé tel quel comme vocabulaire de relations
+> pour l'ensemble du graphe (4 nouveaux types additifs : `INFLUENCES`,
+> `APPEARS_IN`, `MENTIONS`, `SAME_AS`). Le moteur sémantique compose
+> `ai.embeddings.HashingEmbeddingProvider`/`ai.embeddings.similarity`
+> et `document_intelligence.classification` (jamais un second modèle
+> d'embeddings) ; la résolution d'entités généralise le principe de
+> `case_intelligence.actors.merger.normalize_name` (Sprint 4) à
+> l'échelle du cabinet, avec scoring, validation humaine et historique
+> complet — seule une correspondance de nom exact (score 1.0)
+> auto-confirme une relation `SAME_AS`, tout le reste attend une
+> décision humaine ; le pipeline d'ingestion compose `cabinet_
+> knowledge.knowledge.KnowledgeSpace`/`.lineage`/`.validation`/
+> `.approval` (Sprint 12) plutôt que de reconstruire un stockage ou un
+> circuit de validation ; la boucle de validation humaine réutilise le
+> vocabulaire `cabinet_knowledge.feedback.FeedbackAction` pour les
+> sujets qu'`ai_governance.human_validation`/`cabinet_knowledge.
+> feedback` ne peuvent pas couvrir (une relation de graphe, une
+> correspondance d'entités) ; la gouvernance ne construit aucun second
+> mécanisme d'autorisation — elle porte uniquement les métadonnées de
+> confidentialité/rétention par nœud et délègue la décision
+> d'accès/modification/publication à `identity_platform.api.guard.
+> authorize_or_403` (nouveau `Permission.KNOWLEDGE_GRAPH_MANAGE`,
+> immédiatement accordé à `PARTNER`/`ASSOCIATE`/`IT_ADMIN` dans le
+> même commit, à la différence du bug du Sprint 24 où `COPILOT_MANAGE`
+> n'avait été accordé à aucun rôle) ; le moteur de qualité étend
+> `cabinet_knowledge.quality.QualityEngine` avec trois pénalités
+> multiplicatives (doublons via `SAME_AS`, incohérences via
+> `CONTRADICTS`, sources manquantes via `cabinet_knowledge.lineage`) ;
+> l'intégration Copilotes ajoute un champ optionnel `graph_context` à
+> `legal_copilot_framework.context_engine.CopilotContext` (Sprint 24)
+> rempli par une fonction pont pure (`copilot_bridge.
+> attach_graph_context`), sans jamais modifier `ContextEngine.build()`
+> lui-même — un copilote fonctionne avec ou sans le graphe.
+>
+> Ce sprint ne recoupe aucun placeholder existant de la roadmap :
+> `Module Document` et tous les sprints suivants glissent chacun d'un
+> cran (S25→S26, ..., S40→S41) — une insertion nette, sans
+> compensation, comme pour les Sprints 10, 22 et 24. **Le total passe
+> de 40 à 41 sprints.**
+
 ## Vue d'ensemble
 
 ```mermaid
 flowchart TB
-    subgraph Phase1["Phase 1 — Socle (S1-S24)"]
+    subgraph Phase1["Phase 1 — Socle (S1-S25)"]
         S1[S1 Vision & architecture]
         S2[S2 AI Kernel]
         S3[S3 Document Intelligence Engine]
@@ -605,30 +666,31 @@ flowchart TB
         S22[S22 Enterprise Observability & Reliability — Extensions]
         S23[S23 Cloud Native Runtime Platform]
         S24[S24 Legal Copilot Framework]
+        S25[S25 Legal Knowledge Graph & Semantic Intelligence Platform]
     end
-    subgraph Phase2["Phase 2 — RAG & Recherche (S25-S27)"]
-        S25[S25 Module Document + Persistance]
-        S26[S26 RAG et connecteurs branchés sur données réelles]
-        S27[S27 Cache Redis en production + reranker appris]
+    subgraph Phase2["Phase 2 — RAG & Recherche (S26-S28)"]
+        S26[S26 Module Document + Persistance]
+        S27[S27 RAG et connecteurs branchés sur données réelles]
+        S28[S28 Cache Redis en production + reranker appris]
     end
-    subgraph Phase3["Phase 3 — Agents IA (S28-S35)"]
-        S28[S28 Intégration agents métier au Kernel + Agent Analyse]
-        S29[S29 Agent Synthèse narrative]
-        S30[S30 Agent Vérificateur]
-        S31[S31 Chat IA]
-        S32[S32 Agent Recherche Documentaire]
-        S33[S33 Agent Jurisprudence]
-        S34[S34 Module Contrats + Agent Contrat]
-        S35[S35 Agent Veille]
+    subgraph Phase3["Phase 3 — Agents IA (S29-S36)"]
+        S29[S29 Intégration agents métier au Kernel + Agent Analyse]
+        S30[S30 Agent Synthèse narrative]
+        S31[S31 Agent Vérificateur]
+        S32[S32 Chat IA]
+        S33[S33 Agent Recherche Documentaire]
+        S34[S34 Agent Jurisprudence]
+        S35[S35 Module Contrats + Agent Contrat]
+        S36[S36 Agent Veille]
     end
-    subgraph Phase4["Phase 4 — Pilotage & Plateforme (S36-S38)"]
-        S36[S36 Sécurité renforcée & RGPD]
-        S37[S37 Facturation avancée — webhooks Stripe]
-        S38[S38 API publique — webhooks sortants]
+    subgraph Phase4["Phase 4 — Pilotage & Plateforme (S37-S39)"]
+        S37[S37 Sécurité renforcée & RGPD]
+        S38[S38 Facturation avancée — webhooks Stripe]
+        S39[S39 API publique — webhooks sortants]
     end
-    subgraph Phase5["Phase 5 — Qualité & Lancement (S39-S40)"]
-        S39[S39 UX polish & accessibilité]
-        S40[S40 Durcissement pré-lancement]
+    subgraph Phase5["Phase 5 — Qualité & Lancement (S40-S41)"]
+        S40[S40 UX polish & accessibilité]
+        S41[S41 Durcissement pré-lancement]
     end
     Phase1 --> Phase2 --> Phase3 --> Phase4 --> Phase5
 ```
@@ -661,22 +723,23 @@ flowchart TB
 | 22 | **Enterprise Observability & Reliability — Extensions** ✅ | Neuf domaines de supervision transverses qui ne recoupent pas le Sprint 21 : pipeline d'audit corrélé (identity_platform/ai_governance/workflow_automation), suivi des coûts par modèle/utilisateur, monitoring qualité IA (hallucinations/biais historisés, composé sur `ai_fabric.telemetry`), monitoring workflows/connecteurs (branché sur des sinks Sprint 17/18 jusque-là sans appelant), tableau de bord par cabinet (activité/consommation/quotas/incidents), monitoring sécurité plateforme, politique de rétention des données d'observabilité, export CSV/JSON — insertion nette, sans absorption d'un sprint futur | `tmis.cloud_operations.*` (9 nouveaux sous-modules) | 14 nouveaux endpoints REST, 27 tests dédiés, instrumentation réelle de `integration_hub.synchronization` et `workflow_automation.execution_engine` vers des sinks jusqu'alors sans appelant (voir docs/126-131) |
 | 23 | **Cloud Native Runtime Platform** ✅ | Exécution, scalabilité, résilience et performances de TMIS à l'échelle : orchestrateur runtime domaine-agnostique (dépendances, priorité, parallélisme, annulation, reprise — réutilise le Workflow Engine), traitement asynchrone étendu (Dead Letter Queue, délai programmé — absents partout ailleurs), streaming d'événements (replay/idempotence/versionnage/archivage, décore les 7 bus existants sans les remplacer), cache distribué étendu (invalidation, warming, compression, stats — sur `ai.cache.CachePort`/`RedisCache` déjà réel), Event Store générique (Event Sourcing, snapshots, replay, archivage), fondations CQRS (Command/Query Bus, adoption progressive), Runtime Optimizer (recommandations CPU/mémoire/IA/workflow/API), haute disponibilité et reprise après sinistre étendues (heartbeat, supervision de nœuds, simulation de restauration, RPO/RTO), conseiller d'autoscaling indépendant du cloud, tests de charge in-process (100/1 000/10 000 utilisateurs simulés), chaos engineering étendu (perte de nœud/cache/bus de messages, mesure automatique de reprise/disponibilité/pertes) — absorbe et dépasse l'ancien Sprint 37 « Performance & scalabilité » | `tmis.runtime_platform.*` (12 nouveaux sous-modules) | 30+ endpoints REST, 71 tests dédiés, migration représentative de `legal_research.bootstrap` vers `DistributedCacheEngine`, extraction de `ensure_chaos_authorized` dans `cloud_operations.chaos_testing` pour réutilisation (voir docs/132-138) |
 | 24 | **Legal Copilot Framework** ✅ | Plateforme d'orchestration pour créer, déployer, versionner et maintenir des copilotes juridiques spécialisés, composés d'agents IA, de packs de prompts/connaissances/raisonnement/documents/workflows et de politiques de validation — Copilot SDK déclaratif (identifiant, domaine, agents, modèles compatibles, packs, permissions), Copilot Registry versionné (plusieurs versions simultanées), Context Engine (contexte utilisateur/cabinet/dossier agrégé sans duplication, composé sur `identity_platform.tenant_context`), 5 familles de Packs (Prompt/Knowledge/Reasoning/Document/Workflow, chacune un pointeur versionné vers un moteur existant, jamais une copie), Validation Policies spécialisées (validation associé, double validation, revue humaine, seuil de confiance, restriction par rôle), 5 copilotes MVP démontrant l'architecture de bout en bout avec des données fictives (Contentieux, Droit des sociétés, Droit fiscal, Droit social, Contrats) — un nouveau domaine juridique s'ajoute par un nouveau `CopilotSpec`, sans modifier le noyau TMIS | `tmis.legal_copilot_framework.*` | 11 sous-modules, API REST (14 endpoints), 78 tests dédiés, extension de `platform_sdk.plugin_system` (nouveau `PluginType.COPILOT`) pour préparer un futur Marketplace de copilotes via `platform_sdk.marketplace` existant, extension de `ai_governance.policy_engine` (`GovernancePolicyType.RESTRICTED_TO_ROLE`), 5 nouvelles catégories `cloud_operations.metrics` (voir docs/139-144) |
-| 25 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
-| 26 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
-| 27 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
-| 28 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle, `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, `tmis.strategic_intelligence.overview.StrategicIntelligencePlatform` (Sprint 16) pour toute proposition de stratégie, `tmis.workflow_automation.event_bus.WorkflowEventBus` (Sprint 17) pour toute automatisation déclenchée, et `tmis.integration_hub.connector_framework.ConnectorPort` (Sprint 18) pour tout échange avec un système externe, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, une gouvernance de production parallèle, un moteur de stratégie distinct, un moteur de règles/déclencheurs ad hoc, ou un client d'intégration ad hoc |
-| 29 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
-| 30 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
-| 31 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
-| 32 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
-| 33 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
-| 34 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions — s'appuie sur `tmis.cabinet_knowledge.clauses`/`tmis.cabinet_knowledge.templates` (Sprint 12) plutôt que de redévelopper une bibliothèque de clauses ou de modèles distincte |
-| 35 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
-| 36 | Sécurité renforcée & RGPD | Conformité | Transverse | Droits RGPD, suppression sécurisée, audit trail complet — s'appuie sur `tmis.platform.compliance`/`tmis.platform.security` (Sprint 10) plutôt que de reconstruire ces briques |
-| 37 | Facturation avancée — webhooks Stripe réels | Les quotas d'usage sont déjà suivis par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Webhooks Stripe entrants (événements de paiement) |
-| 38 | API publique — webhooks sortants | Clés API/OAuth2/scopes/rate limiting/versionnage déjà livrés par `tmis.cabinet_os.public_api` (Sprint 9) | Transverse | Webhooks sortants vers des intégrations clientes Entreprise |
-| 39 | UX polish & accessibilité | Qualité perçue | Frontend | Mode sombre, responsive, accessibilité WCAG |
-| 40 | Durcissement pré-lancement | Mise en production | Transverse | Pentest, audit RGPD final, documentation, bêta pilote |
+| 25 | **Legal Knowledge Graph & Semantic Intelligence Platform** ✅ | Transforme les connaissances dispersées du cabinet (documents, jurisprudence, contrats, notes internes, raisonnements, modèles, validations humaines) en un réseau de connaissances exploitable par les Copilotes juridiques — graphe de connaissances explicable (concepts juridiques, articles de loi, jurisprudences, décisions, contrats, clauses, parties, dossiers, arguments, risques, procédures, documents, chaque relation portant une explication en français), moteur sémantique (recherche par intention, similarité, classification — orchestration, jamais un second moteur d'embeddings), résolution d'entités (scoring, correspondance automatique uniquement sur nom normalisé identique, sinon toujours une décision humaine, historique complet), pipeline d'ingestion (Import → Extraction → Classification → Enrichissement → Validation → Publication, jamais d'auto-publication), boucle de validation humaine, gouvernance (confidentialité/rétention par nœud, décision d'accès toujours déléguée à l'Enterprise Identity & Trust Platform), moteur de qualité (doublons, incohérences, sources manquantes → score de confiance composé), analytics (taille du graphe, latence de recherche, qualité des réponses, validations humaines, enrichissements), intégration Copilotes (connaissances pertinentes, documents similaires, raisonnements historiques, modèles validés, risques identifiés, injectés dans le `CopilotContext` sans modifier le Context Engine du Sprint 24) | `tmis.legal_knowledge_graph.*` | 11 sous-modules, API REST (13 endpoints), 58 tests dédiés, extension additive de `cabinet_knowledge.ontology` (4 nouveaux `RelationType`), `cabinet_knowledge.knowledge` (`KnowledgeType.CONTRACT`), `identity_platform.permissions` (`Permission.KNOWLEDGE_GRAPH_MANAGE`), `cloud_operations.metrics` (6 nouvelles catégories), `legal_copilot_framework.context_engine` (`CopilotContext.graph_context`, champ optionnel) — aucun graphe concurrent créé, `document_intelligence.knowledge` et `case_intelligence.relationships` restent inchangés (voir docs/145-150 et docs/reports/sprint-25-rapport-audit.md) |
+| 26 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
+| 27 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
+| 28 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
+| 29 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle, `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, `tmis.strategic_intelligence.overview.StrategicIntelligencePlatform` (Sprint 16) pour toute proposition de stratégie, `tmis.workflow_automation.event_bus.WorkflowEventBus` (Sprint 17) pour toute automatisation déclenchée, et `tmis.integration_hub.connector_framework.ConnectorPort` (Sprint 18) pour tout échange avec un système externe, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, une gouvernance de production parallèle, un moteur de stratégie distinct, un moteur de règles/déclencheurs ad hoc, ou un client d'intégration ad hoc |
+| 30 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
+| 31 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
+| 32 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |
+| 33 | Agent Recherche Documentaire | Intégration agent ↔ `ResearchOrchestrator` (Sprint 5) | `legal_research` | Recherche exposée dans le chat avec citations, via `TMISKernel` — aucune réimplémentation du LRE |
+| 34 | Agent Jurisprudence | Recherche de décisions | Jurisprudence | Comparaison de solutions jurisprudentielles |
+| 35 | Module Contrats | Analyse contractuelle | `contract` | Détection de risques, comparaison de versions — s'appuie sur `tmis.cabinet_knowledge.clauses`/`tmis.cabinet_knowledge.templates` (Sprint 12) plutôt que de redévelopper une bibliothèque de clauses ou de modèles distincte |
+| 36 | Agent Veille | Veille juridique | `watch` | Alertes ciblées depuis sources configurées |
+| 37 | Sécurité renforcée & RGPD | Conformité | Transverse | Droits RGPD, suppression sécurisée, audit trail complet — s'appuie sur `tmis.platform.compliance`/`tmis.platform.security` (Sprint 10) plutôt que de reconstruire ces briques |
+| 38 | Facturation avancée — webhooks Stripe réels | Les quotas d'usage sont déjà suivis par `tmis.cabinet_os.subscriptions` (Sprint 9) | `billing` | Webhooks Stripe entrants (événements de paiement) |
+| 39 | API publique — webhooks sortants | Clés API/OAuth2/scopes/rate limiting/versionnage déjà livrés par `tmis.cabinet_os.public_api` (Sprint 9) | Transverse | Webhooks sortants vers des intégrations clientes Entreprise |
+| 40 | UX polish & accessibilité | Qualité perçue | Frontend | Mode sombre, responsive, accessibilité WCAG |
+| 41 | Durcissement pré-lancement | Mise en production | Transverse | Pentest, audit RGPD final, documentation, bêta pilote |
 
 ## Règles de passage entre sprints
 

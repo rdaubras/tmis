@@ -20,6 +20,10 @@ class KnowledgeType(StrEnum):
     JURISPRUDENCE_NOTE = "jurisprudence_note"
     COMMENT = "comment"
     DECISION = "decision"
+    # Added in Sprint 25 (Legal Knowledge Graph) — a whole ingested
+    # contract has no equivalent among the existing types (CLAUSE is
+    # only ever one clause, never the whole document).
+    CONTRACT = "contract"
 
 
 class KnowledgeStatus(StrEnum):

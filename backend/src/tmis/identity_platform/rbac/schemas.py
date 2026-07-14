@@ -13,12 +13,14 @@ DEFAULT_ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.USER_MANAGE,
             Permission.BUSINESS_PLATFORM_MANAGE,
             Permission.COPILOT_MANAGE,
+            Permission.KNOWLEDGE_GRAPH_MANAGE,
         }
     ),
     Role.ASSOCIATE: frozenset(
         {
             Permission.EXPORT_DATA,
             Permission.WORKFLOW_USE_TEAM_RESTRICTED,
+            Permission.KNOWLEDGE_GRAPH_MANAGE,
         }
     ),
     Role.COUNSEL: frozenset({Permission.EXPORT_DATA}),
@@ -30,6 +32,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.SECRET_MANAGE,
             Permission.BUSINESS_PLATFORM_MANAGE,
             Permission.COPILOT_MANAGE,
+            Permission.KNOWLEDGE_GRAPH_MANAGE,
         }
     ),
 }
