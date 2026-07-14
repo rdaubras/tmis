@@ -79,3 +79,39 @@ def test_manager_lists_default_connectors() -> None:
 def test_connector_port_is_structurally_satisfied_by_codes_connector() -> None:
     connector: ConnectorPort = CodesConnector()
     assert connector.connector_name == "codes"
+
+
+class _StubConnector:
+    def __init__(self, connector_name: str) -> None:
+        self.connector_name = connector_name
+
+    async def search(
+        self, query: str, filters: dict[str, object] | None = None
+    ) -> list[ConnectorDocument]:
+        return [
+            ConnectorDocument(
+                id="stub-1", title="Stub", content="stub content", connector=self.connector_name
+            )
+        ]
+
+    async def fetch(self, document_id: str) -> ConnectorDocument | None:
+        return None
+
+
+@pytest.mark.asyncio
+async def test_manager_accepts_injected_codes_jurisprudence_doctrine_connectors() -> None:
+    manager = ConnectorManager(
+        codes=_StubConnector("codes"),
+        jurisprudence=_StubConnector("jurisprudence"),
+        doctrine=_StubConnector("doctrine"),
+    )
+
+    results = await manager.search("anything")
+
+    assert {doc.id for doc in results} == {"stub-1"}
+    assert set(manager.list_connectors()) == {"codes", "jurisprudence", "doctrine"}
+
+
+def test_manager_with_no_args_still_defaults_to_the_sprint2_fixtures() -> None:
+    manager = ConnectorManager()
+    assert set(manager.list_connectors()) == {"codes", "jurisprudence", "doctrine"}

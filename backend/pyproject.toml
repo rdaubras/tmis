@@ -27,6 +27,7 @@ dependencies = [
     "python-docx>=1.1,<2.0",
     "PyYAML>=6.0,<7.0",
     "Pillow>=10.4,<11.0",
+    "qdrant-client>=1.10,<2.0",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,10 @@ dev = [
     "types-passlib>=1.7,<2.0",
     "types-PyYAML>=6.0,<7.0",
     "aiosqlite>=0.20,<0.21",
+    "sentence-transformers>=3.0,<6.0",
+]
+rag-local = [
+    "sentence-transformers>=3.0,<6.0",
 ]
 ci = [
     "bandit>=1.7,<2.0",

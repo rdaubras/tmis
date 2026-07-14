@@ -3,6 +3,7 @@ from functools import lru_cache
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.core.config import get_settings
 from tmis.platform.health.checks import CallableHealthCheck
+from tmis.platform.health.connector_backend_check import ConnectorBackendHealthCheck
 from tmis.platform.health.engine import HealthCheckEngine
 
 
@@ -48,7 +49,10 @@ def _check_connectors() -> bool:
 def get_health_check_engine() -> HealthCheckEngine:
     """Process-wide `HealthCheckEngine` singleton, pre-registered with
     the seven dependencies the sprint brief names (see
-    docs/49-guide-supervision.md). Every probe here is a lightweight,
+    docs/49-guide-supervision.md), plus `connector_backends` (Sprint 27,
+    see docs/154-guide-configuration-connecteurs.md) which reports
+    DEGRADED when a connector is running on its in-memory fixture for
+    lack of configuration. Every probe here is a lightweight,
     synchronous, structural check — see each function's docstring for
     what it does and does not verify; replacing a probe with a real
     one (an actual `SELECT 1`, a real `PING`) means swapping the
@@ -63,4 +67,5 @@ def get_health_check_engine() -> HealthCheckEngine:
     engine.register(CallableHealthCheck("event_bus", _check_event_bus))
     engine.register(CallableHealthCheck("queue", _check_queue))
     engine.register(CallableHealthCheck("connectors", _check_connectors))
+    engine.register(ConnectorBackendHealthCheck())
     return engine

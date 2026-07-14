@@ -700,6 +700,58 @@ suivant.
 > dossier divergent tant qu'un sprint futur ne change pas ce câblage par
 > défaut — voir docs/151-architecture-persistance.md.
 
+> **Note de révision (après Sprint 27)** : le prompt utilisateur pour ce
+> sprint s'intitulait explicitement « Sprint 27 » et décrivait le
+> remplacement des implémentations en mémoire des Sprints 2 (RAG,
+> embeddings, connecteurs codes/jurisprudence/doctrine) et 5 (connecteurs
+> du Legal Research Engine — documentation interne, base privée) par des
+> adaptateurs réels derrière les mêmes ports, sans en changer la
+> signature. Comme le Sprint 26, ce sprint livre exactement le
+> placeholder déjà présent à la position 27 de la roadmap — aucun sprint
+> suivant ne glisse, le total reste à 41.
+>
+> La Phase 0 d'audit obligatoire (avant tout code) a confirmé que les
+> neuf fichiers désignés par le prompt (`ai/rag/ports.py` et
+> `indexing.py`, `ai/embeddings/ports.py` et `hashing_provider.py`,
+> `ai/connectors/ports.py`/`manager.py` et les 3 connecteurs Sprint 2,
+> `legal_research/connectors/registration.py` et les 2 connecteurs
+> Sprint 5, `hybrid_retriever.py`, `document_intelligence/embeddings/
+> bridge.py`, `core/config.py`) avaient exactement la forme attendue —
+> aucun écart, donc aucun arbitrage utilisateur nécessaire avant de
+> commencer (contrairement au Sprint 26, qui en avait trouvé deux).
+>
+> Décisions de composition : `ConnectorManager.__init__` et
+> `register_legal_research_connectors()` gagnent chacun des paramètres
+> optionnels (`codes`/`jurisprudence`/`doctrine` et
+> `internal_documentation`/`private_database`) — même patron additif que
+> `session_store` sur `ReasoningOrchestrator` au Sprint 26 — pour que les
+> deux points de bootstrap process-wide (`ai.kernel.bootstrap.
+> get_kernel()`, `legal_research.bootstrap.get_research_orchestrator()`)
+> puissent injecter un adaptateur réel sans qu'aucun appelant existant ne
+> change de comportement. Qdrant a été choisi comme index vectoriel (déjà
+> nommé comme cible dans docs/03), un modèle `sentence-transformers`
+> local comme fournisseur d'embedding réel (suggéré explicitement par le
+> prompt, pour ne pas rendre le pipeline RAG dépendant d'une clé API en
+> dev), et pour les connecteurs : Légifrance/Judilibre (API publiques
+> réelles, via la passerelle PISTE) pour codes/jurisprudence, un
+> connecteur HTTP générique configurable pour doctrine (aucune API
+> publique pertinente) et pour les deux connecteurs du LRE (sources
+> propres au cabinet par nature). Voir
+> docs/153-architecture-rag-production.md et
+> docs/154-guide-configuration-connecteurs.md.
+>
+> Limite assumée, documentée plutôt que masquée : les adaptateurs
+> Légifrance/Judilibre n'ont pas pu être validés contre le service PISTE
+> réel dans cet environnement (aucun identifiant disponible, proxy
+> sortant du bac à sable qui bloque les hôtes non listés) — seul le
+> contrat HTTP est testé (requêtes/réponses simulées). Docker n'étant pas
+> disponible dans cet environnement, l'intégration Qdrant est testée via
+> le mode local intégré de `qdrant-client` (`AsyncQdrantClient(location=
+> ":memory:")`, le même moteur Rust qu'en production, sans serveur
+> réseau) plutôt que via testcontainers — l'équivalent le plus proche
+> déjà en usage dans ce dépôt pour la même raison étant `aiosqlite`
+> (Sprint 26). Voir docs/reports/sprint-27-rapport-audit.md.
+
 ## Vue d'ensemble
 
 ```mermaid
@@ -788,7 +840,7 @@ flowchart TB
 | 24 | **Legal Copilot Framework** ✅ | Plateforme d'orchestration pour créer, déployer, versionner et maintenir des copilotes juridiques spécialisés, composés d'agents IA, de packs de prompts/connaissances/raisonnement/documents/workflows et de politiques de validation — Copilot SDK déclaratif (identifiant, domaine, agents, modèles compatibles, packs, permissions), Copilot Registry versionné (plusieurs versions simultanées), Context Engine (contexte utilisateur/cabinet/dossier agrégé sans duplication, composé sur `identity_platform.tenant_context`), 5 familles de Packs (Prompt/Knowledge/Reasoning/Document/Workflow, chacune un pointeur versionné vers un moteur existant, jamais une copie), Validation Policies spécialisées (validation associé, double validation, revue humaine, seuil de confiance, restriction par rôle), 5 copilotes MVP démontrant l'architecture de bout en bout avec des données fictives (Contentieux, Droit des sociétés, Droit fiscal, Droit social, Contrats) — un nouveau domaine juridique s'ajoute par un nouveau `CopilotSpec`, sans modifier le noyau TMIS | `tmis.legal_copilot_framework.*` | 11 sous-modules, API REST (14 endpoints), 78 tests dédiés, extension de `platform_sdk.plugin_system` (nouveau `PluginType.COPILOT`) pour préparer un futur Marketplace de copilotes via `platform_sdk.marketplace` existant, extension de `ai_governance.policy_engine` (`GovernancePolicyType.RESTRICTED_TO_ROLE`), 5 nouvelles catégories `cloud_operations.metrics` (voir docs/139-144) |
 | 25 | **Legal Knowledge Graph & Semantic Intelligence Platform** ✅ | Transforme les connaissances dispersées du cabinet (documents, jurisprudence, contrats, notes internes, raisonnements, modèles, validations humaines) en un réseau de connaissances exploitable par les Copilotes juridiques — graphe de connaissances explicable (concepts juridiques, articles de loi, jurisprudences, décisions, contrats, clauses, parties, dossiers, arguments, risques, procédures, documents, chaque relation portant une explication en français), moteur sémantique (recherche par intention, similarité, classification — orchestration, jamais un second moteur d'embeddings), résolution d'entités (scoring, correspondance automatique uniquement sur nom normalisé identique, sinon toujours une décision humaine, historique complet), pipeline d'ingestion (Import → Extraction → Classification → Enrichissement → Validation → Publication, jamais d'auto-publication), boucle de validation humaine, gouvernance (confidentialité/rétention par nœud, décision d'accès toujours déléguée à l'Enterprise Identity & Trust Platform), moteur de qualité (doublons, incohérences, sources manquantes → score de confiance composé), analytics (taille du graphe, latence de recherche, qualité des réponses, validations humaines, enrichissements), intégration Copilotes (connaissances pertinentes, documents similaires, raisonnements historiques, modèles validés, risques identifiés, injectés dans le `CopilotContext` sans modifier le Context Engine du Sprint 24) — extraction au passage d'un `AdjacencyGraphStore` générique partagé par les deux graphes en mémoire pré-existants (`InMemoryCaseGraph`/`InMemoryKnowledgeGraph`), sans changement de leurs ports ni régression d'un seul test | `tmis.legal_knowledge_graph.*` | 11 sous-modules, API REST (13 endpoints), 58 tests dédiés, extension additive de `cabinet_knowledge.ontology` (4 nouveaux `RelationType`), `cabinet_knowledge.knowledge` (`KnowledgeType.CONTRACT`), `identity_platform.permissions` (`Permission.KNOWLEDGE_GRAPH_MANAGE`), `cloud_operations.metrics` (6 nouvelles catégories), `legal_copilot_framework.context_engine` (`CopilotContext.graph_context`, champ optionnel) — aucun graphe concurrent créé, `document_intelligence.knowledge` et `case_intelligence.relationships` restent inchangés (voir docs/145-150) |
 | 26 | **Module Document + Persistance** ✅ | Ajoute des adaptateurs SQLAlchemy Postgres derrière les 7 ports de stockage jusqu'ici en mémoire seulement (`DocumentRecord` Sprint 3, `CaseProfile` Sprint 4, historique de recherche Sprint 5, sessions de raisonnement Sprint 6 — nouveau `SessionStorePort` additif, aucun port de stockage n'existait pour ce domaine avant ce sprint —, brouillons Sprint 7, espaces de travail Sprint 8, registre documentaire cabinet Sprint 9) : une seule `Base` déclarative et un seul moteur sync réutilisés (`tmis.core.database`, déjà présents depuis le socle identité/firm), moteur `asyncpg` additionnel réservé à ce qu'aucun port n'expose (historique des versions d'un document), un seul `Celery` (`tmis.core.tasks`, absent du dépôt avant ce sprint), chaque `InMemory*Store` conservé tel quel comme défaut dev/tests — endpoint d'upload multipart qui persiste puis déclenche le pipeline DIE de façon asynchrone, lequel déclenche à son tour le CIE quand un dossier est renseigné, versionning par nouvelle ligne liée à la précédente (jamais d'écrasement en place) | `tmis.core.db.*`, `tmis.core.tasks.*`, `<domaine>/adapters/sqlalchemy_store.py` (7 domaines) | 7 migrations Alembic (une par domaine, chaînées), 7 stores SQLAlchemy, 1 endpoint d'upload + historique de versions, 49 tests d'intégration dédiés (voir docs/151-152) |
-| 27 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
+| 27 | **RAG et connecteurs branchés sur données réelles** ✅ | Remplace les implémentations en mémoire/fixture des Sprints 2 et 5 par des adaptateurs réels derrière les mêmes ports (`IndexPort`, `EmbeddingProviderPort`, `ConnectorPort` — aucune signature changée) : `QdrantVectorIndex`, `SentenceTransformerEmbeddingProvider` (modèle local, aucune clé API), `LegifranceConnector`/`JudilibreConnector` (API publiques réelles via la passerelle PISTE) pour codes/jurisprudence, `HttpConnector` générique configurable pour doctrine et pour les 2 connecteurs du LRE — chaque implémentation en mémoire/fixture reste le défaut dev/tests si aucune configuration externe n'est fournie | `tmis.ai.rag.adapters.*`, `tmis.ai.embeddings.adapters.*`, `tmis.ai.connectors.adapters.*`, `tmis.ai.connectors.factory`, `tmis.legal_research.connectors.factory` | 5 adaptateurs réels, 4 factories de composition, `ConnectorBackendHealthCheck` (DEGRADED + détail par connecteur), 48 tests dédiés (voir docs/153-154) |
 | 28 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
 | 29 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle, `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, `tmis.strategic_intelligence.overview.StrategicIntelligencePlatform` (Sprint 16) pour toute proposition de stratégie, `tmis.workflow_automation.event_bus.WorkflowEventBus` (Sprint 17) pour toute automatisation déclenchée, et `tmis.integration_hub.connector_framework.ConnectorPort` (Sprint 18) pour tout échange avec un système externe, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, une gouvernance de production parallèle, un moteur de stratégie distinct, un moteur de règles/déclencheurs ad hoc, ou un client d'intégration ad hoc |
 | 30 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
