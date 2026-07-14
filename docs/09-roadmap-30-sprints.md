@@ -890,6 +890,62 @@ suivant.
 > aucun sprint existant : la table détaillée et le total (41 sprints)
 > restent inchangés.
 
+> **Note de révision (après Sprint 31)** : le Sprint 31 relie un
+> troisième agent de `tmis.agents` aux plateformes déjà livrées —
+> **seulement l'Agent Vérificateur**, exactement comme annoncé à la
+> position 31 de la table détaillée. `VerifierAgent.verify()` remplace
+> la seule vérification de citations du Sprint 1 par trois vérifications
+> supplémentaires, chacune une composition stricte sur un moteur déjà
+> livré, sans jamais le reconstruire : cohérence dossier via
+> `HeuristicConflictDetector.detect()` (Sprint 6) sur les
+> `facts`/`timeline_inconsistencies` d'un `CaseProfile` chargé par
+> `CaseStorePort` (Sprint 26), hallucinations via
+> `HallucinationDetectionEngine.scan()` (Sprint 15) et biais via
+> `BiasDetectionEngine.scan()` (Sprint 15) sur le texte narratif
+> réellement généré par modèle (`result["narrative"]`,
+> `result["synthesis_note"]`, `result["executive_summary"]` — jamais les
+> résumés déterministes). Chaque signal devient un `warning`, jamais une
+> suppression de contenu, et dégrade la confiance selon une cascade
+> explicite (`HIGH -> MEDIUM` à partir d'un signal, `MEDIUM -> LOW` à
+> partir de deux) qui remplace la règle Sprint 1 plus grossière
+> ("`if warnings: HIGH -> MEDIUM`", déclenchée par n'importe quel
+> avertissement préexistant). La ligne 31 de la table détaillée mentionne
+> par ailleurs `ReasoningOrchestrator`/`ConfidenceEngine` en plus de
+> `ConflictDetector` : ce sprint ne câble délibérément que les trois
+> moteurs listés dans son brief (`HeuristicConflictDetector`,
+> `HallucinationDetectionEngine`, `BiasDetectionEngine`) — composition
+> stricte imposée par sa propre portée, pas un oubli ; voir
+> docs/159-architecture-agent-verificateur.md.
+>
+> Ce sprint corrige aussi un bug de câblage introduit sans s'en rendre
+> compte au Sprint 30 : avec `"verifier"` câblé uniquement entre
+> `"analysis"` et `"synthesis"`, la sortie de `SynthesisAgent` atteignait
+> `END` sans jamais passer par `VerifierAgent.verify()` — en
+> contradiction avec le docstring même de `VerifierAgent` ("every other
+> agent's output is routed through this agent"). Le graphe devient
+> `analysis -> verifier -> synthesis -> verifier_final -> END` : le
+> positionnement `"verifier"` avant `"synthesis"` du Sprint 30 est
+> conservé tel quel (sa justification — Synthèse consomme la sortie déjà
+> vérifiée d'Analyse — reste valide), et un second nœud `verifier_final`
+> vérifie la sortie fusionnée avant `END`, pour que la contribution de
+> Synthèse soit elle aussi contrôlée. Voir
+> docs/159-architecture-agent-verificateur.md pour le détail du câblage
+> et le raisonnement complet sur ce choix face à l'alternative (déplacer
+> `"verifier"` après `"synthesis"`).
+>
+> **Les 7 autres agents de `tmis.agents` restent des placeholders**, sur
+> le même principe qu'aux Sprints 22, 25, 29 et 30 : `ResearchAgent`
+> (Sprint 33), `JurisprudenceAgent` (Sprint 34), `ContractAgent`
+> (Sprint 35), `WatchAgent` (Sprint 36) gardent chacun leur propre sprint
+> dédié plus loin dans cette même table ; `DraftingAgent`, `StrategyAgent`
+> et `CollaborationAgent` restent hors de ce roadmap de 41 sprints (voir
+> la note de révision après le Sprint 29 pour le détail de leur
+> absorption).
+>
+> Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
+> aucun sprint existant : la table détaillée et le total (41 sprints)
+> restent inchangés.
+
 ## Vue d'ensemble
 
 ```mermaid

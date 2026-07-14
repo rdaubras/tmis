@@ -43,10 +43,11 @@ class Orchestrator:
     without changing this class's wiring: the constructor already accepted
     an injectable `analysis_agent` for exactly this reason.
 
-    Sprint 30 adds a third node, "synthesis", between "verifier" and `END`
-    — the real `SynthesisAgent` (`CaseStorePort`/`CaseSummaryGenerator`,
-    `WritingStyleEngine`, `AIIntelligenceFabric`, `AIGovernancePlatform` —
-    see docs/158-architecture-agent-synthese.md). Unlike the Verifier,
+    Sprint 30 adds a third node, "synthesis", between "verifier" and
+    "verifier_final" (see below) — the real `SynthesisAgent`
+    (`CaseStorePort`/`CaseSummaryGenerator`, `WritingStyleEngine`,
+    `AIIntelligenceFabric`, `AIGovernancePlatform` — see
+    docs/158-architecture-agent-synthese.md). Unlike the Verifier,
     Synthesis is a plain `AgentPort` (it implements `run(agent_input)`,
     not a `.verify(output)` post-processor), so `run_synthesis` calls
     `self._synthesis_agent.run(state["agent_input"])` exactly like
@@ -64,7 +65,26 @@ class Orchestrator:
     for why a verbatim replacement would have broken the existing
     Sprint 29 tests.
 
-    **Pattern for a future agent (Sprint 31 and later)** — add a node to
+    Sprint 31 fixes a graph bug that Sprint 30 introduced without
+    noticing (see docs/159-architecture-agent-verificateur.md and
+    docs/reports/sprint-31-rapport-architecture.md): with "verifier"
+    wired directly before "synthesis", Synthesis's own output — its
+    citations, and the narrative text in `synthesis_note`/
+    `executive_summary` — reached `END` without ever passing through
+    `VerifierAgent.verify()`, contradicting this very docstring's opening
+    sentence ("every other agent's output is routed through this agent").
+    The fix keeps "analysis" -> "verifier" -> "synthesis" exactly as
+    Sprint 30 wired it (Synthesis still consumes the already-verified
+    Analysis output, preserving that sprint's rationale) and appends a
+    second node, "verifier_final", between "synthesis" and `END`: it
+    calls `self._verifier_agent.verify()` again, this time on the fused
+    output, so Synthesis's contribution is checked too before the graph
+    ends. This is the second of the two options the Sprint 31 brief
+    allowed (call `verify()` a second time on the fused output) rather
+    than moving "verifier" after "synthesis" outright, precisely to avoid
+    re-litigating the Sprint 30 positioning rationale above.
+
+    **Pattern for a future agent (Sprint 32 and later)** — add a node to
     the same graph without changing this contract:
 
     1. Add a constructor parameter for the new agent (e.g.
@@ -82,7 +102,9 @@ class Orchestrator:
     3. Register it with `graph.add_node(...)` and wire its edges — a new
        agent that runs *instead of* or *before* Analysis changes the entry
        point/edges; one that runs *after* Synthesis is inserted between
-       `"synthesis"` and `END`.
+       `"synthesis"` and `"verifier_final"` (Sprint 31's final
+       verification pass must stay the last node before `END`, so any new
+       terminal deliverable agent goes *before* it, not after).
     4. Every agent in the graph still only implements `AgentPort`
        (`name` + `async def run(agent_input) -> AgentOutput`, see
        `tmis.agents.contracts`) — so `OrchestratorState` and the public
@@ -118,13 +140,25 @@ class Orchestrator:
             fused = _fuse_with_synthesis(state["output"], synthesis_output)
             return {**state, "output": fused}
 
+        async def run_verifier_final(state: OrchestratorState) -> OrchestratorState:
+            # Second `verify()` pass (Sprint 31): the first pass only ever
+            # saw Analysis's output, before Synthesis existed in the fused
+            # state. This one runs on the fused output so Synthesis's own
+            # citations and narrative text (`synthesis_note`,
+            # `executive_summary`) are checked too before `END`.
+            assert state["output"] is not None
+            verified = await self._verifier_agent.verify(state["output"])
+            return {**state, "output": verified}
+
         graph.add_node("analysis", run_analysis)
         graph.add_node("verifier", run_verifier)
         graph.add_node("synthesis", run_synthesis)
+        graph.add_node("verifier_final", run_verifier_final)
         graph.set_entry_point("analysis")
         graph.add_edge("analysis", "verifier")
         graph.add_edge("verifier", "synthesis")
-        graph.add_edge("synthesis", END)
+        graph.add_edge("synthesis", "verifier_final")
+        graph.add_edge("verifier_final", END)
         return graph.compile()
 
     async def run(self, agent_input: AgentInput) -> AgentOutput:
