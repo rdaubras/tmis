@@ -20,3 +20,4 @@ class Permission(StrEnum):
     SECRET_MANAGE = "secret.manage"
     BUSINESS_PLATFORM_MANAGE = "business_platform.manage"
     COPILOT_MANAGE = "copilot.manage"
+    KNOWLEDGE_GRAPH_MANAGE = "knowledge_graph.manage"

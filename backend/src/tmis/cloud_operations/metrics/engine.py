@@ -23,6 +23,12 @@ _KIND_FOR_CATEGORY: dict[MetricCategory, MetricKind] = {
     MetricCategory.VALIDATION_RATE: MetricKind.GAUGE,
     MetricCategory.PACK_REUSE: MetricKind.COUNTER,
     MetricCategory.SATISFACTION: MetricKind.GAUGE,
+    MetricCategory.GRAPH_SIZE: MetricKind.GAUGE,
+    MetricCategory.SEARCH_LATENCY: MetricKind.HISTOGRAM,
+    MetricCategory.ANSWER_QUALITY: MetricKind.GAUGE,
+    MetricCategory.HUMAN_VALIDATIONS: MetricKind.COUNTER,
+    MetricCategory.ENRICHMENTS: MetricKind.COUNTER,
+    MetricCategory.UNRESOLVED_SEARCHES: MetricKind.COUNTER,
 }
 
 
