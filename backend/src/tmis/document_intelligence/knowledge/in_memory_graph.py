@@ -10,8 +10,7 @@ class InMemoryKnowledgeGraph:
     behind the same port (see docs/18-guide-knowledge-graph.md).
 
     Composes `tmis.core.graph.AdjacencyGraphStore` (Sprint 25) for the
-    actual storage mechanism rather than reimplementing it — see
-    docs/145-architecture-knowledge-graph.md.
+    actual storage mechanism rather than reimplementing it.
     """
 
     def __init__(self) -> None:
