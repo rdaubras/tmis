@@ -22,6 +22,11 @@ class GovernancePolicyType(StrEnum):
     # Policies ("restrictions selon le rôle") — reuses identity_platform's
     # role vocabulary via `required_role` rather than a parallel check.
     RESTRICTED_TO_ROLE = "restricted_to_role"
+    # Added in Sprint 25 (Knowledge Graph Federation) for
+    # `knowledge_graph.governance` — restricts visibility of one
+    # resolved entity to a required role, reusing `required_role`
+    # rather than a parallel role check.
+    RESTRICTED_ENTITY_VISIBILITY = "restricted_entity_visibility"
 
 
 def new_governance_policy_id() -> str:
@@ -41,6 +46,7 @@ class GovernancePolicy:
     forbidden_model_name: str | None = None
     case_type: str | None = None
     required_role: str | None = None
+    restricted_entity_id: str | None = None
     active: bool = True
 
 
@@ -62,6 +68,7 @@ class PolicyEvaluationContext:
     case_type: str | None = None
     human_validated: bool = False
     user_role: str | None = None
+    entity_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

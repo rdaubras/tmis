@@ -28,6 +28,12 @@ class MetricCategory(StrEnum):
     VALIDATION_RATE = "validation_rate"
     PACK_REUSE = "pack_reuse"
     SATISFACTION = "satisfaction"
+    # Added in Sprint 25 (Knowledge Graph Federation) — same additive
+    # pattern as Sprint 24: new categories on the same MetricsEngine,
+    # never a second metrics store.
+    GRAPH_COVERAGE = "graph_coverage"
+    ENTITY_RESOLUTION_RATE = "entity_resolution_rate"
+    SEMANTIC_LINK_DENSITY = "semantic_link_density"
     # Added in Sprint 25 (Legal Knowledge Graph) — same additive
     # pattern as Sprints 22/24: new categories on the same
     # MetricsEngine, never a second metrics store.
