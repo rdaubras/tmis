@@ -853,6 +853,43 @@ suivant.
 > aucun sprint existant : la table détaillée et le total (41 sprints)
 > restent inchangés.
 
+> **Note de révision (après Sprint 30)** : le Sprint 30 relie un second
+> agent de `tmis.agents` au Kernel et aux plateformes déjà livrées —
+> **seulement l'Agent Synthèse**, exactement comme annoncé à la position 30
+> de la table détaillée. `SynthesisAgent` remplace le placeholder Sprint 1
+> (`raise NotImplementedError`) par une agrégation réelle : lecture d'un
+> `CaseProfile` réellement persisté (`CaseStorePort`, Sprint 26),
+> réutilisation de `CaseSummaryGenerator.generate()` (Sprint 4) pour le
+> résumé exécutif/chronologique/documentaire et les points ouverts (aucun
+> second appel de modèle pour ce que ce générateur produit déjà),
+> agrégation déterministe d'un tableau acteurs/faits/échéances, d'une
+> fiche de synthèse et d'une checklist à partir du `CaseProfile`, lecture
+> du `WritingStyleProfile` du cabinet via `WritingStyleEngine.
+> get_or_create_profile()` (Sprint 12, données seulement — `apply_style()`
+> n'est ni modifié ni détourné) injecté dans le prompt, note de synthèse
+> narrative via `TMISKernel.complete()` (Sprint 2, seul point d'appel
+> générique à un modèle), choix du modèle via `AIIntelligenceFabric.
+> route()` (Sprint 14) plutôt qu'un fournisseur fixe, et rapport
+> d'explicabilité via `AIGovernancePlatform.explainability` (Sprint 15).
+> `Orchestrator` gagne un nœud `"synthesis"` entre `"verifier"` et `END`,
+> dont le résultat est fusionné dans la sortie vérifiée plutôt que de la
+> remplacer, pour ne jamais faire chuter la confiance d'une simple analyse
+> de document sous prétexte qu'aucun `case_id` n'était fourni. Voir
+> docs/158-architecture-agent-synthese.md pour le détail du câblage.
+>
+> **Les 7 autres agents de `tmis.agents` restent des placeholders**, sur
+> le même principe qu'aux Sprints 22, 25 et 29 : `VerifierAgent`
+> (Sprint 31), `ResearchAgent` (Sprint 33), `JurisprudenceAgent`
+> (Sprint 34), `ContractAgent` (Sprint 35), `WatchAgent` (Sprint 36)
+> gardent chacun leur propre sprint dédié plus loin dans cette même
+> table ; `DraftingAgent`, `StrategyAgent` et `CollaborationAgent` restent
+> hors de ce roadmap de 41 sprints (voir la note de révision après le
+> Sprint 29 pour le détail de leur absorption).
+>
+> Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
+> aucun sprint existant : la table détaillée et le total (41 sprints)
+> restent inchangés.
+
 ## Vue d'ensemble
 
 ```mermaid
