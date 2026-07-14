@@ -647,6 +647,59 @@ suivant.
 > compensation, comme pour les Sprints 10, 22 et 24. **Le total passe
 > de 40 à 41 sprints.**
 
+> **Note de révision (après Sprint 26)** : le prompt utilisateur pour ce
+> sprint s'intitulait explicitement « Sprint 26 » et décrivait la
+> persistance réelle des 7 ports de stockage jusqu'ici en mémoire
+> (`DocumentRecord`, `CaseProfile`, historique de recherche, sessions de
+> raisonnement, brouillons, espaces de travail, registre documentaire
+> cabinet), une API d'upload et une exécution asynchrone via Celery.
+> Contrairement aux Sprints 21, 22, 24 et 25, ce sprint ne s'insère pas
+> en supplément : il livre exactement le placeholder « Module Document »
+> déjà présent à la position 26 de la roadmap — aucun sprint suivant ne
+> glisse, le total reste à 41.
+>
+> La Phase 0 d'audit obligatoire (avant tout code, exigée par le prompt)
+> a mis au jour deux écarts avec ses prémisses, tous deux tranchés avec
+> l'utilisateur avant d'écrire une ligne de code plutôt que devinés :
+> (1) contrairement à l'énoncé « aucun modèle SQLAlchemy n'existe dans le
+> dépôt », `tmis.core.database.Base`/`engine`/`SessionLocal` existaient
+> déjà (socle identité/firm), synchrones (`psycopg`) — décision :
+> `tmis.core.db.base.Base` réexporte cette même `Base` (jamais une
+> seconde base déclarative), `tmis.core.db.session` ajoute un moteur
+> `asyncpg` à côté du moteur sync existant, les deux lisant la même
+> configuration ; (2) `legal_reasoning` n'avait aucun port de stockage
+> pour `ReasoningSession` (gardée dans un dict privé de
+> `ReasoningOrchestrator`) — décision : nouveau `SessionStorePort`
+> additif (même forme que les 6 autres ports), `InMemorySessionStore`
+> remplace le dict privé à l'identique, `ReasoningOrchestrator` gagne un
+> paramètre optionnel `session_store` sans rupture d'aucun appelant
+> existant.
+>
+> Puisque les 7 ports concernés sont tous synchrones (aucune méthode
+> `async def`), les 7 `SQLAlchemy*Store` le sont aussi — c'est la seule
+> façon d'implémenter un `Protocol` sans en changer la signature. Le
+> moteur `asyncpg` ne sert que là où aucun port n'existe déjà :
+> l'historique complet des versions d'un document, exposé par un nouvel
+> endpoint API (`GET /documents/{id}/versions`), pas par
+> `DocumentStorePort` (qui n'expose que la dernière version, par
+> construction). Deux domaines (`legal_drafting.documents`,
+> `legal_reasoning.reasoner`) avaient déjà un fichier `adapters.py` pour
+> un tout autre usage (adapter un port vers un autre moteur, ex.
+> `DraftingReasoningPort` vers `ReasoningOrchestrator`) — leur store
+> SQLAlchemy vit donc en fichier frère (`sqlalchemy_store.py`), pas dans
+> un sous-paquet `adapters/`, pour ne pas entrer en collision.
+>
+> Limite connue, documentée plutôt que corrigée dans ce sprint (hors
+> périmètre : le prompt demandait des adaptateurs derrière les ports
+> existants, pas un changement du câblage par défaut des singletons des
+> Sprints 4/8/9) : `case_intelligence.bootstrap.
+> get_case_intelligence_workflow()` et les endpoints synchrones
+> `/api/v1/cases/*` continuent d'utiliser `InMemoryCaseStore` par
+> défaut ; seul le nouveau chemin asynchrone (tâches Celery déclenchées
+> par l'upload) utilise `SQLAlchemyCaseStore`. Les deux vues d'un même
+> dossier divergent tant qu'un sprint futur ne change pas ce câblage par
+> défaut — voir docs/151-architecture-persistance.md.
+
 ## Vue d'ensemble
 
 ```mermaid
@@ -734,7 +787,7 @@ flowchart TB
 | 23 | **Cloud Native Runtime Platform** ✅ | Exécution, scalabilité, résilience et performances de TMIS à l'échelle : orchestrateur runtime domaine-agnostique (dépendances, priorité, parallélisme, annulation, reprise — réutilise le Workflow Engine), traitement asynchrone étendu (Dead Letter Queue, délai programmé — absents partout ailleurs), streaming d'événements (replay/idempotence/versionnage/archivage, décore les 7 bus existants sans les remplacer), cache distribué étendu (invalidation, warming, compression, stats — sur `ai.cache.CachePort`/`RedisCache` déjà réel), Event Store générique (Event Sourcing, snapshots, replay, archivage), fondations CQRS (Command/Query Bus, adoption progressive), Runtime Optimizer (recommandations CPU/mémoire/IA/workflow/API), haute disponibilité et reprise après sinistre étendues (heartbeat, supervision de nœuds, simulation de restauration, RPO/RTO), conseiller d'autoscaling indépendant du cloud, tests de charge in-process (100/1 000/10 000 utilisateurs simulés), chaos engineering étendu (perte de nœud/cache/bus de messages, mesure automatique de reprise/disponibilité/pertes) — absorbe et dépasse l'ancien Sprint 37 « Performance & scalabilité » | `tmis.runtime_platform.*` (12 nouveaux sous-modules) | 30+ endpoints REST, 71 tests dédiés, migration représentative de `legal_research.bootstrap` vers `DistributedCacheEngine`, extraction de `ensure_chaos_authorized` dans `cloud_operations.chaos_testing` pour réutilisation (voir docs/132-138) |
 | 24 | **Legal Copilot Framework** ✅ | Plateforme d'orchestration pour créer, déployer, versionner et maintenir des copilotes juridiques spécialisés, composés d'agents IA, de packs de prompts/connaissances/raisonnement/documents/workflows et de politiques de validation — Copilot SDK déclaratif (identifiant, domaine, agents, modèles compatibles, packs, permissions), Copilot Registry versionné (plusieurs versions simultanées), Context Engine (contexte utilisateur/cabinet/dossier agrégé sans duplication, composé sur `identity_platform.tenant_context`), 5 familles de Packs (Prompt/Knowledge/Reasoning/Document/Workflow, chacune un pointeur versionné vers un moteur existant, jamais une copie), Validation Policies spécialisées (validation associé, double validation, revue humaine, seuil de confiance, restriction par rôle), 5 copilotes MVP démontrant l'architecture de bout en bout avec des données fictives (Contentieux, Droit des sociétés, Droit fiscal, Droit social, Contrats) — un nouveau domaine juridique s'ajoute par un nouveau `CopilotSpec`, sans modifier le noyau TMIS | `tmis.legal_copilot_framework.*` | 11 sous-modules, API REST (14 endpoints), 78 tests dédiés, extension de `platform_sdk.plugin_system` (nouveau `PluginType.COPILOT`) pour préparer un futur Marketplace de copilotes via `platform_sdk.marketplace` existant, extension de `ai_governance.policy_engine` (`GovernancePolicyType.RESTRICTED_TO_ROLE`), 5 nouvelles catégories `cloud_operations.metrics` (voir docs/139-144) |
 | 25 | **Legal Knowledge Graph & Semantic Intelligence Platform** ✅ | Transforme les connaissances dispersées du cabinet (documents, jurisprudence, contrats, notes internes, raisonnements, modèles, validations humaines) en un réseau de connaissances exploitable par les Copilotes juridiques — graphe de connaissances explicable (concepts juridiques, articles de loi, jurisprudences, décisions, contrats, clauses, parties, dossiers, arguments, risques, procédures, documents, chaque relation portant une explication en français), moteur sémantique (recherche par intention, similarité, classification — orchestration, jamais un second moteur d'embeddings), résolution d'entités (scoring, correspondance automatique uniquement sur nom normalisé identique, sinon toujours une décision humaine, historique complet), pipeline d'ingestion (Import → Extraction → Classification → Enrichissement → Validation → Publication, jamais d'auto-publication), boucle de validation humaine, gouvernance (confidentialité/rétention par nœud, décision d'accès toujours déléguée à l'Enterprise Identity & Trust Platform), moteur de qualité (doublons, incohérences, sources manquantes → score de confiance composé), analytics (taille du graphe, latence de recherche, qualité des réponses, validations humaines, enrichissements), intégration Copilotes (connaissances pertinentes, documents similaires, raisonnements historiques, modèles validés, risques identifiés, injectés dans le `CopilotContext` sans modifier le Context Engine du Sprint 24) — extraction au passage d'un `AdjacencyGraphStore` générique partagé par les deux graphes en mémoire pré-existants (`InMemoryCaseGraph`/`InMemoryKnowledgeGraph`), sans changement de leurs ports ni régression d'un seul test | `tmis.legal_knowledge_graph.*` | 11 sous-modules, API REST (13 endpoints), 58 tests dédiés, extension additive de `cabinet_knowledge.ontology` (4 nouveaux `RelationType`), `cabinet_knowledge.knowledge` (`KnowledgeType.CONTRACT`), `identity_platform.permissions` (`Permission.KNOWLEDGE_GRAPH_MANAGE`), `cloud_operations.metrics` (6 nouvelles catégories), `legal_copilot_framework.context_engine` (`CopilotContext.graph_context`, champ optionnel) — aucun graphe concurrent créé, `document_intelligence.knowledge` et `case_intelligence.relationships` restent inchangés (voir docs/145-150) |
-| 26 | Module Document | Persistance/API du `DocumentRecord` (Sprint 3), du `CaseProfile` (Sprint 4), de l'historique de recherche (Sprint 5), des sessions de raisonnement (Sprint 6), des brouillons (Sprint 7), des espaces de travail (Sprint 8) et du registre documentaire cabinet (Sprint 9) | `document` | Upload via API, persistance SQLAlchemy, versionning, exécution asynchrone (Celery) des pipelines DIE/CIE |
+| 26 | **Module Document + Persistance** ✅ | Ajoute des adaptateurs SQLAlchemy Postgres derrière les 7 ports de stockage jusqu'ici en mémoire seulement (`DocumentRecord` Sprint 3, `CaseProfile` Sprint 4, historique de recherche Sprint 5, sessions de raisonnement Sprint 6 — nouveau `SessionStorePort` additif, aucun port de stockage n'existait pour ce domaine avant ce sprint —, brouillons Sprint 7, espaces de travail Sprint 8, registre documentaire cabinet Sprint 9) : une seule `Base` déclarative et un seul moteur sync réutilisés (`tmis.core.database`, déjà présents depuis le socle identité/firm), moteur `asyncpg` additionnel réservé à ce qu'aucun port n'expose (historique des versions d'un document), un seul `Celery` (`tmis.core.tasks`, absent du dépôt avant ce sprint), chaque `InMemory*Store` conservé tel quel comme défaut dev/tests — endpoint d'upload multipart qui persiste puis déclenche le pipeline DIE de façon asynchrone, lequel déclenche à son tour le CIE quand un dossier est renseigné, versionning par nouvelle ligne liée à la précédente (jamais d'écrasement en place) | `tmis.core.db.*`, `tmis.core.tasks.*`, `<domaine>/adapters/sqlalchemy_store.py` (7 domaines) | 7 migrations Alembic (une par domaine, chaînées), 7 stores SQLAlchemy, 1 endpoint d'upload + historique de versions, 49 tests d'intégration dédiés (voir docs/151-152) |
 | 27 | RAG et connecteurs branchés sur données réelles | Remplacer les implémentations en mémoire des Sprints 2 et 5 | `tmis.ai.rag`, `tmis.ai.embeddings`, `tmis.legal_research.connectors` | Qdrant en backend d'index, vrai modèle d'embedding, connecteurs codes/jurisprudence/doctrine/documentation interne branchés sur de vraies sources derrière les mêmes ports |
 | 28 | Cache Redis en production + reranker appris | Qualité et performance de recherche en production | `tmis.ai.retrieval`, `tmis.ai.reranking`, `tmis.ai.cache`, `tmis.legal_research.cache` | Reranker appris, cache Redis en production pour le Kernel et pour les 3 couches du LRE |
 | 29 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle, `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, `tmis.strategic_intelligence.overview.StrategicIntelligencePlatform` (Sprint 16) pour toute proposition de stratégie, `tmis.workflow_automation.event_bus.WorkflowEventBus` (Sprint 17) pour toute automatisation déclenchée, et `tmis.integration_hub.connector_framework.ConnectorPort` (Sprint 18) pour tout échange avec un système externe, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, une gouvernance de production parallèle, un moteur de stratégie distinct, un moteur de règles/déclencheurs ad hoc, ou un client d'intégration ad hoc |

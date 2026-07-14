@@ -5,6 +5,7 @@ from tmis.ai_governance.api.routes import router as ai_governance_router
 from tmis.ai_team.api.routes import router as ai_team_router
 from tmis.api.v1.case.routes import router as case_router
 from tmis.api.v1.case_intelligence.routes import router as case_intelligence_router
+from tmis.api.v1.document.routes import router as document_router
 from tmis.api.v1.health.routes import router as health_router
 from tmis.business_platform.api.routes import router as business_platform_router
 from tmis.cabinet_knowledge.api.routes import router as cabinet_knowledge_router
@@ -25,6 +26,7 @@ api_router = APIRouter()
 api_router.include_router(health_router)
 api_router.include_router(case_router)
 api_router.include_router(case_intelligence_router)
+api_router.include_router(document_router)
 api_router.include_router(legal_research_router)
 api_router.include_router(legal_reasoning_router)
 api_router.include_router(legal_drafting_router)

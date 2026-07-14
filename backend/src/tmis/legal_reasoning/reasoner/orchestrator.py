@@ -36,10 +36,12 @@ from tmis.legal_reasoning.hypotheses.ports import HypothesisEnginePort
 from tmis.legal_reasoning.hypotheses.schemas import Hypothesis
 from tmis.legal_reasoning.planner.planner import HeuristicReasoningPlanner
 from tmis.legal_reasoning.planner.ports import ReasoningPlannerPort
+from tmis.legal_reasoning.reasoner.in_memory_store import InMemorySessionStore
 from tmis.legal_reasoning.reasoner.ports import (
     ReasoningCasePort,
     ReasoningKernelPort,
     ReasoningResearchPort,
+    SessionStorePort,
 )
 from tmis.legal_reasoning.reasoner.schemas import ReasoningSession
 from tmis.legal_reasoning.strategy.engine import HeuristicStrategyEngine
@@ -78,6 +80,7 @@ class ReasoningOrchestrator:
         event_bus: EventBus | None = None,
         evaluator: ReasoningEvaluator | None = None,
         confidence_weights: ConfidenceWeights | None = None,
+        session_store: SessionStorePort | None = None,
     ) -> None:
         self._case_port = case_port
         self._research_port = research_port
@@ -96,7 +99,7 @@ class ReasoningOrchestrator:
         self._evaluator = evaluator or ReasoningEvaluator()
         self._confidence_weights = confidence_weights
         self._logger = get_logger(_LOGGER_NAME)
-        self._sessions: dict[str, ReasoningSession] = {}
+        self._session_store: SessionStorePort = session_store or InMemorySessionStore()
 
     async def reason(self, question: str, *, case_id: str | None = None) -> ReasoningSession:
         start = time.perf_counter()
@@ -228,7 +231,7 @@ class ReasoningOrchestrator:
             decision_graph=decision_graph,
             duration_ms=duration_ms,
         )
-        self._sessions[session_id] = session
+        self._session_store.save(session)
 
         average_confidence = (
             sum(s.value for s in confidence_scores.values()) / len(confidence_scores)
@@ -291,4 +294,4 @@ class ReasoningOrchestrator:
         return response.text
 
     def get_session(self, session_id: str) -> ReasoningSession | None:
-        return self._sessions.get(session_id)
+        return self._session_store.get(session_id)

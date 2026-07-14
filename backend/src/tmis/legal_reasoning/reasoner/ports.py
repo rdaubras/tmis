@@ -2,6 +2,7 @@ from typing import Protocol
 
 from tmis.ai.schemas.provider import ModelResponse
 from tmis.case_intelligence.cases.schemas import CaseProfile
+from tmis.legal_reasoning.reasoner.schemas import ReasoningSession
 from tmis.legal_research.search.schemas import ResearchResponse
 
 
@@ -31,3 +32,18 @@ class ReasoningResearchPort(Protocol):
     async def search(
         self, query: str, *, case_id: str | None = None
     ) -> ResearchResponse: ...
+
+
+class SessionStorePort(Protocol):
+    """Port implemented by every interchangeable `ReasoningSession` store
+    (added in Sprint 26 — Module Document + Persistance — mirroring the
+    `DocumentStorePort`/`CaseStorePort` shape from Sprints 3-4). Purely
+    additive: no earlier port's signature changes, and
+    `ReasoningOrchestrator` behaves exactly as before when none is
+    supplied — see its docstring."""
+
+    def get(self, session_id: str) -> ReasoningSession | None: ...
+
+    def save(self, session: ReasoningSession) -> None: ...
+
+    def list_ids(self) -> list[str]: ...
