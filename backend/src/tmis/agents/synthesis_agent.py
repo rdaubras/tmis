@@ -4,7 +4,7 @@ from tmis.agents.contracts import AgentInput, AgentOutput
 class SynthesisAgent:
     """Chronologies, résumés, tableaux, fiches, checklists (docs/05-strategie-multi-agents.md).
 
-    Implementation is scheduled for Sprint 12
+    Implementation is scheduled for Sprint 30
     (see docs/09-roadmap-30-sprints.md). This Sprint 1 placeholder only
     establishes the AgentPort contract.
     """

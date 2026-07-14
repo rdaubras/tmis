@@ -15,8 +15,12 @@ async def test_orchestrator_runs_analysis_then_verifier() -> None:
 
     output = await orchestrator.run(agent_input)
 
+    # No `document_id` is provided in `context`: AnalysisAgent (Sprint 29,
+    # real implementation) has nothing to analyze, so it reports LOW
+    # confidence with an explicit warning rather than the Sprint 1
+    # placeholder text — the analysis -> verifier wiring itself still runs.
     assert output.confidence == ConfidenceLevel.LOW
-    assert any("placeholder" in warning for warning in output.warnings)
+    assert any("document_id" in warning for warning in output.warnings)
 
 
 @pytest.mark.asyncio

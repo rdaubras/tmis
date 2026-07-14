@@ -811,6 +811,48 @@ suivant.
 > (`TMIS_REDIS_URL`, `TMIS_RUN_MODEL_DOWNLOAD_TESTS`), même patron que les
 > Sprints 26/27. Voir docs/reports/sprint-28-rapport-audit.md.
 
+> **Note de révision (après Sprint 29)** : le Sprint 29 relie les agents
+> de `tmis.agents` au Kernel, au Document Intelligence Engine et au Case
+> Intelligence Engine — mais **seulement l'Agent Analyse**, exactement
+> comme annoncé à la position 29 de la table détaillée (« Agent Analyse »,
+> pas « Agents métier » au pluriel). `AnalysisAgent` remplace le
+> placeholder Sprint 1 (résultat vide, confiance `LOW` systématique) par
+> une extraction réelle : lecture d'un `DocumentRecord` réellement
+> persisté (`DocumentStorePort`, Sprint 26) et, si un `case_id` est
+> fourni, du `CaseProfile` correspondant (`CaseStorePort`, Sprint 26),
+> regroupement des entités déjà extraites par le Document Intelligence
+> Engine (Sprint 3), report de la chronologie et des incohérences déjà
+> consolidées par le Case Intelligence Engine (Sprint 4), synthèse
+> narrative via `TMISKernel.complete()` (Sprint 2, seul point d'appel
+> générique à un modèle), choix du modèle via `AIIntelligenceFabric.route()`
+> (Sprint 14) plutôt qu'un fournisseur fixe, et rapport d'explicabilité via
+> `AIGovernancePlatform.explainability` (Sprint 15). Voir
+> docs/157-architecture-agent-analyse.md pour le détail du câblage.
+>
+> **Les 8 autres agents de `tmis.agents` restent des placeholders**, sur
+> le même principe qu'aux Sprints 22 et 25 (ne pas absorber par
+> anticipation le travail d'un sprint dédié sans note de révision) :
+> `SynthesisAgent` (Sprint 30), `VerifierAgent` (Sprint 31),
+> `ResearchAgent` (Sprint 33), `JurisprudenceAgent` (Sprint 34),
+> `ContractAgent` (Sprint 35, « Module Contrats + Agent Contrat »),
+> `WatchAgent` (Sprint 36) gardent chacun leur propre sprint dédié plus
+> loin dans cette même table. `DraftingAgent`, `StrategyAgent` et
+> `CollaborationAgent` sont, eux, **hors de ce roadmap de 41 sprints** :
+> l'ancien Sprint 19 « Agent Stratégie » a été absorbé par le Sprint 6
+> (`tmis.legal_reasoning`), l'ancien Sprint 20 « Agent Collaboration » par
+> le Sprint 8 (`tmis.collaboration`), et aucun sprint dédié à un
+> `DraftingAgent` n'a jamais existé dans la Phase 3 actuelle (S29-S36) —
+> le moteur de rédaction lui-même (`tmis.legal_drafting`) est déjà livré
+> au Sprint 7. Les docstrings de ces 9 agents ont été corrigées pour
+> refléter ces numéros à jour (plusieurs référençaient encore d'anciens
+> numéros de sprint issus de révisions antérieures de cette roadmap,
+> jamais mis à jour depuis) — aucun changement de comportement, voir
+> docs/reports/sprint-29-rapport-audit.md.
+>
+> Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
+> aucun sprint existant : la table détaillée et le total (41 sprints)
+> restent inchangés.
+
 ## Vue d'ensemble
 
 ```mermaid
@@ -901,7 +943,7 @@ flowchart TB
 | 26 | **Module Document + Persistance** ✅ | Ajoute des adaptateurs SQLAlchemy Postgres derrière les 7 ports de stockage jusqu'ici en mémoire seulement (`DocumentRecord` Sprint 3, `CaseProfile` Sprint 4, historique de recherche Sprint 5, sessions de raisonnement Sprint 6 — nouveau `SessionStorePort` additif, aucun port de stockage n'existait pour ce domaine avant ce sprint —, brouillons Sprint 7, espaces de travail Sprint 8, registre documentaire cabinet Sprint 9) : une seule `Base` déclarative et un seul moteur sync réutilisés (`tmis.core.database`, déjà présents depuis le socle identité/firm), moteur `asyncpg` additionnel réservé à ce qu'aucun port n'expose (historique des versions d'un document), un seul `Celery` (`tmis.core.tasks`, absent du dépôt avant ce sprint), chaque `InMemory*Store` conservé tel quel comme défaut dev/tests — endpoint d'upload multipart qui persiste puis déclenche le pipeline DIE de façon asynchrone, lequel déclenche à son tour le CIE quand un dossier est renseigné, versionning par nouvelle ligne liée à la précédente (jamais d'écrasement en place) | `tmis.core.db.*`, `tmis.core.tasks.*`, `<domaine>/adapters/sqlalchemy_store.py` (7 domaines) | 7 migrations Alembic (une par domaine, chaînées), 7 stores SQLAlchemy, 1 endpoint d'upload + historique de versions, 49 tests d'intégration dédiés (voir docs/151-152) |
 | 27 | **RAG et connecteurs branchés sur données réelles** ✅ | Remplace les implémentations en mémoire/fixture des Sprints 2 et 5 par des adaptateurs réels derrière les mêmes ports (`IndexPort`, `EmbeddingProviderPort`, `ConnectorPort` — aucune signature changée) : `QdrantVectorIndex`, `SentenceTransformerEmbeddingProvider` (modèle local, aucune clé API), `LegifranceConnector`/`JudilibreConnector` (API publiques réelles via la passerelle PISTE) pour codes/jurisprudence, `HttpConnector` générique configurable pour doctrine et pour les 2 connecteurs du LRE — chaque implémentation en mémoire/fixture reste le défaut dev/tests si aucune configuration externe n'est fournie | `tmis.ai.rag.adapters.*`, `tmis.ai.embeddings.adapters.*`, `tmis.ai.connectors.adapters.*`, `tmis.ai.connectors.factory`, `tmis.legal_research.connectors.factory` | 5 adaptateurs réels, 4 factories de composition, `ConnectorBackendHealthCheck` (DEGRADED + détail par connecteur), 48 tests dédiés (voir docs/153-154) |
 | 28 | **Cache Redis en production + reranker appris** ✅ | Qualité et performance de recherche en production | `tmis.ai.cache`, `tmis.ai.reranking`, `tmis.legal_research.cache` | `ai.cache.factory.make_cache()` (RedisCache si `redis_url` joignable, sinon InMemoryCache — trois câblages en dur remplacés), `CrossEncoderReranker` (sentence-transformers, repli loggé sur `KeywordOverlapReranker`), 20 tests dédiés (voir docs/155-156) |
-| 29 | Intégration agents métier + Agent Analyse | Relier les agents du Sprint 1 au Kernel, au DIE et au CIE | `case_analysis`, `tmis.agents` | Agents appelant `TMISKernel.complete()` et consommant `DocumentRecord`/`CaseProfile` — s'appuie sur `tmis.ai_team.coordinator`/`tmis.ai_team.planner` (Sprint 11), `tmis.platform_sdk.agent_sdk` (Sprint 13), `tmis.ai_fabric.fabric.AIIntelligenceFabric` (Sprint 14) pour tout choix de modèle, `tmis.ai_governance.overview.AIGovernancePlatform` (Sprint 15) pour toute exigence d'explicabilité, `tmis.strategic_intelligence.overview.StrategicIntelligencePlatform` (Sprint 16) pour toute proposition de stratégie, `tmis.workflow_automation.event_bus.WorkflowEventBus` (Sprint 17) pour toute automatisation déclenchée, et `tmis.integration_hub.connector_framework.ConnectorPort` (Sprint 18) pour tout échange avec un système externe, plutôt que de redévelopper une orchestration multi-agents, une seconde façon de connecter un agent au Kernel, un routage de modèle ad hoc, une gouvernance de production parallèle, un moteur de stratégie distinct, un moteur de règles/déclencheurs ad hoc, ou un client d'intégration ad hoc |
+| 29 | **Intégration agents métier + Agent Analyse** ✅ | Relier l'Agent Analyse au Kernel, au DIE et au CIE — les 8 autres agents de `tmis.agents` restent des placeholders, chacun avec son propre sprint dédié (30/31/33/34/35/36 ; rédaction/stratégie/collaboration hors roadmap actuelle) | `tmis.agents.analysis_agent` | `AnalysisAgent` appelle `TMISKernel.complete()` (Sprint 2) et consomme `DocumentRecord`/`CaseProfile` réellement persistés (`DocumentStorePort`/`CaseStorePort`, Sprint 26) ; choix du modèle via `tmis.ai_fabric.fabric.AIIntelligenceFabric.route()` (Sprint 14) ; explicabilité via `tmis.ai_governance.overview.AIGovernancePlatform.explainability` (Sprint 15) ; `Orchestrator` documente le patron de câblage pour les agents des sprints suivants ; 9 tests dédiés (8 unitaires + 1 d'intégration bout-en-bout), `analysis_agent.py` à 100 % de couverture (voir docs/157, docs/reports/sprint-29-rapport-architecture.md) |
 | 30 | Agent Synthèse narrative | Rédaction de synthèses en langage naturel | `synthèse` | S'appuie sur `CaseIntelligenceWorkflow`/`CaseSummaryGenerator` (Sprint 4) plutôt que de reconstruire la consolidation chronologique — s'appuie aussi sur `tmis.cabinet_knowledge.writing_style` (Sprint 12) pour le style rédactionnel du cabinet |
 | 31 | Agent Vérificateur | Fiabilité des réponses (règles métier) | Vérification transverse | S'appuie sur `ReasoningOrchestrator`/`ConfidenceEngine`/`ConflictDetector` (Sprint 6) pour le marquage d'incertitude plutôt que de reconstruire un moteur de cohérence |
 | 32 | Chat IA | Interface conversationnelle | `assistant` | Chat streaming, historique par dossier |

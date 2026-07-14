@@ -8,7 +8,7 @@ class VerifierAgent:
     orchestrator fuses a final response. In Sprint 1 it performs the one
     check that is always meaningful regardless of which specialized agent
     ran: that any citation claimed actually carries a traceable reference.
-    Deeper coherence/contradiction analysis is scheduled for Sprint 13.
+    Deeper coherence/contradiction analysis is scheduled for Sprint 31.
     """
 
     name = "verifier"
