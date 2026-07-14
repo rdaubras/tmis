@@ -20,11 +20,23 @@ class ConnectorManager:
     whole search (see docs/13-guides-extension.md for how to add one).
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        codes: ConnectorPort | None = None,
+        jurisprudence: ConnectorPort | None = None,
+        doctrine: ConnectorPort | None = None,
+    ) -> None:
+        """`codes`/`jurisprudence`/`doctrine` are optional so every
+        existing no-arg caller keeps getting the Sprint 2 in-memory
+        fixtures unchanged; a bootstrap that wants the Sprint 27 real
+        adapters (see `tmis.ai.connectors.factory`) passes them in here
+        instead of `register()`-ing over the defaults, which would leave a
+        brief window where the fixture connector is registered."""
         self._entries: dict[str, ConnectorEntry] = {
-            "codes": ConnectorEntry(CodesConnector()),
-            "jurisprudence": ConnectorEntry(JurisprudenceConnector()),
-            "doctrine": ConnectorEntry(DoctrineConnector()),
+            "codes": ConnectorEntry(codes or CodesConnector()),
+            "jurisprudence": ConnectorEntry(jurisprudence or JurisprudenceConnector()),
+            "doctrine": ConnectorEntry(doctrine or DoctrineConnector()),
         }
 
     def register(self, name: str, connector: ConnectorPort, *, enabled: bool = True) -> None:
