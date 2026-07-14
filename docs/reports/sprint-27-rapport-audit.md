@@ -133,3 +133,51 @@ identifiée par composant (paramètres optionnels sur `ConnectorManager`
 et `register_legal_research_connectors`, une vérification de plus sur
 `HealthCheckEngine`), et aucun nouveau composant proposé ne duplique une
 capacité déjà présente dans le dépôt.
+
+## Correctifs post-clôture
+
+**Signalement reçu :** l'extra optionnel `rag-local` (et l'extra `dev`,
+qui inclut aussi `sentence-transformers`) tirerait transitivement numpy
+2.5.1, dont les stubs utilisent la syntaxe PEP 695 — incompatible avec
+`[tool.mypy] python_version = "3.11"` — ce qui casserait `mypy src` sur
+tout le dépôt.
+
+**Vérification effectuée :**
+
+1. Runtime réel confirmé 3.11 partout : `backend/Dockerfile`
+   (`FROM python:3.11-slim`), `.github/workflows/ci.yml`
+   (`python-version: "3.11"`), `pyproject.toml` `[project]`
+   (`requires-python = ">=3.11"`). Le runtime cible n'est donc pas
+   `>=3.12` — relever `[tool.mypy] python_version` à `3.12` ne
+   s'appliquerait pas ici ; ce serait désynchroniser mypy du runtime
+   réel, pas une correction.
+2. Reproduction en environnement isolé, à l'identique de l'étape CI
+   (`python3.11 -m venv` puis `pip install -e ".[dev]"`) : pip résout
+   **numpy 2.4.6**, jamais 2.5.1. `pip download numpy==2.5.1` confirme
+   que cette version (et 2.5.0, qui introduit la syntaxe PEP 695 dans
+   ses stubs) déclare `Requires-Python >=3.12` — numpy a abandonné le
+   support 3.11 exactement à la version qui casse mypy en mode 3.11.
+   Le résolveur pip ne peut donc mécaniquement jamais sélectionner une
+   version cassante tant que ce dépôt cible 3.11 : c'est déjà garanti
+   par les métadonnées du paquet numpy lui-même, sans borne de version
+   supplémentaire côté `pyproject.toml`.
+3. `mypy src` exécuté sur cette installation reproductible (numpy
+   2.4.6, sentence-transformers 5.6.0, mypy 1.20.2) :
+   `Success: no issues found in 1886 source files` — aucune erreur, y
+   compris en mode `strict`.
+
+**Décision :** aucun changement de code. Le risque décrit est réel et
+documenté dans l'écosystème mypy/numpy (voir
+[python/mypy#18701](https://github.com/python/mypy/issues/18701)), mais
+il ne se matérialise pas dans ce dépôt tant que le runtime reste 3.11,
+parce que numpy verrouille lui-même la compatibilité via
+`Requires-Python`. Ajouter un pin `numpy<2.5` serait une contrainte
+redondante, sans effet observable, pour un scénario que pip exclut déjà
+mécaniquement — donc non ajoutée.
+
+**Point de vigilance (pas une action requise maintenant) :** si le
+runtime (Dockerfile + CI + `requires-python`) est un jour porté à
+Python `>=3.12`, `[tool.mypy] python_version` (et `target-version`
+ruff) devront être relevés dans le même commit — c'est à ce moment-là,
+et seulement à ce moment-là, que numpy 2.5.x devient installable et que
+sa syntaxe PEP 695 imposera cet alignement.
