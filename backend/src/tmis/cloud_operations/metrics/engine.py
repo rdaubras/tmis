@@ -23,6 +23,9 @@ _KIND_FOR_CATEGORY: dict[MetricCategory, MetricKind] = {
     MetricCategory.VALIDATION_RATE: MetricKind.GAUGE,
     MetricCategory.PACK_REUSE: MetricKind.COUNTER,
     MetricCategory.SATISFACTION: MetricKind.GAUGE,
+    MetricCategory.GRAPH_COVERAGE: MetricKind.GAUGE,
+    MetricCategory.ENTITY_RESOLUTION_RATE: MetricKind.GAUGE,
+    MetricCategory.SEMANTIC_LINK_DENSITY: MetricKind.GAUGE,
 }
 
 
