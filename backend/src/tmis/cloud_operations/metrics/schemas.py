@@ -34,6 +34,15 @@ class MetricCategory(StrEnum):
     GRAPH_COVERAGE = "graph_coverage"
     ENTITY_RESOLUTION_RATE = "entity_resolution_rate"
     SEMANTIC_LINK_DENSITY = "semantic_link_density"
+    # Added in Sprint 25 (Legal Knowledge Graph) — same additive
+    # pattern as Sprints 22/24: new categories on the same
+    # MetricsEngine, never a second metrics store.
+    GRAPH_SIZE = "graph_size"
+    SEARCH_LATENCY = "search_latency"
+    ANSWER_QUALITY = "answer_quality"
+    HUMAN_VALIDATIONS = "human_validations"
+    ENRICHMENTS = "enrichments"
+    UNRESOLVED_SEARCHES = "unresolved_searches"
 
 
 class MetricKind(StrEnum):

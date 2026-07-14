@@ -1,0 +1,13 @@
+from typing import Protocol
+
+from tmis.legal_knowledge_graph.entity_resolution.schemas import ResolutionMatch
+
+
+class ResolutionMatchStorePort(Protocol):
+    def save(self, match: ResolutionMatch) -> None: ...
+
+    def get_latest(self, firm_id: str, match_id: str) -> ResolutionMatch | None: ...
+
+    def history(self, firm_id: str, match_id: str) -> list[ResolutionMatch]: ...
+
+    def list_for_firm(self, firm_id: str) -> list[ResolutionMatch]: ...

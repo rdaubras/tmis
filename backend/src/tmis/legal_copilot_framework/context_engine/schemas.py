@@ -25,3 +25,9 @@ class CopilotContext:
     security_policies: tuple[str, ...]
     writing_preferences: dict[str, str]
     built_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    # Added in Sprint 25 (Legal Knowledge Graph) — optional, defaulted
+    # empty so every Sprint 24 caller keeps working unchanged. Filled
+    # by `legal_knowledge_graph.copilot_bridge.attach_graph_context`,
+    # never by `ContextEngine` itself, which stays free of a
+    # dependency on a package that did not exist at Sprint 24.
+    graph_context: dict[str, tuple[str, ...]] = field(default_factory=dict)
