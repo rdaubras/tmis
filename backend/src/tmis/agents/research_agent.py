@@ -1,8 +1,7 @@
+from tmis.agents.citations import research_citation_to_citation
 from tmis.agents.contracts import AgentInput, AgentOutput, ConfidenceLevel
-from tmis.ai.schemas.citation import Citation
 from tmis.ai_governance.overview import AIGovernancePlatform
 from tmis.legal_research.bootstrap import get_research_orchestrator
-from tmis.legal_research.citations.schemas import ResearchCitation
 from tmis.legal_research.search.orchestrator import ResearchOrchestrator
 from tmis.legal_research.search.schemas import ResearchResponse, ResearchResult
 
@@ -25,8 +24,11 @@ class ResearchAgent:
       chemin vers un connecteur ou un moteur de classement) ;
     - chaque `ResearchCitation` de la réponse (`get_citations()`) est
       convertie en `Citation` (le contrat agents, `tmis.ai.schemas.
-      citation`) par un adaptateur explicite ci-dessous — `tmis.
-      legal_research.citations` n'a pas à connaître ce contrat ;
+      citation`) par l'adaptateur explicite `tmis.agents.citations.
+      research_citation_to_citation` — `tmis.legal_research.citations`
+      n'a pas à connaître ce contrat ; ce même adaptateur est réutilisé
+      tel quel par `JurisprudenceAgent` (Sprint 34) pour éviter un
+      second chemin de conversion ;
     - `AIGovernancePlatform.explainability` enregistre, pour chaque
       exécution, un rapport consultable (combien de résultats, quels
       connecteurs, cache atteint ou non).
@@ -67,7 +69,7 @@ class ResearchAgent:
         response = await self._orchestrator.search(query, case_id=case_id)
         research_citations = self._orchestrator.get_citations(response.search_id) or ()
         citations = [
-            self._to_citation(result, citation)
+            research_citation_to_citation(result, citation)
             for result, citation in zip(response.results, research_citations, strict=True)
         ]
 
@@ -91,25 +93,6 @@ class ResearchAgent:
             citations=citations,
             confidence=confidence,
             warnings=warnings,
-        )
-
-    @staticmethod
-    def _to_citation(result: ResearchResult, citation: ResearchCitation) -> Citation:
-        """Explicit adapter from the LRE's `ResearchCitation` to the
-        agents contract's `Citation` (see `tmis.ai.schemas.citation`).
-        `ResearchCitation` carries no connector name (only
-        `document_type`); `response.results` and `get_citations()` are
-        built from the same `ranked` list in the same order (see
-        `ResearchOrchestrator.search`), so the matching `ResearchResult.
-        connector` is the correct source for `Citation.connector` — the
-        same field `RetrievedChunk.to_citation()` already expects a
-        caller to supply explicitly.
-        """
-        return Citation(
-            source_id=citation.source_id,
-            connector=result.connector,
-            excerpt=citation.excerpt,
-            reference=citation.reference,
         )
 
     @staticmethod
