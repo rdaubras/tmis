@@ -1085,6 +1085,60 @@ suivant.
 > aucun sprint existant : la table détaillée et le total (41 sprints)
 > restent inchangés.
 
+> **Note de révision (après Sprint 35)** : le Sprint 35 relie un
+> sixième agent de `tmis.agents` aux plateformes déjà livrées —
+> **seulement l'Agent Contrats**, exactement comme annoncé à la
+> position 35 de la table détaillée (« Module Contrats + Agent Contrat »).
+> `ContractAgent` remplace le placeholder Sprint 1 par une confrontation
+> réelle du contrat à la bibliothèque de clauses du cabinet : lecture d'un
+> `DocumentRecord` réellement persisté (`DocumentStorePort`, Sprint 26,
+> `ocr_text` jamais re-parsé depuis `raw_bytes`) et, si un `case_id` est
+> fourni, du `CaseProfile` correspondant (`CaseStorePort`, Sprint 26),
+> confrontation de chaque `Clause` du domaine à `document.ocr_text` via
+> `ClauseEngine.search(firm_id, domain)` (Sprint 12, seul point d'accès à
+> la bibliothèque — jamais contourné ni redéveloppé) pour reporter les
+> clauses manquantes et les clauses à risque (formulation non standard ou
+> variante explicitement notée à risque par le cabinet), synthèse de
+> risques générative via `TMISKernel.complete()` (Sprint 2, seul point
+> d'appel générique à un modèle), choix du modèle via
+> `AIIntelligenceFabric.route()` (Sprint 14, `task_type=
+> "contract_risk_synthesis"`) plutôt qu'un fournisseur fixe, et rapport
+> d'explicabilité via `AIGovernancePlatform.explainability` (Sprint 15).
+> La Phase 0 a tranché deux questions structurantes avant tout code : (1)
+> `CabinetTemplateEngine`, dont la `structure` est indexée par
+> `DocumentType` (Sprint 7 — neuf valeurs, aucune ne représente un
+> contrat), n'est pas câblé pour la détection de sections manquantes —
+> l'étendre aurait exigé d'ajouter une dixième valeur à un enum partagé
+> conçu pour un autre usage ; `ClauseEngine` seul porte cette
+> responsabilité (un `clause_type` connu du domaine absent du texte du
+> contrat **est** la section manquante) ; (2)
+> `InMemoryVersioningService.compare()` (Sprint 7, Legal Drafting Studio)
+> opère sur le modèle `Section`/`Paragraph` d'un même `document_id`
+> versionné par le Studio, pas sur deux `DocumentRecord` uploadés
+> séparément — la comparaison de version de ce sprint (quand
+> `compare_document_id` est fourni) est donc un type minimal local,
+> `ContractVersionDiff`, calculé par `difflib.SequenceMatcher` (bibliothèque
+> standard) sur le texte brut des deux contrats, sans étendre
+> `VersioningPort` à un modèle de document qu'il n'a jamais eu vocation à
+> couvrir. `AIGovernancePlatform.explainability` reste branché, comme pour
+> les cinq agents précédents. `ContractAgent` n'est volontairement pas
+> ajouté au graphe LangGraph de l'`Orchestrator` ni à un mode dédié du
+> chat — même choix que `JurisprudenceAgent` au Sprint 34, pour la même
+> raison (non demandé par ce sprint, pas une extension triviale et
+> strictement additive). Voir
+> docs/163-architecture-agent-contrats.md pour le détail du câblage.
+>
+> **Les 4 autres agents de `tmis.agents` restent des placeholders**, sur
+> le même principe qu'aux Sprints 22, 25, 29, 30, 31, 33 et 34 :
+> `WatchAgent` (Sprint 36) garde son propre sprint dédié plus loin dans
+> cette même table ; `DraftingAgent`, `StrategyAgent` et
+> `CollaborationAgent` restent hors de ce roadmap de 41 sprints (voir la
+> note de révision après le Sprint 29 pour le détail de leur absorption).
+>
+> Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
+> aucun sprint existant : la table détaillée et le total (41 sprints)
+> restent inchangés.
+
 ## Vue d'ensemble
 
 ```mermaid
