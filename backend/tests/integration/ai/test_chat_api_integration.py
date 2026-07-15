@@ -143,3 +143,120 @@ def test_chat_stream_rejects_empty_message_with_400(client: TestClient) -> None:
     )
 
     assert response.status_code == 400
+
+
+def _parse_sse_event(body: str) -> dict[str, Any]:
+    for block in body.split("\n\n"):
+        if block.startswith("data: ") and block != "data: {}":
+            import json
+
+            return json.loads(block[len("data: ") :])  # type: ignore[no-any-return]
+    raise AssertionError(f"No data event found in SSE body: {body!r}")
+
+
+def test_chat_stream_research_mode_returns_a_single_event_with_results_and_citations(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(uuid.uuid4()),
+            "message": "contrat de travail",
+            "mode": "research",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "event: done" in response.text
+
+    payload = _parse_sse_event(response.text)
+    assert payload["result"]["query"] == "contrat de travail"
+    assert payload["result"]["results"]
+    assert payload["confidence"] in ("low", "medium", "high")
+    assert isinstance(payload["citations"], list)
+    assert len(payload["citations"]) == len(payload["result"]["results"])
+    for citation in payload["citations"]:
+        assert citation["source_id"]
+        assert citation["connector"]
+        assert citation["reference"]
+
+
+def test_chat_stream_research_mode_with_no_result_still_returns_a_clean_event(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(uuid.uuid4()),
+            "message": "xyzzyplugh1234 introuvable",
+            "mode": "research",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = _parse_sse_event(response.text)
+    assert payload["result"]["results"] == []
+    assert payload["confidence"] == "low"
+    assert payload["citations"] == []
+
+
+def test_chat_stream_research_mode_with_a_non_uuid_case_id_still_searches(
+    client: TestClient,
+) -> None:
+    """`ChatMessageRequest.case_id` reuses `case_intelligence`'s free-form
+    string ids (see `_research_agent_input`); one that doesn't parse as a
+    UUID must not break research mode, it just isn't tagged onto the LRE
+    history entry."""
+    workflow = get_case_intelligence_workflow()
+    workflow.case_store.get_or_create("case-chat-research-1", title="Dossier Recherche")
+
+    response = client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(uuid.uuid4()),
+            "message": "contrat de travail",
+            "case_id": "case-chat-research-1",
+            "mode": "research",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = _parse_sse_event(response.text)
+    assert payload["result"]["results"]
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_research_mode_persists_the_turn(client: TestClient) -> None:
+    conversation_id = uuid.uuid4()
+
+    client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(conversation_id),
+            "message": "non-concurrence",
+            "mode": "research",
+        },
+    )
+
+    kernel = get_kernel()
+    history = await kernel.conversation_memory.get_history(conversation_id)
+    assert history[0] == "user: non-concurrence"
+    assert history[1].startswith("assistant: Recherche juridique")
+
+
+def test_chat_stream_general_mode_still_works_unchanged(client: TestClient) -> None:
+    """Same request shape as Sprint 32's tests above, `mode` simply
+    defaulting to `"general"` — proves Sprint 33's additive change left
+    the pre-existing behavior untouched."""
+    response = client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(uuid.uuid4()),
+            "message": "Bonjour",
+            "provider": "chat-test-provider",
+        },
+    )
+
+    assert response.status_code == 200
+    assert _parse_sse_chunks(response.text) == ["Bonjour", " ", "confrere", "."]

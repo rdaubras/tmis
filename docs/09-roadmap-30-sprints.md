@@ -989,6 +989,53 @@ suivant.
 > écarts entre la description du prompt et le code réel confirmés en
 > Phase 0.
 
+> **Note de révision (après Sprint 33)** : le Sprint 33 relie un
+> quatrième agent de `tmis.agents` aux plateformes déjà livrées —
+> **seulement l'Agent Recherche**, exactement comme annoncé à la
+> position 33 de la table détaillée. `ResearchAgent` remplace le
+> placeholder Sprint 1 (`raise NotImplementedError`) par un appel réel à
+> `ResearchOrchestrator.search()` (Sprint 5, la LRE) : lecture de la
+> requête depuis `agent_input.context["query"]` (nouvelle convention de
+> clé, cohérente avec `"document_id"` déjà utilisé par `AnalysisAgent`),
+> transmission de `case_id` s'il est fourni, aucune logique de
+> recherche/classement/cache réimplémentée — `ResearchOrchestrator` et
+> son pipeline interne (`HeuristicQueryEngine`, `HybridResearchSearch`,
+> `SourceNormalizer`, `ConfigurableRanker`, `CitationEngine`,
+> `ResearchCache`, `InMemoryResearchHistory`, `ResearchEvaluator`) restent
+> inchangés. Chaque `ResearchCitation` de la réponse est convertie en
+> `Citation` (le contrat agents) par un adaptateur explicite propre à
+> `research_agent.py` — `tmis.legal_research.citations` n'a pas à
+> connaître ce contrat — et `confidence` reflète `cache_hit`/le nombre de
+> résultats trouvés. Contrairement à `AnalysisAgent`/`SynthesisAgent`,
+> aucun câblage `AIIntelligenceFabric` : cet agent n'appelle jamais
+> `TMISKernel.complete()` lui-même, tout travail génératif éventuel reste
+> interne à `ResearchOrchestrator`, hors périmètre de ce sprint —
+> `AIGovernancePlatform.explainability` reste branché, lui, exactement
+> comme pour les deux agents précédents. Le chat du Sprint 32 gagne un
+> champ additif `mode: Literal["general", "research"] = "general"` sur
+> `ChatMessageRequest` ; en mode `"research"`, l'endpoint appelle
+> `ResearchAgent.run()` au lieu de `TMISKernel.complete_stream()` et
+> restitue un seul événement SSE (résultats + citations, jamais un flux
+> token par token sur des données déjà entièrement calculées), tout en
+> persistant le tour dans `ConversationMemory` comme le mode général — qui
+> continue de fonctionner à l'identique, aucune régression. Frontend :
+> un bouton bascule « Recherche juridique » sur `(app)/chat/page.tsx`
+> affiche les résultats sourcés (titre, date, référence, extrait,
+> connecteur) au lieu du texte en streaming. Voir
+> docs/161-architecture-agent-recherche.md pour le détail du câblage.
+>
+> **Les 6 autres agents de `tmis.agents` restent des placeholders**, sur
+> le même principe qu'aux Sprints 22, 25, 29, 30 et 31 :
+> `JurisprudenceAgent` (Sprint 34), `ContractAgent` (Sprint 35),
+> `WatchAgent` (Sprint 36) gardent chacun leur propre sprint dédié plus
+> loin dans cette même table ; `DraftingAgent`, `StrategyAgent` et
+> `CollaborationAgent` restent hors de ce roadmap de 41 sprints (voir la
+> note de révision après le Sprint 29 pour le détail de leur absorption).
+>
+> Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
+> aucun sprint existant : la table détaillée et le total (41 sprints)
+> restent inchangés.
+
 ## Vue d'ensemble
 
 ```mermaid
