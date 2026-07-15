@@ -1,14 +1,29 @@
+"""`GET /{case_id}/analysis` (Sprint 41) exposes the fully wired
+`Orchestrator` (`agents.bootstrap.get_orchestrator()`) as a sixth route on
+this same resource — a computed read triggered on demand, following the
+precedent already set by `GET /{case_id}/summary` (Sprint 19), not a new
+router — see docs/168-architecture-exposition-orchestrator.md.
+"""
+
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from tmis.agents.bootstrap import get_orchestrator
+from tmis.agents.contracts import AgentInput
+from tmis.agents.orchestrator import Orchestrator
+from tmis.ai.schemas.agent import AgentOutput
 from tmis.api.v1.case_intelligence.schemas import (
     ActorResponse,
+    CaseAnalysisResponse,
+    CaseAnalysisResultResponse,
     CaseProfileCreateRequest,
     CaseProfileResponse,
     CaseProfileUpdateRequest,
     CaseSearchResultResponse,
     CaseSummaryResponse,
+    CitationResponse,
     FactResponse,
     LegalIssueResponse,
     TimelineEntryResponse,
@@ -55,6 +70,49 @@ def _to_response(profile: CaseProfile) -> CaseProfileResponse:
             for i in profile.legal_issues
         ],
         updated_at=profile.updated_at,
+    )
+
+
+def _parse_case_id_for_agent(case_id: str) -> uuid.UUID | None:
+    """Same tolerant `str -> uuid.UUID | None` compromise already used by
+    `document/routes.py._parse_case_id`/`chat/routes.py._agent_input`:
+    `AgentInput.case_id` is typed `uuid.UUID | None` (a contract shared by
+    every agent), while this router's own `case_id` is a free-form string
+    (`CaseStorePort.get(case_id: str)`, e.g. `"case-1"` in this module's
+    own tests) that is not guaranteed to be UUID-shaped. A `case_id` that
+    doesn't parse as a UUID is passed through as `None` rather than
+    failing the request: `SynthesisAgent` already reports a missing
+    `case_id` via a warning on `AgentOutput` instead of raising, exactly
+    the same graceful handling `AnalysisAgent` already applies to a
+    missing `document_id` (see the mission's Phase 0 confirmation)."""
+    try:
+        return uuid.UUID(case_id)
+    except ValueError:
+        return None
+
+
+def _to_analysis_response(case_id: str, output: AgentOutput) -> CaseAnalysisResponse:
+    """`output.result` is `dict[str, object]` (the common `AgentOutput`
+    contract), but its actual shape after the four-node graph
+    (analysis -> verifier -> synthesis -> verifier_final) is exactly
+    `CaseAnalysisResultResponse`'s fields, including the nested
+    `"synthesis"` key `Orchestrator._fuse_with_synthesis` adds — `model_
+    validate` maps it without re-declaring each field name here, same
+    pattern as `document/routes.py._to_analysis_response` (Sprint 39)."""
+    return CaseAnalysisResponse(
+        case_id=case_id,
+        result=CaseAnalysisResultResponse.model_validate(output.result),
+        citations=[
+            CitationResponse(
+                source_id=c.source_id,
+                connector=c.connector,
+                excerpt=c.excerpt,
+                reference=c.reference,
+            )
+            for c in output.citations
+        ],
+        confidence=output.confidence.value,
+        warnings=output.warnings,
     )
 
 
@@ -142,3 +200,26 @@ async def search_case(
         CaseSearchResultResponse(kind=r.kind.value, id=r.id, label=r.label, score=r.score)
         for r in results
     ]
+
+
+@router.get("/{case_id}/analysis", response_model=CaseAnalysisResponse)
+async def get_analysis(
+    case_id: str,
+    document_id: str | None = None,
+    workflow: CaseIntelligenceWorkflow = Depends(get_case_intelligence_workflow),
+    orchestrator: Orchestrator = Depends(get_orchestrator),
+) -> CaseAnalysisResponse:
+    _get_profile_or_404(case_id, workflow)
+
+    context: dict[str, object] = {}
+    if document_id is not None:
+        context["document_id"] = document_id
+
+    output = await orchestrator.run(
+        AgentInput(
+            task_id=uuid.uuid4(),
+            case_id=_parse_case_id_for_agent(case_id),
+            context=context,
+        )
+    )
+    return _to_analysis_response(case_id, output)

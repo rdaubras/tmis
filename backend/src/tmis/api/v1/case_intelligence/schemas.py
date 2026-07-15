@@ -71,3 +71,51 @@ class CaseSearchResultResponse(BaseModel):
     id: str
     label: str
     score: float
+
+
+class CitationResponse(BaseModel):
+    source_id: str
+    connector: str
+    excerpt: str
+    reference: str
+
+
+class CaseAnalysisSynthesisResponse(BaseModel):
+    """`SynthesisAgent.run()`'s own `result` shape (see
+    `agents/synthesis_agent.py`), nested under the `"synthesis"` key that
+    `Orchestrator._fuse_with_synthesis` adds to the Analysis/Verifier
+    result — never flattened into it."""
+
+    executive_summary: str
+    chronological_summary: str
+    documentary_summary: str
+    case_status: str
+    open_points: list[str]
+    table: dict[str, list[dict[str, object]]]
+    fact_sheet: dict[str, object]
+    checklist: list[dict[str, object]]
+    synthesis_note: str
+    model: str
+
+
+class CaseAnalysisResultResponse(BaseModel):
+    """`AnalysisAgent.run()`'s own `result` keys (`entities`,
+    `inconsistencies`, `timeline`) plus the `synthesis` key fused in by
+    the Orchestrator. `narrative`/`model` are optional: `AnalysisAgent`
+    omits both when no `document_id` was provided (see
+    `agents/analysis_agent.py`)."""
+
+    entities: dict[str, list[dict[str, object]]]
+    inconsistencies: list[dict[str, object]]
+    timeline: list[dict[str, object]]
+    narrative: str | None = None
+    model: str | None = None
+    synthesis: CaseAnalysisSynthesisResponse
+
+
+class CaseAnalysisResponse(BaseModel):
+    case_id: str
+    result: CaseAnalysisResultResponse
+    citations: list[CitationResponse]
+    confidence: str
+    warnings: list[str]

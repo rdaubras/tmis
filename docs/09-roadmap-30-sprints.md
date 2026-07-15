@@ -1312,6 +1312,43 @@ suivant.
 > `Orchestrator` (Sprint 41) garde son propre sprint dédié, pour les mêmes
 > raisons que celles déjà données par la note de révision Sprint 38.
 
+> **Note de révision (après Sprint 41)** : comme annoncé par les notes de
+> révision Sprint 38/39/40 ci-dessus, le Sprint 41 n'est pas non plus un
+> sprint de la table des 41 — c'est le quatrième et **dernier** des quatre
+> sprints d'exposition, pour `Orchestrator` (Sprint 29-31, le graphe
+> LangGraph `analysis -> verifier -> synthesis -> verifier_final`). Ce
+> sprint a deux parties, dans l'ordre : d'abord une consolidation de
+> câblage (`agents/bootstrap.get_orchestrator()`, un nouveau singleton
+> `@lru_cache` qui construit `AnalysisAgent`/`VerifierAgent`/
+> `SynthesisAgent` avec les quatre singletons déjà partagés par
+> `get_contract_agent()`/`get_jurisprudence_agent()`/`get_watch_agent()`
+> — `TMISKernel`, `CaseStorePort`, `AIIntelligenceFabric`,
+> `AIGovernancePlatform` — plutôt que les instances privées non partagées
+> qu'`Orchestrator()` construit par défaut ; voir docs/169-architecture-
+> consolidation-orchestrateur.md), puis l'exposition proprement dite,
+> `GET /cases/{case_id}/analysis` sur l'API `case_intelligence` existante
+> (Sprint 19), ni la forme du Sprint 38 (mode de chat), ni celle du Sprint
+> 39 (route sur une ressource déjà rattachée), ni celle du Sprint 40
+> (routeur autonome) : `Orchestrator` combine plusieurs `AgentOutput` en un
+> seul agrégat, et `case_id` en est déjà la ressource racine de l'URL —
+> voir docs/168-architecture-exposition-orchestrator.md, qui documente
+> aussi une tension découverte en Phase 0 entre le `case_id: str` libre de
+> ce routeur et le contrat partagé `AgentInput.case_id: uuid.UUID | None`,
+> résolue par le même compromis de parsing tolérant déjà en place pour
+> `document`/`chat`. `Orchestrator()` construit sans arguments garde son
+> comportement inchangé ; `agents/orchestrator.py` et les trois agents du
+> graphe ne sont pas modifiés, seulement consommés par le nouvel accesseur.
+>
+> Avec ce sprint, les **sept agents** de ce dépôt (`ResearchAgent`,
+> `JurisprudenceAgent`, `ContractAgent`, `WatchAgent` — Sprints 33-36 —
+> plus `AnalysisAgent`/`VerifierAgent`/`SynthesisAgent` du graphe
+> `Orchestrator` — Sprints 29-31) sont désormais **tous réels et tous
+> atteignables** par une route HTTP : la série de quatre sprints
+> d'exposition annoncée par la note de révision Sprint 38 est complète.
+> Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
+> aucun sprint existant : la table détaillée et le total (41 sprints)
+> restent inchangés.
+
 ## Vue d'ensemble
 
 ```mermaid

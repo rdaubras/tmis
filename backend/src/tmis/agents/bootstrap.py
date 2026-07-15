@@ -1,8 +1,12 @@
 from functools import lru_cache
 
+from tmis.agents.analysis_agent import AnalysisAgent
 from tmis.agents.contract_agent import ContractAgent
 from tmis.agents.jurisprudence_agent import JurisprudenceAgent
+from tmis.agents.orchestrator import Orchestrator
 from tmis.agents.research_agent import ResearchAgent
+from tmis.agents.synthesis_agent import SynthesisAgent
+from tmis.agents.verifier_agent import VerifierAgent
 from tmis.agents.watch_agent import WatchAgent
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.ai_fabric.bootstrap import get_ai_intelligence_fabric
@@ -91,4 +95,49 @@ def get_watch_agent() -> WatchAgent:
         kernel=get_kernel(),
         fabric=get_ai_intelligence_fabric(),
         governance=get_ai_governance_platform(),
+    )
+
+
+@lru_cache
+def get_orchestrator() -> Orchestrator:
+    """Process-wide `Orchestrator` singleton (Sprint 41), consolidating the
+    ad hoc wiring `Orchestrator.__init__` falls back to when no agent is
+    injected: that default builds its own `AnalysisAgent`, `VerifierAgent`
+    and `SynthesisAgent` each with their own private `TMISKernel`/
+    `InMemoryCaseStore`, and `fabric`/`governance` left at `None` — none of
+    it shared with the rest of this composition root, unlike
+    `get_contract_agent()`/`get_jurisprudence_agent()`/`get_watch_agent()`
+    above. This accessor builds the same three agents once, with the same
+    four singletons already used by those three: `get_kernel()`,
+    `get_case_intelligence_workflow().case_store`,
+    `get_ai_intelligence_fabric()`, `get_ai_governance_platform()` — plus
+    `get_document_store()` for `AnalysisAgent`, exactly as `Orchestrator`'s
+    own no-argument default already does. `Orchestrator()` built with no
+    arguments keeps its private, unshared default construction unchanged;
+    only callers that go through `get_orchestrator()` see the fully wired
+    version.
+    """
+    kernel = get_kernel()
+    case_store = get_case_intelligence_workflow().case_store
+    fabric = get_ai_intelligence_fabric()
+    governance = get_ai_governance_platform()
+
+    analysis_agent = AnalysisAgent(
+        kernel=kernel,
+        document_store=get_document_store(),
+        case_store=case_store,
+        fabric=fabric,
+        governance=governance,
+    )
+    verifier_agent = VerifierAgent(case_store=case_store)
+    synthesis_agent = SynthesisAgent(
+        kernel=kernel,
+        case_store=case_store,
+        fabric=fabric,
+        governance=governance,
+    )
+    return Orchestrator(
+        analysis_agent=analysis_agent,
+        verifier_agent=verifier_agent,
+        synthesis_agent=synthesis_agent,
     )
