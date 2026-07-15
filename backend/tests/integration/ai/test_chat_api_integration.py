@@ -245,6 +245,109 @@ async def test_chat_stream_research_mode_persists_the_turn(client: TestClient) -
     assert history[1].startswith("assistant: Recherche juridique")
 
 
+def test_chat_stream_jurisprudence_mode_returns_a_single_event_with_comparison(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(uuid.uuid4()),
+            "message": "contractuelle",
+            "mode": "jurisprudence",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "event: done" in response.text
+
+    payload = _parse_sse_event(response.text)
+    assert payload["result"]["query"] == "contractuelle"
+    assert payload["result"]["results"]
+    assert payload["result"]["connectors_used"] == ["jurisprudence"]
+    assert "comparison" in payload["result"]
+    assert "model" in payload["result"]
+    assert payload["confidence"] in ("low", "medium", "high")
+    assert isinstance(payload["citations"], list)
+    assert len(payload["citations"]) == len(payload["result"]["results"])
+
+
+def test_chat_stream_jurisprudence_mode_with_no_result_still_returns_a_clean_event(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(uuid.uuid4()),
+            "message": "xyzzyplugh1234 introuvable",
+            "mode": "jurisprudence",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = _parse_sse_event(response.text)
+    assert payload["result"]["results"] == []
+    assert payload["result"]["comparison"] is None
+    assert payload["confidence"] == "low"
+    assert payload["citations"] == []
+
+
+def test_chat_stream_jurisprudence_mode_with_a_non_uuid_case_id_still_searches(
+    client: TestClient,
+) -> None:
+    workflow = get_case_intelligence_workflow()
+    workflow.case_store.get_or_create("case-chat-jurisprudence-1", title="Dossier Jurisprudence")
+
+    response = client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(uuid.uuid4()),
+            "message": "contractuelle",
+            "case_id": "case-chat-jurisprudence-1",
+            "mode": "jurisprudence",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = _parse_sse_event(response.text)
+    assert payload["result"]["results"]
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_jurisprudence_mode_persists_the_turn(client: TestClient) -> None:
+    conversation_id = uuid.uuid4()
+
+    client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(conversation_id),
+            "message": "contractuelle",
+            "mode": "jurisprudence",
+        },
+    )
+
+    kernel = get_kernel()
+    history = await kernel.conversation_memory.get_history(conversation_id)
+    assert history[0] == "user: contractuelle"
+    assert history[1].startswith("assistant: Comparaison de jurisprudence")
+
+
+def test_chat_stream_with_unknown_case_id_returns_404_for_jurisprudence_mode(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/chat/stream",
+        json={
+            "conversation_id": str(uuid.uuid4()),
+            "message": "contractuelle",
+            "case_id": "does-not-exist",
+            "mode": "jurisprudence",
+        },
+    )
+
+    assert response.status_code == 404
+
+
 def test_chat_stream_general_mode_still_works_unchanged(client: TestClient) -> None:
     """Same request shape as Sprint 32's tests above, `mode` simply
     defaulting to `"general"` — proves Sprint 33's additive change left
