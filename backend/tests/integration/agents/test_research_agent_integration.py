@@ -56,7 +56,7 @@ async def test_query_flows_through_the_real_lre_and_agent_converts_citations() -
 async def test_agent_forwards_case_id_to_the_orchestrator_history() -> None:
     orchestrator = get_research_orchestrator()
     agent = ResearchAgent(orchestrator=orchestrator)
-    case_id = uuid.uuid4()
+    case_id = str(uuid.uuid4())
 
     agent_input = AgentInput(
         task_id=uuid.uuid4(),
@@ -66,7 +66,7 @@ async def test_agent_forwards_case_id_to_the_orchestrator_history() -> None:
 
     await agent.run(agent_input)
 
-    entries = orchestrator.history.list_for_case(str(case_id))
+    entries = orchestrator.history.list_for_case(case_id)
     assert len(entries) == 1
     assert entries[0].query_text == "non-concurrence"
 

@@ -211,7 +211,29 @@ async def test_jurisprudence_agent_uses_case_profile_when_case_id_is_known() -> 
     agent = JurisprudenceAgent(orchestrator=_build_orchestrator(), case_store=case_store)
     agent_input = AgentInput(
         task_id=uuid.uuid4(),
-        case_id=uuid.UUID(case_id),
+        case_id=case_id,
+        context={"query": "responsabilite contractuelle"},
+    )
+
+    output = await agent.run(agent_input)
+
+    assert output.result["comparison"]
+    assert not any("was not found in the case store" in warning for warning in output.warnings)
+
+
+@pytest.mark.asyncio
+async def test_jurisprudence_agent_uses_case_profile_for_a_non_uuid_case_id() -> None:
+    """Sprint 42: `AgentInput.case_id` is `str | None` (was `uuid.UUID |
+    None`), so a free-form case id like `"case-1"` (`CaseStorePort`'s own
+    id format) now resolves the `CaseProfile`, instead of being silently
+    lost to `None` for not parsing as a UUID."""
+    case_store = InMemoryCaseStore()
+    case_store.save(CaseProfile(case_id="case-1", title="Dupont c/ Acme"))
+
+    agent = JurisprudenceAgent(orchestrator=_build_orchestrator(), case_store=case_store)
+    agent_input = AgentInput(
+        task_id=uuid.uuid4(),
+        case_id="case-1",
         context={"query": "responsabilite contractuelle"},
     )
 
@@ -240,14 +262,14 @@ async def test_jurisprudence_agent_warns_when_case_id_not_found() -> None:
 async def test_jurisprudence_agent_passes_case_id_to_orchestrator_history() -> None:
     orchestrator = _build_orchestrator()
     agent = JurisprudenceAgent(orchestrator=orchestrator)
-    case_id = uuid.uuid4()
+    case_id = str(uuid.uuid4())
     agent_input = AgentInput(
         task_id=uuid.uuid4(), case_id=case_id, context={"query": "responsabilite contractuelle"}
     )
 
     await agent.run(agent_input)
 
-    entries = orchestrator.history.list_for_case(str(case_id))
+    entries = orchestrator.history.list_for_case(case_id)
     assert len(entries) == 1
 
 

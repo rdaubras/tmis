@@ -10,12 +10,11 @@ now uses (Sprint 41 Part A), and `process_document_task` is run directly
 (not via `.delay()`) to reach `PROCESSED`, the one status the pipeline
 actually produces on success.
 
-`case_id` in this router is a free-form string (`CaseStorePort.get`), while
-`AgentInput.case_id` is typed `uuid.UUID | None` — a UUID-formatted case id
-is used below wherever the test needs `SynthesisAgent` to actually resolve
-the `CaseProfile` (see `_parse_case_id_for_agent` in `routes.py`); a
-non-UUID case id (`"case-1"`, like the rest of this module's tests) is used
-to exercise the documented fallback instead.
+`case_id` in this router is a free-form string (`CaseStorePort.get`), and
+since Sprint 42 `AgentInput.case_id` is `str | None` too, so it is passed
+through as-is to every agent — including a non-UUID case id like `"case-1"`
+(used by most of this module's tests), which now resolves against the
+`CaseStorePort` exactly like a UUID-formatted one does.
 """
 
 from collections.abc import Iterator
@@ -159,21 +158,27 @@ def test_analysis_with_a_uuid_case_id_populates_the_synthesis(client: TestClient
     assert any(c["connector"] == "case_store" for c in body["citations"])
 
 
-def test_analysis_with_a_non_uuid_case_id_still_succeeds(client: TestClient) -> None:
-    """`case_id` in this router is free-form (`"case-1"`), but `AgentInput.
-    case_id` is `uuid.UUID | None`: a non-UUID case id parses to `None`
-    (see `_parse_case_id_for_agent`), so `SynthesisAgent` reports it as
-    missing via a warning rather than failing the request — the same
-    graceful degradation `AnalysisAgent` already applies to a missing
-    `document_id`."""
+def test_analysis_with_a_non_uuid_case_id_now_populates_the_synthesis(
+    client: TestClient,
+) -> None:
+    """Sprint 42: `AgentInput.case_id` is now `str | None` (was `uuid.UUID |
+    None`), so the free-form `case_id` this router already uses (`"case-1"`,
+    `CaseStorePort.get`) is passed through as-is instead of being parsed to
+    `None`. `SynthesisAgent` can now resolve the `CaseProfile` for a
+    non-UUID case id, so the executive summary is no longer empty — this is
+    the regression test for the Sprint 41 debt this sprint pays down (see
+    the former `test_analysis_with_a_non_uuid_case_id_still_succeeds`,
+    which asserted the opposite: an empty summary and a "No case_id
+    provided" warning)."""
     client.post("/api/v1/cases/case-1/profile", json={"title": "Dupont c. ACME"})
 
     response = client.get("/api/v1/cases/case-1/analysis")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["result"]["synthesis"]["executive_summary"] == ""
-    assert any("No case_id provided" in warning for warning in body["warnings"])
+    assert body["result"]["synthesis"]["executive_summary"]
+    assert any(c["connector"] == "case_store" for c in body["citations"])
+    assert not any("No case_id provided" in warning for warning in body["warnings"])
 
 
 def test_profile_route_is_unaffected(client: TestClient) -> None:

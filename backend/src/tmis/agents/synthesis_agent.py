@@ -81,7 +81,7 @@ class SynthesisAgent:
                 warnings=["No case_id provided in context: nothing to synthesize for this task."],
             )
 
-        case_id = str(agent_input.case_id)
+        case_id = agent_input.case_id
         case_profile = self._case_store.get(case_id)
         if case_profile is None:
             return AgentOutput(

@@ -1349,6 +1349,35 @@ suivant.
 > aucun sprint existant : la table détaillée et le total (41 sprints)
 > restent inchangés.
 
+> **Note de révision (après Sprint 42)** : le Sprint 42 n'est pas non plus
+> un sprint de cette table de 41 sprints — c'est un sprint de correction de
+> dette, sans nouvelle fonctionnalité et sans agent exposé côté API. Il
+> corrige la dette documentée par l'audit du Sprint 41
+> (docs/168-architecture-exposition-orchestrator.md, Question Ouverte
+> n°2) : le compromis de « parsing tolérant » (`uuid.UUID(case_id)` si
+> possible, `None` sinon) rendait `SynthesisAgent` systématiquement
+> inopérant pour tout `case_id` réaliste, puisque `CaseStorePort` (Sprint
+> 19) accepte des identifiants libres choisis par le client alors
+> qu'`AgentInput.case_id` (`tmis.ai.schemas.agent`, contrat partagé par les
+> sept agents) était typé `uuid.UUID | None`. Un seul type change,
+> `case_id: uuid.UUID | None` devient `case_id: str | None` — aucun second
+> type introduit pour « garder la compatibilité ». Le changement est
+> mécanique et sûr pour les six agents qui consomment ce champ (confirmé
+> par grep frais en Phase 0 : aucun n'utilise une méthode spécifique à
+> `uuid.UUID`), et simplifie quatre points d'appel API
+> (`chat`/`document`/`watch`/`case_intelligence/routes.py`) qui
+> reconvertissaient `case_id` en UUID puis le reperdaient à `None` si le
+> format ne convenait pas. Un cinquième point d'appel, découvert en Phase
+> 0 et distinct des quatre précédents : `platform_sdk/agent_sdk/base.py`
+> (`BaseAgentPlugin.invoke()`) levait une `ValueError` **non rattrapée**
+> pour tout `case_id` non-UUID (un crash, pas une dégradation
+> silencieuse) — corrigé pour ne plus jamais lever sur ce champ, un vrai
+> changement de comportement documenté explicitement. `ai_team/
+> coordinator/engine.py:135` (`case_id=None`) n'est pas touché — hors
+> périmètre. Voir docs/170-architecture-agentinput-case-id-str.md pour le
+> détail complet et docs/reports/sprint-42-rapport-audit.md pour le
+> re-audit de Phase 0.
+
 ## Vue d'ensemble
 
 ```mermaid

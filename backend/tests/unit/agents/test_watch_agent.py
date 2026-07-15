@@ -261,14 +261,32 @@ async def test_watch_agent_routes_alert_through_the_fabric() -> None:
 async def test_watch_agent_passes_case_id_to_orchestrator_history() -> None:
     orchestrator = _build_orchestrator()
     agent = WatchAgent(orchestrator=orchestrator)
-    case_id = uuid.uuid4()
+    case_id = str(uuid.uuid4())
     agent_input = AgentInput(
         task_id=uuid.uuid4(), case_id=case_id, context={"query": "responsabilite contractuelle"}
     )
 
     await agent.run(agent_input)
 
-    entries = orchestrator.history.list_for_case(str(case_id))
+    entries = orchestrator.history.list_for_case(case_id)
+    assert len(entries) == 1
+
+
+@pytest.mark.asyncio
+async def test_watch_agent_passes_a_non_uuid_case_id_to_orchestrator_history() -> None:
+    """Sprint 42: `AgentInput.case_id` is `str | None` (was `uuid.UUID |
+    None`), so a free-form case id like `"case-1"` (`CaseStorePort`'s own
+    id format) now reaches `ResearchOrchestrator.search()` as-is, instead
+    of being silently lost to `None` for not parsing as a UUID."""
+    orchestrator = _build_orchestrator()
+    agent = WatchAgent(orchestrator=orchestrator)
+    agent_input = AgentInput(
+        task_id=uuid.uuid4(), case_id="case-1", context={"query": "responsabilite contractuelle"}
+    )
+
+    await agent.run(agent_input)
+
+    entries = orchestrator.history.list_for_case("case-1")
     assert len(entries) == 1
 
 

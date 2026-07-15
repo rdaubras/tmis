@@ -73,24 +73,6 @@ def _to_response(profile: CaseProfile) -> CaseProfileResponse:
     )
 
 
-def _parse_case_id_for_agent(case_id: str) -> uuid.UUID | None:
-    """Same tolerant `str -> uuid.UUID | None` compromise already used by
-    `document/routes.py._parse_case_id`/`chat/routes.py._agent_input`:
-    `AgentInput.case_id` is typed `uuid.UUID | None` (a contract shared by
-    every agent), while this router's own `case_id` is a free-form string
-    (`CaseStorePort.get(case_id: str)`, e.g. `"case-1"` in this module's
-    own tests) that is not guaranteed to be UUID-shaped. A `case_id` that
-    doesn't parse as a UUID is passed through as `None` rather than
-    failing the request: `SynthesisAgent` already reports a missing
-    `case_id` via a warning on `AgentOutput` instead of raising, exactly
-    the same graceful handling `AnalysisAgent` already applies to a
-    missing `document_id` (see the mission's Phase 0 confirmation)."""
-    try:
-        return uuid.UUID(case_id)
-    except ValueError:
-        return None
-
-
 def _to_analysis_response(case_id: str, output: AgentOutput) -> CaseAnalysisResponse:
     """`output.result` is `dict[str, object]` (the common `AgentOutput`
     contract), but its actual shape after the four-node graph
@@ -218,7 +200,7 @@ async def get_analysis(
     output = await orchestrator.run(
         AgentInput(
             task_id=uuid.uuid4(),
-            case_id=_parse_case_id_for_agent(case_id),
+            case_id=case_id,
             context=context,
         )
     )

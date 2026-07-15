@@ -90,7 +90,7 @@ async def test_synthesis_agent_reuses_case_summary_generator_for_executive_summa
 
     summary_generator = _RecordingSummaryGenerator()
     agent = SynthesisAgent(case_store=case_store, summary_generator=summary_generator)
-    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=uuid.UUID(case_id))
+    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=case_id)
 
     output = await agent.run(agent_input)
 
@@ -101,6 +101,27 @@ async def test_synthesis_agent_reuses_case_summary_generator_for_executive_summa
 
 
 @pytest.mark.asyncio
+async def test_synthesis_agent_resolves_case_profile_for_a_non_uuid_case_id() -> None:
+    """Sprint 42: `AgentInput.case_id` is `str | None` (was `uuid.UUID |
+    None`), so a free-form case id like `"case-1"` (`CaseStorePort`'s own
+    id format) now resolves the `CaseProfile` and produces a real
+    executive summary, instead of being silently lost to `None` for not
+    parsing as a UUID (Sprint 41 debt)."""
+    case_store = InMemoryCaseStore()
+    profile = _make_case_profile(case_id="case-1")
+    case_store.save(profile)
+
+    agent = SynthesisAgent(case_store=case_store)
+    agent_input = AgentInput(task_id=uuid.uuid4(), case_id="case-1")
+
+    output = await agent.run(agent_input)
+
+    assert output.result["executive_summary"]
+    assert not any("No case_id provided" in warning for warning in output.warnings)
+    assert not any("was not found in the case store" in warning for warning in output.warnings)
+
+
+@pytest.mark.asyncio
 async def test_synthesis_agent_produces_table_fact_sheet_and_checklist() -> None:
     case_store = InMemoryCaseStore()
     case_id = str(uuid.uuid4())
@@ -108,7 +129,7 @@ async def test_synthesis_agent_produces_table_fact_sheet_and_checklist() -> None
     case_store.save(profile)
 
     agent = SynthesisAgent(case_store=case_store)
-    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=uuid.UUID(case_id))
+    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=case_id)
 
     output = await agent.run(agent_input)
 
@@ -160,7 +181,7 @@ async def test_synthesis_agent_surfaces_timeline_inconsistencies_via_open_points
     case_store.save(profile)
 
     agent = SynthesisAgent(case_store=case_store)
-    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=uuid.UUID(case_id))
+    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=case_id)
 
     output = await agent.run(agent_input)
 
@@ -193,7 +214,7 @@ async def test_synthesis_agent_injects_writing_style_profile_into_prompt() -> No
         writing_style_engine=style_engine,
         firm_id="firm-style-test",
     )
-    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=uuid.UUID(case_id))
+    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=case_id)
 
     output = await agent.run(agent_input)
 
@@ -209,7 +230,7 @@ async def test_synthesis_agent_routes_model_through_fabric() -> None:
     agent = SynthesisAgent(
         case_store=case_store, fabric=get_ai_intelligence_fabric(), firm_id="firm-test"
     )
-    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=uuid.UUID(case_id))
+    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=case_id)
 
     output = await agent.run(agent_input)
 
@@ -238,7 +259,7 @@ async def test_synthesis_agent_medium_confidence_when_timeline_inconsistencies_r
     case_store.save(profile)
 
     agent = SynthesisAgent(case_store=case_store)
-    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=uuid.UUID(case_id))
+    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=case_id)
 
     output = await agent.run(agent_input)
 
@@ -253,7 +274,7 @@ async def test_synthesis_agent_low_confidence_when_case_has_no_data() -> None:
     case_store.save(CaseProfile(case_id=case_id, title="Dossier vide"))
 
     agent = SynthesisAgent(case_store=case_store)
-    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=uuid.UUID(case_id))
+    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=case_id)
 
     output = await agent.run(agent_input)
 
@@ -280,7 +301,7 @@ async def test_synthesis_agent_prompt_includes_structure_preferences() -> None:
         writing_style_engine=style_engine,
         firm_id="firm-structure-test",
     )
-    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=uuid.UUID(case_id))
+    agent_input = AgentInput(task_id=uuid.uuid4(), case_id=case_id)
 
     output = await agent.run(agent_input)
 
@@ -300,7 +321,7 @@ async def test_synthesis_agent_records_explainability() -> None:
         firm_id="firm-explainability-synthesis-test",
     )
     task_id = uuid.uuid4()
-    agent_input = AgentInput(task_id=task_id, case_id=uuid.UUID(case_id))
+    agent_input = AgentInput(task_id=task_id, case_id=case_id)
 
     await agent.run(agent_input)
 

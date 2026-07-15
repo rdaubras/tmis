@@ -17,7 +17,7 @@ class AgentInput:
     """Common input contract for every specialized agent (see docs/05)."""
 
     task_id: uuid.UUID
-    case_id: uuid.UUID | None
+    case_id: str | None
     context: dict[str, object] = field(default_factory=dict)
 
 
