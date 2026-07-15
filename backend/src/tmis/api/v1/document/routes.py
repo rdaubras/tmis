@@ -11,18 +11,32 @@ that port only ever exposes the latest version (see
 `tmis.document_intelligence.storage.ports.DocumentStorePort`), it has no
 "list every version" method, so this read has no port to go through in
 the first place — see docs/151-architecture-persistance.md.
+
+`GET /{document_id}/analysis` (Sprint 39) exposes `ContractAgent`
+(already real since Sprint 35) as a fourth route on this same resource —
+a computed read triggered on demand, following the precedent set by
+`GET /cases/{case_id}/summary` (Sprint 19), not a second router — see
+docs/166-architecture-exposition-agent-contrats.md.
 """
 
 import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
 
+from tmis.agents.bootstrap import get_contract_agent
+from tmis.agents.contract_agent import ContractAgent
+from tmis.agents.contracts import AgentInput
+from tmis.ai.schemas.agent import AgentOutput
 from tmis.api.v1.document.schemas import (
+    CitationResponse,
+    ContractAnalysisResponse,
+    ContractAnalysisResultResponse,
     DocumentSummaryResponse,
     DocumentUploadResponse,
     DocumentVersionResponse,
 )
+from tmis.cabinet_knowledge.taxonomy.schemas import LegalDomain
 from tmis.core.db.session import AsyncSessionLocal
 from tmis.core.tasks.document_tasks import process_document_task
 from tmis.document_intelligence.adapters.sqlalchemy_store import DocumentRecordModel
@@ -31,6 +45,45 @@ from tmis.document_intelligence.schemas.document import ProcessingStatus
 from tmis.document_intelligence.schemas.record import DocumentRecord
 
 router = APIRouter(prefix="/documents", tags=["document"])
+
+
+def _parse_case_id(case_id: str | None) -> uuid.UUID | None:
+    """Same tolerant parsing as `tmis.api.v1.chat.routes._agent_input`:
+    `AgentInput.case_id` is typed `uuid.UUID | None`, while case ids
+    elsewhere in the API (`case_intelligence`) are free-form strings. A
+    case id that isn't a UUID is passed through as `None` rather than
+    rejecting the request — `ContractAgent.run()` already reports a
+    missing case via `warnings` when a `case_id` is given but not found,
+    so there is nothing left for this endpoint to reject either way."""
+    if case_id is None:
+        return None
+    try:
+        return uuid.UUID(case_id)
+    except ValueError:
+        return None
+
+
+def _to_analysis_response(document_id: str, output: AgentOutput) -> ContractAnalysisResponse:
+    """`output.result` is `dict[str, object]` (the common `AgentOutput` contract,
+    see `tmis.ai.schemas.agent`) but its actual shape is exactly
+    `ContractAnalysisResultResponse`'s fields (`ContractAgent.run()`, confirmed
+    in Phase 0) — `model_validate` maps it (including the nested `version_diff`
+    and `clauses` dicts) without re-declaring each field name here."""
+    return ContractAnalysisResponse(
+        document_id=document_id,
+        result=ContractAnalysisResultResponse.model_validate(output.result),
+        citations=[
+            CitationResponse(
+                source_id=c.source_id,
+                connector=c.connector,
+                excerpt=c.excerpt,
+                reference=c.reference,
+            )
+            for c in output.citations
+        ],
+        confidence=output.confidence.value,
+        warnings=output.warnings,
+    )
 
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=202)
@@ -102,3 +155,37 @@ async def list_document_versions(document_id: str) -> list[DocumentVersionRespon
             )
             for row in rows
         ]
+
+
+@router.get("/{document_id}/analysis", response_model=ContractAnalysisResponse)
+async def analyze_document(
+    document_id: str,
+    domain: LegalDomain | None = None,
+    compare_document_id: str | None = None,
+    case_id: str | None = None,
+    contract_agent: ContractAgent = Depends(get_contract_agent),
+) -> ContractAnalysisResponse:
+    record = get_document_store().get(document_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"No document {document_id!r}")
+
+    if record.status is not ProcessingStatus.PROCESSED:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Document {document_id!r} has not completed processing yet "
+                f"(status={record.status.value!r}): no OCR text is available to analyze."
+            ),
+        )
+
+    context: dict[str, object] = {"document_id": document_id}
+    if domain is not None:
+        context["domain"] = domain.value
+    if compare_document_id is not None:
+        context["compare_document_id"] = compare_document_id
+
+    output = await contract_agent.run(
+        AgentInput(task_id=uuid.uuid4(), case_id=_parse_case_id(case_id), context=context)
+    )
+
+    return _to_analysis_response(document_id, output)

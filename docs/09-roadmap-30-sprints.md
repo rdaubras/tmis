@@ -1261,6 +1261,29 @@ suivant.
 > aucun sprint existant : la table détaillée et le total (41 sprints)
 > restent inchangés.
 
+> **Note de révision (après Sprint 39)** : comme annoncé par la note de
+> révision Sprint 38 ci-dessus, le Sprint 39 n'est pas non plus un sprint
+> de la table des 41 : c'est le deuxième des quatre sprints d'exposition,
+> pour `ContractAgent` (déjà réel depuis le Sprint 35) — et, comme prévu,
+> **pas** la même forme que le Sprint 38. `ContractAgent.run()` attend un
+> `document_id` dans son contexte, pas une `query` de recherche libre :
+> ce n'est pas un mode de chat supplémentaire mais une quatrième route
+> sur l'API document existante (Sprint 26), `GET /documents/{document_id}
+> /analysis`, suivant le précédent `GET /cases/{case_id}/summary`
+> (Sprint 19) pour une lecture calculée, potentiellement génératif, à la
+> demande. `ContractAgent` lui-même, `ClauseEngine` et `get_contract_
+> agent()` (Sprint 35/37) ne sont pas modifiés — seulement consommés. La
+> Phase 0 de ce sprint a aussi établi un fait comportemental utile aux
+> deux sprints suivants : `DocumentIntelligencePipeline.process()` ne
+> pose jamais, en pratique, l'un des statuts intermédiaires de
+> `ProcessingStatus` (`VALIDATED`, `SCANNED`, `OCR_DONE`, ...) — seuls
+> `RECEIVED` et `PROCESSED` sont jamais assignés à un `DocumentRecord`
+> réel. Voir docs/166-architecture-exposition-agent-contrats.md pour le
+> détail complet du câblage et le raisonnement derrière ce choix. `WatchAgent`
+> (Sprint 40) et `Orchestrator` (Sprint 41) gardent chacun leur propre
+> sprint dédié, pour les mêmes raisons que celles déjà données par la
+> note de révision Sprint 38.
+
 ## Vue d'ensemble
 
 ```mermaid
