@@ -63,6 +63,15 @@ def _shared_redis_client() -> "Redis | None":
     return Redis.from_url(settings.redis_url)  # type: ignore[no-any-return]
 
 
+def get_shared_redis_client() -> "Redis | None":
+    """Public accessor for the one process-wide Redis client this factory
+    owns (see `_shared_redis_client`), reused by
+    `tmis.ai.memory.factory.make_memory_store()` so the whole repo shares
+    a single Redis connection mechanism instead of each factory dialing
+    its own."""
+    return _shared_redis_client()
+
+
 def make_cache() -> CachePort:
     """Single composition point deciding `InMemoryCache` vs `RedisCache`
     (see docs/155-architecture-cache-production.md), reused by every

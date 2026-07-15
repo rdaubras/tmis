@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+
 from tmis.ai.schemas.provider import ModelResponse, ProviderCapabilities
 
 
@@ -23,3 +25,12 @@ class MistralProvider:
             prompt_tokens=prompt_tokens,
             completion_tokens=prompt_tokens,
         )
+
+    async def complete_stream(
+        self, prompt: str, *, model: str | None = None
+    ) -> AsyncIterator[str]:
+        """`capabilities.supports_streaming` is `False` for this provider:
+        fallback that calls `complete()` and yields the full text as a
+        single chunk — never a failure."""
+        response = await self.complete(prompt, model=model)
+        yield response.text

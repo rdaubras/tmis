@@ -3,6 +3,7 @@ import hashlib
 import json
 import time
 import uuid
+from collections.abc import AsyncIterator
 from typing import cast
 
 from langgraph.graph.state import CompiledStateGraph
@@ -22,7 +23,7 @@ from tmis.ai.langgraph.graph import build_kernel_graph
 from tmis.ai.langgraph.state import KernelWorkflowState
 from tmis.ai.memory.case_memory import CaseMemory
 from tmis.ai.memory.conversation_memory import ConversationMemory
-from tmis.ai.memory.in_memory_store import InMemoryStore
+from tmis.ai.memory.factory import make_memory_store
 from tmis.ai.memory.ports import MemoryStorePort
 from tmis.ai.memory.user_memory import UserMemory
 from tmis.ai.memory.workflow_memory import WorkflowMemory
@@ -76,7 +77,7 @@ class TMISKernel:
         self.embedding_provider = embedding_provider or HashingEmbeddingProvider()
         self.rag = rag or RagPipeline(embedding_provider=self.embedding_provider)
 
-        store = memory_store or InMemoryStore()
+        store = memory_store or make_memory_store()
         self.conversation_memory = ConversationMemory(store)
         self.case_memory = CaseMemory(store)
         self.workflow_memory = WorkflowMemory(store)
@@ -153,6 +154,45 @@ class TMISKernel:
             )
         )
         return response
+
+    async def complete_stream(
+        self,
+        prompt: str,
+        *,
+        provider: str | None = None,
+        model: str | None = None,
+        conversation_id: uuid.UUID | None = None,
+    ) -> AsyncIterator[str]:
+        """Streaming counterpart of `complete()` — additive, `complete()`
+        itself is untouched.
+
+        Mirrors `complete()`'s actual routing (guardrails then
+        `provider_registry.get(provider_name)`, not
+        `AIIntelligenceFabric` — see docs/160-architecture-chat-ia.md for
+        why: `AIIntelligenceFabric` is a separate facade `TMISKernel`
+        itself never calls). Deliberately does not use `self.cache`: a
+        partial stream can't be served from a single cached value the way
+        a complete response can, and caching only the assembled result
+        would make cache hits behave differently (no incremental delivery)
+        from cache misses — an inconsistency not worth introducing without
+        a concrete need (see the audit report). If `conversation_id` is
+        given, appends the assembled response to `ConversationMemory`
+        once the stream ends — never chunk by chunk, so a caller reading
+        history mid-stream never sees a partial turn.
+        """
+        self.guardrails.validate_input(prompt)
+        provider_name = provider or self.config.default_provider
+        provider_impl = self.provider_registry.get(provider_name)
+
+        chunks: list[str] = []
+        async for chunk in provider_impl.complete_stream(prompt, model=model):
+            chunks.append(chunk)
+            yield chunk
+
+        if conversation_id is not None:
+            await self.conversation_memory.add_message(
+                conversation_id, "assistant", "".join(chunks)
+            )
 
     # ------------------------------------------------------------------
     # Embeddings

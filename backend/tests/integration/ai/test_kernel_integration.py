@@ -1,3 +1,6 @@
+import uuid
+from collections.abc import AsyncIterator
+
 import pytest
 
 from tmis.ai.guardrails.exceptions import GuardrailViolation
@@ -23,6 +26,13 @@ class _CountingProvider:
             prompt_tokens=1,
             completion_tokens=1,
         )
+
+    async def complete_stream(
+        self, prompt: str, *, model: str | None = None
+    ) -> AsyncIterator[str]:
+        self.call_count += 1
+        for word in ("chunk-a", "chunk-b", "chunk-c"):
+            yield word
 
 
 class _EchoAgent:
@@ -101,3 +111,75 @@ def test_get_unknown_agent_raises() -> None:
 def test_kernel_registers_demo_workflow_on_init() -> None:
     kernel = TMISKernel()
     assert "kernel_demo" in kernel.list_workflows()
+
+
+@pytest.mark.asyncio
+async def test_complete_stream_yields_every_chunk_in_order() -> None:
+    kernel = TMISKernel()
+    provider = _CountingProvider()
+    kernel.provider_registry.register("counting", provider)
+
+    chunks = [
+        chunk async for chunk in kernel.complete_stream("Bonjour", provider="counting")
+    ]
+
+    assert chunks == ["chunk-a", "chunk-b", "chunk-c"]
+
+
+@pytest.mark.asyncio
+async def test_complete_stream_rejects_empty_prompt_via_guardrails() -> None:
+    kernel = TMISKernel()
+    with pytest.raises(GuardrailViolation):
+        async for _ in kernel.complete_stream("   "):
+            pass
+
+
+@pytest.mark.asyncio
+async def test_complete_stream_does_not_log_to_conversation_memory_mid_stream() -> None:
+    """"Jamais chunk par chunk": history must stay empty while the
+    generator is still being consumed, and only gain the assembled
+    assistant turn once it is fully drained."""
+    kernel = TMISKernel()
+    provider = _CountingProvider()
+    kernel.provider_registry.register("counting", provider)
+    conversation_id = uuid.uuid4()
+
+    stream = kernel.complete_stream("Bonjour", provider="counting", conversation_id=conversation_id)
+    first_chunk = await stream.__anext__()
+    assert first_chunk == "chunk-a"
+    assert await kernel.conversation_memory.get_history(conversation_id) == []
+
+    async for _ in stream:
+        pass
+
+    assert await kernel.conversation_memory.get_history(conversation_id) == [
+        "assistant: chunk-achunk-bchunk-c"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_complete_stream_without_conversation_id_does_not_touch_memory() -> None:
+    kernel = TMISKernel()
+    provider = _CountingProvider()
+    kernel.provider_registry.register("counting", provider)
+    conversation_id = uuid.uuid4()  # never passed to complete_stream below
+
+    async for _ in kernel.complete_stream("Bonjour", provider="counting"):
+        pass
+
+    assert await kernel.conversation_memory.get_history(conversation_id) == []
+
+
+@pytest.mark.asyncio
+async def test_complete_unchanged_signature_still_works_alongside_complete_stream() -> None:
+    """`complete()` remains untouched by this sprint: same call, same
+    return type, usable on the same `TMISKernel` instance that also
+    exposes `complete_stream()`."""
+    kernel = TMISKernel()
+    provider = _CountingProvider()
+    kernel.provider_registry.register("counting", provider)
+
+    response = await kernel.complete("Bonjour", provider="counting")
+
+    assert isinstance(response, ModelResponse)
+    assert response.text == "response #1"

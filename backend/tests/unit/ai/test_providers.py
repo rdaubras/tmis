@@ -46,3 +46,42 @@ def test_registry_register_overrides_provider() -> None:
     custom = OpenAIProvider()
     registry.register("custom", custom)
     assert registry.get("custom") is custom
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_cls", [OpenAIProvider, AnthropicProvider])
+async def test_streaming_provider_yields_more_than_one_chunk_and_reassembles_exactly(
+    provider_cls: type,
+) -> None:
+    """`supports_streaming=True` providers chunk the deterministic
+    `complete()` text word-by-word rather than falling back to a single
+    chunk — see docs/160-architecture-chat-ia.md."""
+    provider = provider_cls()
+    expected = await provider.complete("Bonjour cher confrere")
+
+    chunks = [chunk async for chunk in provider.complete_stream("Bonjour cher confrere")]
+
+    assert len(chunks) > 1
+    assert "".join(chunks) == expected.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_cls", [MistralProvider, LocalProvider])
+async def test_non_streaming_provider_falls_back_to_a_single_chunk(
+    provider_cls: type,
+) -> None:
+    """`supports_streaming=False` providers never fail `complete_stream`:
+    they call `complete()` and yield the entire text as one chunk."""
+    provider = provider_cls()
+    expected = await provider.complete("Bonjour cher confrere")
+
+    chunks = [chunk async for chunk in provider.complete_stream("Bonjour cher confrere")]
+
+    assert chunks == [expected.text]
+
+
+@pytest.mark.asyncio
+async def test_streaming_provider_honors_requested_model() -> None:
+    provider = OpenAIProvider()
+    chunks = [chunk async for chunk in provider.complete_stream("test", model="gpt-4o-mini")]
+    assert "gpt-4o-mini" in "".join(chunks)
