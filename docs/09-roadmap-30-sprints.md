@@ -1284,6 +1284,34 @@ suivant.
 > sprint dédié, pour les mêmes raisons que celles déjà données par la
 > note de révision Sprint 38.
 
+> **Note de révision (après Sprint 40)** : comme annoncé par les notes de
+> révision Sprint 38/39 ci-dessus, le Sprint 40 n'est pas non plus un
+> sprint de la table des 41 : c'est le troisième des quatre sprints
+> d'exposition, pour `WatchAgent` (déjà réel depuis le Sprint 36) — et,
+> comme prévu, ni la forme du Sprint 38 (mode de chat) ni celle du Sprint
+> 39 (route sur une ressource déjà rattachée). `WatchAgent.run()` attend
+> une configuration de veille (`query` + `connectors` surveillés +
+> `known_result_ids`, deux d'entre eux des listes) dont le `case_id` est
+> optionnel exactement comme celui de `ResearchAgent` : ni le chat, ni
+> `/cases/{case_id}/...`, ni `/documents/{document_id}/...` ne s'imposait
+> d'eux-mêmes comme point d'ancrage, contrairement aux trois agents
+> précédemment exposés. Ce sprint tranche deux questions ouvertes en Phase
+> 0 : (1) un nouveau routeur autonome, `POST /watches`, avec `case_id`
+> optionnel dans le corps de la requête plutôt qu'une ressource imbriquée
+> sous un dossier — cohérent avec le principe déjà appliqué à
+> `ResearchAgent` (Sprint 33), dont le `case_id` tout aussi optionnel n'a
+> jamais été forcé dans une URL ; (2) `POST` avec un corps de requête
+> structuré plutôt que `GET` avec des paramètres de liste — confirmé par la
+> Phase 0, qui ne trouve aucun `GET` existant dans ce dépôt acceptant un
+> paramètre de requête en forme de liste. `WatchAgent` lui-même et
+> `get_watch_agent()` (Sprint 36) ne sont pas modifiés — seulement
+> consommés. Aucune persistance de `known_result_ids` n'est introduite : la
+> décision du Sprint 36 (agent sans état, docs/164) n'est pas rouverte par
+> ce sprint. Voir docs/167-architecture-exposition-agent-veille.md pour le
+> détail complet du câblage et le raisonnement derrière ces deux décisions.
+> `Orchestrator` (Sprint 41) garde son propre sprint dédié, pour les mêmes
+> raisons que celles déjà données par la note de révision Sprint 38.
+
 ## Vue d'ensemble
 
 ```mermaid
