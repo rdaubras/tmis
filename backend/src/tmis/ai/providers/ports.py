@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from typing import Protocol
 
 from tmis.ai.schemas.provider import ModelResponse, ProviderCapabilities
@@ -14,3 +15,7 @@ class ProviderPort(Protocol):
     capabilities: ProviderCapabilities
 
     async def complete(self, prompt: str, *, model: str | None = None) -> ModelResponse: ...
+
+    def complete_stream(
+        self, prompt: str, *, model: str | None = None
+    ) -> AsyncIterator[str]: ...

@@ -946,6 +946,49 @@ suivant.
 > aucun sprint existant : la table détaillée et le total (41 sprints)
 > restent inchangés.
 
+> **Note de révision (après Sprint 32)** : le Sprint 32 livre le chat IA
+> généraliste en streaming annoncé à la position 32 de la table détaillée
+> — **strictement appuyé sur `TMISKernel.complete()`/`complete_stream()`,
+> jamais sur un agent de `tmis.agents` ni sur `ResearchOrchestrator`/le
+> LRE**. Ajoute `ProviderPort.complete_stream()` (Protocol) et son
+> implémentation sur les 4 adaptateurs (`openai`/`anthropic` : découpage
+> mot par mot du texte déterministe `complete()`, honorant leur
+> `ProviderCapabilities.supports_streaming=True` déjà déclaré depuis le
+> Sprint 2 ; `mistral`/`local` : repli sur `complete()` puis chunk
+> unique, jamais d'échec) et `TMISKernel.complete_stream()` (nouvelle
+> méthode, `complete()` inchangée — même routage réel que `complete()`,
+> pas `AIIntelligenceFabric` : la Phase 0 a confirmé que `complete()` ne
+> l'a jamais appelée, voir docs/160), qui journalise le tour assistant
+> dans `ConversationMemory` une fois le flux terminé, jamais chunk par
+> chunk. `ai.memory.factory.make_memory_store()` reproduit le patron
+> `ai.cache.factory.make_cache()` (Sprint 28) pour le memory store —
+> `RedisMemoryStore` si Redis est joignable (même client process-wide
+> partagé que `ai.cache.factory`, un seul mécanisme de connexion Redis
+> pour tout le dépôt), sinon `InMemoryStore` — et remplace le câblage en
+> dur de `TMISKernel.__init__`. Endpoint SSE
+> `POST /api/v1/chat/stream` (`StreamingResponse` Starlette native,
+> aucune dépendance `sse-starlette` ajoutée) validant `case_id` via
+> `CaseStorePort` avant de streamer et persistant le tour complet via
+> `ConversationMemory`. Frontend : `(app)/chat/page.tsx` remplace
+> `ModulePlaceholder` par une vraie interface de chat (première page du
+> dépôt à appeler l'API depuis le navigateur), consommant le flux SSE via
+> `fetch`/`ReadableStream`, réutilisant les tokens de couleur et
+> composants (`Card`, `Button`) déjà en place plutôt que d'en créer de
+> nouveaux.
+>
+> **La recherche juridique reste explicitement hors périmètre** : ce chat
+> ne cite jamais de source et ne consulte jamais `ResearchOrchestrator`
+> — c'est le Sprint 33 (« Recherche exposée dans le chat avec citations
+> », ligne 33 de la table détaillée) qui branchera la recherche sourcée
+> sur ce même chat, pas ce sprint-ci. De même, aucun garde-fou de
+> gouvernance/hallucination n'a été branché sur le chat brut
+> (`VerifierAgent` reste scopé aux sorties d'agents du graphe
+> `Orchestrator`, comme demandé) — un besoin réel identifié et documenté
+> dans le rapport d'audit plutôt que construit par anticipation. Voir
+> docs/160-architecture-chat-ia.md pour le détail du câblage et les
+> écarts entre la description du prompt et le code réel confirmés en
+> Phase 0.
+
 ## Vue d'ensemble
 
 ```mermaid
