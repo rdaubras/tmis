@@ -80,7 +80,7 @@ async def test_persisted_case_flows_through_synthesis_agent_via_orchestrator() -
     task_id = uuid.uuid4()
     agent_input = AgentInput(
         task_id=task_id,
-        case_id=uuid.UUID(case_id),
+        case_id=case_id,
         context={"document_id": document.document_id},
     )
 

@@ -93,7 +93,7 @@ class WatchAgent:
 
         connector_names = self._resolve_connectors(agent_input.context.get("connectors"))
         known_result_ids = self._resolve_known_ids(agent_input.context.get("known_result_ids"))
-        case_id = str(agent_input.case_id) if agent_input.case_id is not None else None
+        case_id = agent_input.case_id
 
         response = await self._orchestrator.search(
             query, connector_names=connector_names, case_id=case_id

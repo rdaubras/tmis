@@ -122,7 +122,7 @@ async def test_analysis_agent_surfaces_case_timeline_inconsistencies() -> None:
     agent = AnalysisAgent(document_store=document_store, case_store=case_store)
     agent_input = AgentInput(
         task_id=uuid.uuid4(),
-        case_id=uuid.UUID(case_id),
+        case_id=case_id,
         context={"document_id": document.document_id},
     )
 
@@ -131,6 +131,31 @@ async def test_analysis_agent_surfaces_case_timeline_inconsistencies() -> None:
     assert len(output.result["inconsistencies"]) == 1
     assert output.result["inconsistencies"][0]["date"] == "2024-03-12"
     assert len(output.result["timeline"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_analysis_agent_resolves_case_profile_for_a_non_uuid_case_id() -> None:
+    """Sprint 42: `AgentInput.case_id` is `str | None` (was `uuid.UUID |
+    None`), so a free-form case id like `"case-1"` (`CaseStorePort`'s own
+    id format) now resolves the `CaseProfile`, instead of being silently
+    lost to `None` for not parsing as a UUID."""
+    document_store = InMemoryDocumentStore()
+    document = _make_document()
+    document_store.save(document)
+
+    case_store = InMemoryCaseStore()
+    case_store.save(CaseProfile(case_id="case-1", title="Dupont c/ Acme"))
+
+    agent = AnalysisAgent(document_store=document_store, case_store=case_store)
+    agent_input = AgentInput(
+        task_id=uuid.uuid4(),
+        case_id="case-1",
+        context={"document_id": document.document_id},
+    )
+
+    output = await agent.run(agent_input)
+
+    assert not any("was not found in the case store" in warning for warning in output.warnings)
 
 
 @pytest.mark.asyncio
@@ -213,7 +238,7 @@ async def test_analysis_agent_records_explainability_with_case_profile() -> None
     task_id = uuid.uuid4()
     agent_input = AgentInput(
         task_id=task_id,
-        case_id=uuid.UUID(case_id),
+        case_id=case_id,
         context={"document_id": document.document_id},
     )
 

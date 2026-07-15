@@ -83,7 +83,7 @@ class JurisprudenceAgent:
                 warnings=["No query provided in context: nothing to compare for this task."],
             )
 
-        case_id = str(agent_input.case_id) if agent_input.case_id is not None else None
+        case_id = agent_input.case_id
         response = await self._orchestrator.search(
             query, connector_names=_JURISPRUDENCE_CONNECTORS, case_id=case_id
         )

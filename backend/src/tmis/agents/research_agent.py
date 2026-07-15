@@ -65,7 +65,7 @@ class ResearchAgent:
                 warnings=["No query provided in context: nothing to research for this task."],
             )
 
-        case_id = str(agent_input.case_id) if agent_input.case_id is not None else None
+        case_id = agent_input.case_id
         response = await self._orchestrator.search(query, case_id=case_id)
         research_citations = self._orchestrator.get_citations(response.search_id) or ()
         citations = [

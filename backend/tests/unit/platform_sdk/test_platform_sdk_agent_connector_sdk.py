@@ -32,7 +32,7 @@ class _EchoAgent(BaseAgentPlugin):
 
     async def run(self, context: PluginContext, agent_input: AgentInput) -> AgentOutput:
         return AgentOutput(
-            result={"text": agent_input.context.get("question")},
+            result={"text": agent_input.context.get("question"), "case_id": agent_input.case_id},
             confidence=ConfidenceLevel.HIGH,
         )
 
@@ -43,10 +43,23 @@ async def test_agent_plugin_invoke_adapts_payload_and_publishes_event() -> None:
 
     result = await agent.invoke(_context(events), {"context": {"question": "Q?"}})
 
-    assert result["result"] == {"text": "Q?"}
+    assert result["result"]["text"] == "Q?"
     assert result["confidence"] == "high"
     assert len(events.history) == 1
     assert events.history[0].event_name == "AIWorkflowFinished"
+
+
+async def test_agent_plugin_invoke_no_longer_raises_on_a_non_uuid_case_id() -> None:
+    """Sprint 42: `invoke()` used to build `AgentInput.case_id` via
+    `uuid.UUID(str(payload["case_id"]))`, which raised an uncaught
+    `ValueError` for any non-UUID case id (`CaseStorePort` accepts
+    free-form ids). Since `AgentInput.case_id` is now `str | None`,
+    `invoke()` passes the case id through as-is instead of crashing."""
+    agent = _EchoAgent()
+
+    result = await agent.invoke(_context(PlatformEventBus()), {"case_id": "case-1"})
+
+    assert result["result"]["case_id"] == "case-1"
 
 
 _DOCS = ({"id": "1", "title": "Alpha"}, {"id": "2", "title": "Beta"})

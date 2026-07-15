@@ -35,23 +35,12 @@ def _agent_input(payload: ChatMessageRequest) -> AgentInput:
     `case_id` (see `ResearchAgent`/`JurisprudenceAgent`), so this
     construction has nothing mode-specific left to duplicate.
 
-    `AgentInput.case_id` is typed `uuid.UUID | None` (see
-    `tmis.ai.schemas.agent`), while `ChatMessageRequest.case_id` is a
-    free-form string (Sprint 32 reuses `case_intelligence`'s own,
-    non-UUID-constrained case ids, see `CaseStorePort`). A case id that
-    doesn't parse as a UUID is passed through as `None` here rather than
-    rejecting the whole request: `ResearchOrchestrator.search()` still
-    runs (directly for research, filtered to the "jurisprudence"
-    connector for jurisprudence), it simply doesn't tag its history
-    entry with that case."""
-    case_uuid: uuid.UUID | None = None
-    if payload.case_id is not None:
-        try:
-            case_uuid = uuid.UUID(payload.case_id)
-        except ValueError:
-            case_uuid = None
+    `AgentInput.case_id` is `str | None` (Sprint 42), the same free-form
+    string type as `ChatMessageRequest.case_id` (Sprint 32 reuses
+    `case_intelligence`'s own, non-UUID-constrained case ids, see
+    `CaseStorePort`), so it is passed through as-is."""
     return AgentInput(
-        task_id=uuid.uuid4(), case_id=case_uuid, context={"query": payload.message}
+        task_id=uuid.uuid4(), case_id=payload.case_id, context={"query": payload.message}
     )
 
 

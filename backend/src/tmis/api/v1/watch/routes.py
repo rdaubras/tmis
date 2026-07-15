@@ -24,21 +24,6 @@ from tmis.api.v1.watch.schemas import (
 router = APIRouter(prefix="/watches", tags=["watch"])
 
 
-def _parse_case_id(case_id: str | None) -> uuid.UUID | None:
-    """Same tolerant parsing as `tmis.api.v1.document.routes._parse_case_id`/
-    `tmis.api.v1.chat.routes._agent_input`: `WatchAgent` never resolves
-    `case_id` against a `CaseStorePort` (it only forwards it to
-    `ResearchOrchestrator.search()` for history-keying), so a case id that
-    doesn't parse as a UUID is passed through as `None` rather than
-    rejecting the request."""
-    if case_id is None:
-        return None
-    try:
-        return uuid.UUID(case_id)
-    except ValueError:
-        return None
-
-
 def _to_watch_response(output: AgentOutput) -> WatchResponse:
     """`output.result` is `dict[str, object]` (the common `AgentOutput`
     contract) but its actual shape for `WatchAgent` is exactly
@@ -76,7 +61,7 @@ async def run_watch(
     output = await watch_agent.run(
         AgentInput(
             task_id=uuid.uuid4(),
-            case_id=_parse_case_id(payload.case_id),
+            case_id=payload.case_id,
             context=context,
         )
     )

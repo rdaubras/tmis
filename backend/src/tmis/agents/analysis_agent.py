@@ -100,7 +100,7 @@ class AnalysisAgent:
 
         case_profile: CaseProfile | None = None
         if agent_input.case_id is not None:
-            case_profile = self._case_store.get(str(agent_input.case_id))
+            case_profile = self._case_store.get(agent_input.case_id)
 
         entities = self._group_entities(document)
         inconsistencies = self._collect_inconsistencies(case_profile)

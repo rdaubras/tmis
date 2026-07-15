@@ -182,7 +182,7 @@ class ContractAgent:
 
         case_profile: CaseProfile | None = None
         if agent_input.case_id is not None:
-            case_profile = self._case_store.get(str(agent_input.case_id))
+            case_profile = self._case_store.get(agent_input.case_id)
 
         compare_document, compare_document_id = self._resolve_compare_document(agent_input)
 

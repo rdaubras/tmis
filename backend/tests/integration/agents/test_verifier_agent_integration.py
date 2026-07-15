@@ -100,7 +100,7 @@ async def test_synthesis_conflict_hallucination_bias_flagged_after_full_graph() 
     # graph made and then routed straight past the Verifier.
     agent_input = AgentInput(
         task_id=uuid.uuid4(),
-        case_id=uuid.UUID(case_profile.case_id),
+        case_id=case_profile.case_id,
         context={"document_id": "doc-1"},
     )
     raw_synthesis_output = await synthesis_agent.run(agent_input)

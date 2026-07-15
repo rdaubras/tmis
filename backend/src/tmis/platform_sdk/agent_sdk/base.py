@@ -35,7 +35,10 @@ class BaseAgentPlugin(ABC):
     async def invoke(self, context: PluginContext, payload: dict[str, Any]) -> dict[str, Any]:
         agent_input = AgentInput(
             task_id=uuid.UUID(str(payload["task_id"])) if "task_id" in payload else uuid.uuid4(),
-            case_id=uuid.UUID(str(payload["case_id"])) if payload.get("case_id") else None,
+            # Sprint 42: was `uuid.UUID(str(payload["case_id"]))`, which raised
+            # ValueError for any non-UUID case_id (CaseStorePort accepts free-form
+            # ids). Behavior change: a non-UUID case_id no longer crashes invoke().
+            case_id=str(payload["case_id"]) if payload.get("case_id") else None,
             context=dict(payload.get("context", {})),
         )
         output = await self.run(context, agent_input)

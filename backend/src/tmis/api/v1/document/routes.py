@@ -47,22 +47,6 @@ from tmis.document_intelligence.schemas.record import DocumentRecord
 router = APIRouter(prefix="/documents", tags=["document"])
 
 
-def _parse_case_id(case_id: str | None) -> uuid.UUID | None:
-    """Same tolerant parsing as `tmis.api.v1.chat.routes._agent_input`:
-    `AgentInput.case_id` is typed `uuid.UUID | None`, while case ids
-    elsewhere in the API (`case_intelligence`) are free-form strings. A
-    case id that isn't a UUID is passed through as `None` rather than
-    rejecting the request — `ContractAgent.run()` already reports a
-    missing case via `warnings` when a `case_id` is given but not found,
-    so there is nothing left for this endpoint to reject either way."""
-    if case_id is None:
-        return None
-    try:
-        return uuid.UUID(case_id)
-    except ValueError:
-        return None
-
-
 def _to_analysis_response(document_id: str, output: AgentOutput) -> ContractAnalysisResponse:
     """`output.result` is `dict[str, object]` (the common `AgentOutput` contract,
     see `tmis.ai.schemas.agent`) but its actual shape is exactly
@@ -185,7 +169,7 @@ async def analyze_document(
         context["compare_document_id"] = compare_document_id
 
     output = await contract_agent.run(
-        AgentInput(task_id=uuid.uuid4(), case_id=_parse_case_id(case_id), context=context)
+        AgentInput(task_id=uuid.uuid4(), case_id=case_id, context=context)
     )
 
     return _to_analysis_response(document_id, output)
