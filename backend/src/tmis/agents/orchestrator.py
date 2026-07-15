@@ -7,6 +7,7 @@ from tmis.agents.analysis_agent import AnalysisAgent
 from tmis.agents.contracts import AgentInput, AgentOutput
 from tmis.agents.synthesis_agent import SynthesisAgent
 from tmis.agents.verifier_agent import VerifierAgent
+from tmis.document_intelligence.bootstrap import get_document_store
 
 
 class OrchestratorState(TypedDict):
@@ -117,7 +118,7 @@ class Orchestrator:
         verifier_agent: VerifierAgent | None = None,
         synthesis_agent: SynthesisAgent | None = None,
     ) -> None:
-        self._analysis_agent = analysis_agent or AnalysisAgent()
+        self._analysis_agent = analysis_agent or AnalysisAgent(document_store=get_document_store())
         self._verifier_agent = verifier_agent or VerifierAgent()
         self._synthesis_agent = synthesis_agent or SynthesisAgent()
         self._graph = self._build_graph()

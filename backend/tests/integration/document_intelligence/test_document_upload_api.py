@@ -43,7 +43,7 @@ from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
 from tmis.core.tasks.celery_app import celery_app
 from tmis.core.tasks.document_tasks import process_document_task
-from tmis.document_intelligence.bootstrap import get_document_pipeline
+from tmis.document_intelligence.bootstrap import get_document_pipeline, get_document_store
 from tmis.main import app
 
 _CONTRACT_TEXT = (
@@ -81,6 +81,7 @@ def _sqlite_backend(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> Iterat
 
     get_case_intelligence_workflow.cache_clear()
     get_document_pipeline.cache_clear()
+    get_document_store.cache_clear()
     from tmis.ai.kernel.bootstrap import get_kernel
 
     get_kernel.cache_clear()

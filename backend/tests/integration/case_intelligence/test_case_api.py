@@ -1,10 +1,16 @@
 import asyncio
+from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
+import tmis.document_intelligence.adapters.sqlalchemy_store  # noqa: F401
 from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
-from tmis.document_intelligence.bootstrap import get_document_pipeline
+from tmis.core.db import base as core_db_base
+from tmis.core.db import session as core_db_session
+from tmis.document_intelligence.bootstrap import get_document_pipeline, get_document_store
 from tmis.main import app
 
 _CONTRACT_TEXT = (
@@ -14,15 +20,36 @@ _CONTRACT_TEXT = (
 
 
 @pytest.fixture(autouse=True)
-def _clear_singletons() -> None:
+def _clear_singletons(tmp_path: object) -> Iterator[None]:
     """The bootstrap accessors are `lru_cache`d process-wide singletons;
     reset them before each test so cases created by one test don't leak
-    into another (see docs/19-case-intelligence.md)."""
+    into another (see docs/19-case-intelligence.md).
+
+    `get_document_pipeline()` now saves through the shared
+    `SQLAlchemyDocumentStore` singleton (Sprint 37) instead of an
+    in-memory default, so this test points the module-wide sync
+    `SessionLocal` at a throwaway sqlite database — same real-DB fixture
+    pattern as `test_document_upload_api.py` — rather than the real
+    `TMIS_DATABASE_URL` Postgres.
+    """
+    sync_engine = create_engine(
+        f"sqlite:///{tmp_path}/sprint37-case-api.db",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    core_db_base.Base.metadata.create_all(
+        sync_engine, tables=[core_db_base.Base.metadata.tables["document_records"]]
+    )
+    core_db_session.SessionLocal.configure(bind=sync_engine)
+
     get_case_intelligence_workflow.cache_clear()
     get_document_pipeline.cache_clear()
+    get_document_store.cache_clear()
     from tmis.ai.kernel.bootstrap import get_kernel
 
     get_kernel.cache_clear()
+
+    yield
 
 
 @pytest.fixture
