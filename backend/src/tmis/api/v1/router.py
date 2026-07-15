@@ -8,6 +8,7 @@ from tmis.api.v1.case_intelligence.routes import router as case_intelligence_rou
 from tmis.api.v1.chat.routes import router as chat_router
 from tmis.api.v1.document.routes import router as document_router
 from tmis.api.v1.health.routes import router as health_router
+from tmis.api.v1.watch.routes import router as watch_router
 from tmis.business_platform.api.routes import router as business_platform_router
 from tmis.cabinet_knowledge.api.routes import router as cabinet_knowledge_router
 from tmis.cabinet_os.api.routes import router as cabinet_os_router
@@ -29,6 +30,7 @@ api_router.include_router(case_router)
 api_router.include_router(case_intelligence_router)
 api_router.include_router(chat_router)
 api_router.include_router(document_router)
+api_router.include_router(watch_router)
 api_router.include_router(legal_research_router)
 api_router.include_router(legal_reasoning_router)
 api_router.include_router(legal_drafting_router)
