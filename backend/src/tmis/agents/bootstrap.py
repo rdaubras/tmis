@@ -9,6 +9,7 @@ from tmis.ai_fabric.bootstrap import get_ai_intelligence_fabric
 from tmis.ai_governance.bootstrap import get_ai_governance_platform
 from tmis.cabinet_knowledge.bootstrap import get_clause_engine
 from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.document_intelligence.bootstrap import get_document_store
 from tmis.legal_research.bootstrap import get_research_orchestrator
 
 
@@ -55,13 +56,16 @@ def get_contract_agent() -> ContractAgent:
     `AIGovernancePlatform` for explainability, the same `CaseStorePort` as
     the Case Intelligence workflow, and the firm's real `ClauseEngine`
     (Sprint 12, `tmis.cabinet_knowledge.bootstrap.get_clause_engine()`) for
-    clause risk/coverage detection. `document_store` is left to its own
-    default `InMemoryDocumentStore()`, exactly like `AnalysisAgent()`'s own
-    default when constructed with no arguments — no shared document store
-    singleton exists in this composition root yet for either agent.
+    clause risk/coverage detection. `document_store` is the shared
+    `DocumentStorePort` singleton (Sprint 37,
+    `tmis.document_intelligence.bootstrap.get_document_store()`) — the
+    same instance `get_document_pipeline()` and `Orchestrator`'s
+    `AnalysisAgent` use, rather than each composition root instantiating
+    its own `SQLAlchemyDocumentStore()`.
     """
     return ContractAgent(
         kernel=get_kernel(),
+        document_store=get_document_store(),
         case_store=get_case_intelligence_workflow().case_store,
         clause_engine=get_clause_engine(),
         fabric=get_ai_intelligence_fabric(),

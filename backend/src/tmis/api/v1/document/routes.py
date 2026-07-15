@@ -1,6 +1,8 @@
-"""Document upload API (Sprint 26 Phase 4): persists via
-`SQLAlchemyDocumentStore`, then triggers `DocumentIntelligencePipeline`
-asynchronously via Celery — see `tmis.core.tasks.document_tasks`.
+"""Document upload API (Sprint 26 Phase 4): persists via the shared
+`DocumentStorePort` singleton (`tmis.document_intelligence.bootstrap.
+get_document_store()`, always `SQLAlchemyDocumentStore` in practice —
+Sprint 37), then triggers `DocumentIntelligencePipeline` asynchronously
+via Celery — see `tmis.core.tasks.document_tasks`.
 
 `GET /{document_id}/versions` is the one place in this router that reads
 via `tmis.core.db.session.AsyncSessionLocal` (the async engine) directly
@@ -23,18 +25,12 @@ from tmis.api.v1.document.schemas import (
 )
 from tmis.core.db.session import AsyncSessionLocal
 from tmis.core.tasks.document_tasks import process_document_task
-from tmis.document_intelligence.adapters.sqlalchemy_store import (
-    DocumentRecordModel,
-    SQLAlchemyDocumentStore,
-)
+from tmis.document_intelligence.adapters.sqlalchemy_store import DocumentRecordModel
+from tmis.document_intelligence.bootstrap import get_document_store
 from tmis.document_intelligence.schemas.document import ProcessingStatus
 from tmis.document_intelligence.schemas.record import DocumentRecord
 
 router = APIRouter(prefix="/documents", tags=["document"])
-
-
-def get_document_store() -> SQLAlchemyDocumentStore:
-    return SQLAlchemyDocumentStore()
 
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=202)

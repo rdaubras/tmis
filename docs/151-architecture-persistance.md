@@ -133,3 +133,59 @@ renvoie tout l'historique, du plus ancien au plus récent.
 Voir `docs/152-guide-migrations.md`. Une migration par domaine, chaînée
 linéairement (`0001_document_record` → ... → `0007_knowledge_object`),
 jamais une migration fourre-tout.
+
+## `DocumentStorePort` désormais partagé (Sprint 37)
+
+**Avant.** `SQLAlchemyDocumentStore` (ci-dessus) existait depuis le
+Sprint 26, mais chaque point d'entrée qui en avait besoin instanciait le
+sien : `document_intelligence.bootstrap.get_document_pipeline()` ne
+passait pas de `document_store` du tout et retombait donc sur le défaut
+du pipeline, `InMemoryDocumentStore()` ; `agents.orchestrator.
+Orchestrator` construisait son `AnalysisAgent()` sans `document_store`
+(même défaut `InMemoryDocumentStore()`) ; `agents.bootstrap.
+get_contract_agent()` faisait de même pour `ContractAgent`. Seul
+`core.tasks.document_tasks.process_document_task` — le flux réel
+d'upload — construisait explicitement `SQLAlchemyDocumentStore()`. Trois
+composition roots pointaient donc, par défaut, vers un stockage en
+mémoire jamais partagé avec la production, malgré l'existence de
+l'adaptateur Postgres depuis onze sprints.
+
+**Après.** `document_intelligence.bootstrap.get_document_store()` est un
+singleton `@lru_cache`, même patron que `legal_research.bootstrap.
+get_research_orchestrator()`/`cabinet_knowledge.bootstrap.
+get_knowledge_space()` :
+
+```python
+@lru_cache
+def get_document_store() -> DocumentStorePort:
+    return SQLAlchemyDocumentStore()
+```
+
+Contrairement aux connecteurs LRE (réel HTTP vs. fixture, un choix de
+configuration), `SQLAlchemyDocumentStore` n'a pas de branche
+réel/fixture à ce niveau : c'est toujours l'implémentation de
+production, elle lit `Settings.database_url` directement. Cette même
+instance est désormais injectée dans les trois points d'entrée qui
+construisaient auparavant leur propre store par défaut :
+
+- `get_document_pipeline()` (`document_intelligence.bootstrap`)
+- `Orchestrator.__init__`'s default `AnalysisAgent` (`agents.
+  orchestrator`)
+- `get_contract_agent()` (`agents.bootstrap`)
+
+`api.v1.document.routes.get_document_store()` — qui retournait déjà
+`SQLAlchemyDocumentStore()` (Sprint 26 Phase 4) — délègue maintenant au
+même singleton plutôt que de garder sa propre définition locale.
+`process_document_task` (déjà correct) n'a pas été touché : il continue
+de construire son `SQLAlchemyDocumentStore()` directement, hors de tout
+composition root, ce que ce sprint n'a pas cherché à unifier.
+
+Chaque constructeur (`DocumentIntelligencePipeline`, `AnalysisAgent`,
+`ContractAgent`) garde `document_store: DocumentStorePort | None = None`
+inchangé — les tests continuent d'injecter `InMemoryDocumentStore()`
+explicitement, sans aucun changement de comportement ; seul le
+comportement *par défaut* (composition root réelle) change. Voir
+`docs/reports/sprint-37-rapport-architecture.md` pour le détail du
+câblage et `docs/reports/sprint-37-rapport-audit.md` pour l'impact sur
+les tests d'intégration qui dépendaient implicitement de l'ancien
+défaut en mémoire.

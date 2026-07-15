@@ -1201,6 +1201,29 @@ suivant.
 > Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
 > aucun sprint existant : la table détaillée et le total (41 sprints)
 > restent inchangés.
+>
+> **Note de révision (après Sprint 37)** : le Sprint 37 n'est pas un
+> sprint de cette table de 41 sprints — c'est un sprint de nettoyage et
+> de plomberie interne, sans nouvelle fonctionnalité et sans agent
+> exposé côté API. Il consolide `DocumentStorePort` : trois composition
+> roots qui construisaient chacun leur propre store par défaut
+> (`document_intelligence.bootstrap.get_document_pipeline()`,
+> `agents.orchestrator.Orchestrator`'s `AnalysisAgent` par défaut,
+> `agents.bootstrap.get_contract_agent()`) retombaient tous sur
+> `InMemoryDocumentStore()` plutôt que sur `SQLAlchemyDocumentStore`
+> (l'implémentation Postgres livrée au Sprint 26) — malgré le fait que
+> `core.tasks.document_tasks.process_document_task`, le flux réel
+> d'upload, construisait déjà le bon store depuis le Sprint 26. Un
+> singleton `@lru_cache`, `document_intelligence.bootstrap.
+> get_document_store()`, suit le même patron que
+> `legal_research.bootstrap.get_research_orchestrator()`/
+> `cabinet_knowledge.bootstrap.get_knowledge_space()` et est désormais
+> injecté dans les trois points d'entrée ci-dessus ; `process_document_task`
+> n'a pas été touché (déjà correct). Voir
+> docs/151-architecture-persistance.md et
+> docs/reports/sprint-37-rapport-architecture.md pour le détail complet.
+> Ce sprint supprime aussi `backend/uv.lock` (mergé hors scope au Sprint
+> 36, référencé par aucun processus du dépôt).
 
 ## Vue d'ensemble
 
