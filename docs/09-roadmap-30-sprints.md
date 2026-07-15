@@ -1036,6 +1036,55 @@ suivant.
 > aucun sprint existant : la table détaillée et le total (41 sprints)
 > restent inchangés.
 
+> **Note de révision (après Sprint 34)** : le Sprint 34 relie un
+> cinquième agent de `tmis.agents` aux plateformes déjà livrées —
+> **seulement l'Agent Jurisprudence**, exactement comme annoncé à la
+> position 34 de la table détaillée. Ce sprint combine les deux patrons
+> déjà établis plutôt que d'en inventer un troisième : la Phase 0 a
+> confirmé que le connecteur « jurisprudence » (Judilibre réel ou
+> fixture, `tmis.ai.connectors.factory.build_jurisprudence_connector`)
+> est déjà enregistré sur le `ConnectorManager` partagé du Kernel
+> (`ConnectorManager(codes=..., jurisprudence=..., doctrine=...)`, voir
+> `tmis.ai.kernel.bootstrap.get_kernel`) et donc déjà cherchable par la
+> LRE — la « recherche de décisions » n'est donc pas un nouveau moteur
+> mais un appel à `ResearchOrchestrator.search(query,
+> connector_names=["jurisprudence"], case_id=...)`, exactement le patron
+> `ResearchAgent` (Sprint 33), y compris la réutilisation littérale (pas
+> une copie) de son adaptateur `ResearchCitation -> Citation`, extrait en
+> fonction partagée `tmis.agents.citations.
+> research_citation_to_citation` pour que les deux agents appellent le
+> même code. Ce qui est réellement nouveau — confirmé absent ailleurs
+> dans le dépôt en Phase 0 (ni `legal_copilot_framework.copilots.
+> contentieux`, ni `legal_research`) — est la comparaison de solutions
+> jurisprudentielles (convergences, divergences, pertinence par rapport
+> au dossier) : une synthèse générative qui suit, elle, le patron
+> `AnalysisAgent` (Sprint 29) — `AIIntelligenceFabric.route()` puis
+> `TMISKernel.complete()`, jamais un second client LLM — et lit le
+> `CaseProfile` correspondant via `CaseStorePort` quand un `case_id` est
+> fourni, pour évaluer cette pertinence. `AIGovernancePlatform.
+> explainability` reste branché, comme pour les quatre agents
+> précédents. `JurisprudenceAgent` n'est volontairement pas ajouté au
+> graphe LangGraph de l'`Orchestrator` ni au mode `"research"` du chat
+> du Sprint 33 : ni l'un ni l'autre n'a été demandé par ce sprint, et
+> `ResearchAgent` lui-même n'a jamais été câblé dans l'`Orchestrator`
+> (seulement exposé via `tmis.agents.bootstrap.get_research_agent()` et
+> l'endpoint de chat) — étendre l'un ou l'autre à la jurisprudence reste
+> donc un scope pour un sprint futur, pas une extension triviale et
+> strictement additive de celui-ci. Voir
+> docs/162-architecture-agent-jurisprudence.md pour le détail du câblage.
+>
+> **Les 5 autres agents de `tmis.agents` restent des placeholders**, sur
+> le même principe qu'aux Sprints 22, 25, 29, 30, 31 et 33 :
+> `ContractAgent` (Sprint 35, « Module Contrats + Agent Contrat »),
+> `WatchAgent` (Sprint 36) gardent chacun leur propre sprint dédié plus
+> loin dans cette même table ; `DraftingAgent`, `StrategyAgent` et
+> `CollaborationAgent` restent hors de ce roadmap de 41 sprints (voir la
+> note de révision après le Sprint 29 pour le détail de leur absorption).
+>
+> Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
+> aucun sprint existant : la table détaillée et le total (41 sprints)
+> restent inchangés.
+
 ## Vue d'ensemble
 
 ```mermaid
