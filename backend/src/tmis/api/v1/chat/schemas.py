@@ -9,4 +9,4 @@ class ChatMessageRequest(BaseModel):
     message: str
     case_id: str | None = None
     provider: str | None = None
-    mode: Literal["general", "research"] = "general"
+    mode: Literal["general", "research", "jurisprudence"] = "general"

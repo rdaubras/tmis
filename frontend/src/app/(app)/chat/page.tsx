@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-type ChatMode = "general" | "research";
+type ChatMode = "general" | "research" | "jurisprudence";
+
+// "research" and "jurisprudence" are both single-shot modes: one SSE event
+// carrying a fully-computed result, never token-by-token chunks.
+const SINGLE_SHOT_MODES: ChatMode[] = ["research", "jurisprudence"];
 
 interface ResearchResultItem {
   id: string;
@@ -27,6 +31,10 @@ interface ResearchCitation {
 }
 
 interface ResearchPayload {
+  // Reused as-is for the "jurisprudence" mode (JurisprudenceAgent.result is
+  // the same shape plus `comparison`/`model`, see docs/165) rather than a
+  // separate type: same precedent as the backend, which reuses
+  // ResearchResult/ResearchCitation across both agents unchanged.
   result: {
     search_id: string | null;
     query: string | null;
@@ -34,6 +42,8 @@ interface ResearchPayload {
     connectors_used: string[];
     duration_ms?: number;
     cache_hit?: boolean;
+    comparison?: string | null;
+    model?: string | null;
   };
   citations: ResearchCitation[];
   confidence: "low" | "medium" | "high";
@@ -71,10 +81,11 @@ export default function ChatPage() {
     setError(null);
     setInput("");
     const assistantId = crypto.randomUUID();
+    const isSingleShot = SINGLE_SHOT_MODES.includes(mode);
     setMessages((prev) => [
       ...prev,
       { id: crypto.randomUUID(), role: "user", content: trimmed },
-      { id: assistantId, role: "assistant", content: "", streaming: mode === "general" },
+      { id: assistantId, role: "assistant", content: "", streaming: !isSingleShot },
     ]);
     setIsStreaming(true);
 
@@ -95,8 +106,8 @@ export default function ChatPage() {
         throw new Error(detail?.detail ?? `Erreur ${response.status}`);
       }
 
-      if (mode === "research") {
-        // Research mode returns a single SSE event with the full result +
+      if (isSingleShot) {
+        // Single-shot modes return one SSE event with the full result +
         // citations (never a token-by-token stream): read the whole body
         // instead of feeding a reader loop meant for incremental chunks.
         const text = await response.text();
@@ -152,7 +163,7 @@ export default function ChatPage() {
           <code className="rounded bg-muted px-1 py-0.5">TMISKernel.complete_stream()</code>.
           Activez la recherche juridique pour interroger le{" "}
           <code className="rounded bg-muted px-1 py-0.5">ResearchOrchestrator</code> avec
-          citations sourcees.
+          citations sourcees, ou la jurisprudence pour comparer les decisions trouvees.
         </p>
       </div>
 
@@ -175,6 +186,15 @@ export default function ChatPage() {
           onClick={() => setMode((prev) => (prev === "research" ? "general" : "research"))}
         >
           Recherche juridique
+        </Button>
+        <Button
+          type="button"
+          variant={mode === "jurisprudence" ? "default" : "outline"}
+          size="sm"
+          aria-pressed={mode === "jurisprudence"}
+          onClick={() => setMode((prev) => (prev === "jurisprudence" ? "general" : "jurisprudence"))}
+        >
+          Jurisprudence
         </Button>
       </div>
 
@@ -230,7 +250,9 @@ export default function ChatPage() {
           placeholder={
             mode === "research"
               ? "Recherchez une jurisprudence, un article, une doctrine... (Entree pour rechercher)"
-              : "Ecrivez votre message... (Entree pour envoyer, Maj+Entree pour un saut de ligne)"
+              : mode === "jurisprudence"
+                ? "Decrivez la question de jurisprudence a comparer... (Entree pour comparer)"
+                : "Ecrivez votre message... (Entree pour envoyer, Maj+Entree pour un saut de ligne)"
           }
           rows={2}
           className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -240,10 +262,14 @@ export default function ChatPage() {
           {isStreaming
             ? mode === "research"
               ? "Recherche en cours..."
-              : "Reponse en cours..."
+              : mode === "jurisprudence"
+                ? "Comparaison en cours..."
+                : "Reponse en cours..."
             : mode === "research"
               ? "Rechercher"
-              : "Envoyer"}
+              : mode === "jurisprudence"
+                ? "Comparer"
+                : "Envoyer"}
         </Button>
       </form>
     </div>
@@ -275,6 +301,15 @@ function ResearchResults({ payload }: { payload: ResearchPayload }) {
             <li key={warning}>{warning}</li>
           ))}
         </ul>
+      )}
+
+      {result.comparison && (
+        <div className="rounded-md border border-border bg-background p-3">
+          <p className="whitespace-pre-wrap text-sm">{result.comparison}</p>
+          {result.model && (
+            <p className="mt-1 text-xs text-muted-foreground">Modele : {result.model}</p>
+          )}
+        </div>
       )}
 
       {result.results.map((item, index) => {

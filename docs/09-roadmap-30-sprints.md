@@ -1225,6 +1225,42 @@ suivant.
 > Ce sprint supprime aussi `backend/uv.lock` (mergé hors scope au Sprint
 > 36, référencé par aucun processus du dépôt).
 
+> **Note de révision (après Sprint 38)** : le Sprint 38 n'est pas non plus
+> un sprint de cette table de 41 sprints — comme le Sprint 33, c'est un
+> sprint d'exposition qui étend le chat (Sprint 32) d'un mode
+> supplémentaire, cette fois `"jurisprudence"`, câblé sur
+> `JurisprudenceAgent` (déjà réel depuis le Sprint 34). C'est le
+> **premier de quatre sprints d'exposition** dans le chat des agents
+> réels livrés aux Sprints 33 à 36 (`ResearchAgent` déjà exposé au Sprint
+> 33 lui-même) : `JurisprudenceAgent` ici, puis `ContractAgent` (Sprint
+> 39), `WatchAgent` (Sprint 40) et `Orchestrator` (Sprint 41) chacun leur
+> tour — **jamais le même sprint pour les quatre**, parce que chacun a une
+> forme d'API différente de celle de `ResearchAgent`/`JurisprudenceAgent` :
+> `ContractAgent.run()` attend un `document_id` (et optionnellement un
+> `compare_document_id`) dans son contexte, pas une `query` de recherche
+> libre ; `WatchAgent.run()` attend une configuration de veille
+> (`query` + `connectors` surveillés + `known_result_ids`), un contrat à
+> plusieurs champs bien plus riche qu'un simple texte ; `Orchestrator`
+> n'est pas un agent unique mais un graphe LangGraph multi-agents dont la
+> sortie combine plusieurs `AgentOutput`. Reproduire pour ces trois le
+> patron additif `mode: Literal[...]` + un seul événement SSE établi par
+> ce sprint et le Sprint 33 exigerait, pour chacun, sa propre convention
+> de restitution UI (un formulaire de document plutôt qu'un champ de
+> recherche, une configuration de veille structurée, un agrégat
+> multi-agents) — une conception à part entière, pas une extension
+> triviale du patron `query` unique. `JurisprudenceAgent` s'y prêtait, lui,
+> exactement comme `ResearchAgent` : `JurisprudenceAgent.run()` lit déjà
+> `agent_input.context["query"]`, exactement la même convention, et son
+> `result` est un sur-ensemble strict de celui de `ResearchAgent`
+> (mêmes clés plus `comparison`/`model`) — la seule extension qui restait
+> triviale et strictement additive parmi les quatre. Voir
+> docs/165-architecture-exposition-agent-jurisprudence.md pour le détail
+> complet du câblage.
+>
+> Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
+> aucun sprint existant : la table détaillée et le total (41 sprints)
+> restent inchangés.
+
 ## Vue d'ensemble
 
 ```mermaid

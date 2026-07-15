@@ -1,13 +1,14 @@
 import dataclasses
 import json
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
-from tmis.agents.bootstrap import get_research_agent
-from tmis.agents.contracts import AgentInput, AgentOutput
+from tmis.agents.bootstrap import get_jurisprudence_agent, get_research_agent
+from tmis.agents.contracts import AgentInput, AgentOutput, AgentPort
+from tmis.agents.jurisprudence_agent import JurisprudenceAgent
 from tmis.agents.research_agent import ResearchAgent
 from tmis.ai.guardrails.exceptions import GuardrailViolation
 from tmis.ai.kernel.bootstrap import get_kernel
@@ -28,14 +29,21 @@ def _build_prompt(history: list[str], message: str, *, case_id: str | None) -> s
     return "\n".join(lines)
 
 
-def _research_agent_input(payload: ChatMessageRequest) -> AgentInput:
-    """`AgentInput.case_id` is typed `uuid.UUID | None` (see
+def _agent_input(payload: ChatMessageRequest) -> AgentInput:
+    """Shared by every single-shot agent mode (`"research"`,
+    `"jurisprudence"`): both read `context["query"]` and the same
+    `case_id` (see `ResearchAgent`/`JurisprudenceAgent`), so this
+    construction has nothing mode-specific left to duplicate.
+
+    `AgentInput.case_id` is typed `uuid.UUID | None` (see
     `tmis.ai.schemas.agent`), while `ChatMessageRequest.case_id` is a
     free-form string (Sprint 32 reuses `case_intelligence`'s own,
     non-UUID-constrained case ids, see `CaseStorePort`). A case id that
     doesn't parse as a UUID is passed through as `None` here rather than
     rejecting the whole request: `ResearchOrchestrator.search()` still
-    runs, it simply doesn't tag its history entry with that case."""
+    runs (directly for research, filtered to the "jurisprudence"
+    connector for jurisprudence), it simply doesn't tag its history
+    entry with that case."""
     case_uuid: uuid.UUID | None = None
     if payload.case_id is not None:
         try:
@@ -47,7 +55,10 @@ def _research_agent_input(payload: ChatMessageRequest) -> AgentInput:
     )
 
 
-def _research_event_payload(output: AgentOutput) -> dict[str, object]:
+def _agent_event_payload(output: AgentOutput) -> dict[str, object]:
+    """Shared by every single-shot agent mode: `output.result` is passed
+    through as-is, so `JurisprudenceAgent`'s extra `comparison`/`model`
+    keys reach the frontend without this function knowing about them."""
     return {
         "result": output.result,
         "citations": [dataclasses.asdict(citation) for citation in output.citations],
@@ -70,18 +81,60 @@ def _research_summary_text(output: AgentOutput) -> str:
     return f"Recherche juridique : {len(results)} resultat(s) trouve(s) ({titles})."
 
 
+def _jurisprudence_summary_text(output: AgentOutput) -> str:
+    """Same shape as `_research_summary_text` (count + up to 3 titles),
+    duplicated rather than generalized behind a `label` parameter: the
+    vocabulary differs enough ("decision(s) comparee(s)" vs "resultat(s)
+    trouve(s)") that a shared parametrized version would only move the
+    difference into an argument, not remove any real duplication."""
+    results = output.result.get("results")
+    if not isinstance(results, list) or not results:
+        return "Comparaison de jurisprudence : aucun resultat trouve."
+    titles = ", ".join(str(item.get("title", "")) for item in results[:3] if isinstance(item, dict))
+    return f"Comparaison de jurisprudence : {len(results)} decision(s) comparee(s) ({titles})."
+
+
+async def _run_single_shot_agent_mode(
+    payload: ChatMessageRequest,
+    kernel: TMISKernel,
+    agent: AgentPort,
+    summary_text: Callable[[AgentOutput], str],
+) -> StreamingResponse:
+    """Shared by `mode == "research"` and `mode == "jurisprudence"`:
+    persist the user turn, run the agent once (never token-by-token —
+    there is nothing to stream, the result is already fully computed),
+    persist a plain-text summary of the assistant turn, then return the
+    result as a single SSE event followed by `event: done`."""
+    await kernel.conversation_memory.add_message(
+        payload.conversation_id, "user", payload.message
+    )
+    output = await agent.run(_agent_input(payload))
+    await kernel.conversation_memory.add_message(
+        payload.conversation_id, "assistant", summary_text(output)
+    )
+
+    async def event_stream() -> AsyncIterator[str]:
+        yield f"data: {json.dumps(_agent_event_payload(output))}\n\n"
+        yield "event: done\ndata: {}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
 @router.post("/stream")
 async def stream_chat(
     payload: ChatMessageRequest,
     kernel: TMISKernel = Depends(get_kernel),
     workflow: CaseIntelligenceWorkflow = Depends(get_case_intelligence_workflow),
     research_agent: ResearchAgent = Depends(get_research_agent),
+    jurisprudence_agent: JurisprudenceAgent = Depends(get_jurisprudence_agent),
 ) -> StreamingResponse:
     """Server-Sent Events endpoint for the chat (Sprint 32: general mode,
-    `TMISKernel.complete_stream()` only; Sprint 33 adds `mode="research"`,
-    additive — general mode's behavior and SSE framing are unchanged, see
-    docs/160-architecture-chat-ia.md and
-    docs/161-architecture-agent-recherche.md).
+    `TMISKernel.complete_stream()` only; Sprint 33 adds `mode="research"`;
+    Sprint 38 adds `mode="jurisprudence"` on the exact same single-shot
+    pattern — general mode's behavior and SSE framing are unchanged, see
+    docs/160-architecture-chat-ia.md, docs/161-architecture-agent-
+    recherche.md and docs/165-architecture-exposition-agent-
+    jurisprudence.md).
 
     Validated eagerly, before the stream starts, so a bad request still
     gets a clean 4xx: `case_id` existence (`CaseStorePort`) and the raw
@@ -98,19 +151,14 @@ async def stream_chat(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if payload.mode == "research":
-        await kernel.conversation_memory.add_message(
-            payload.conversation_id, "user", payload.message
-        )
-        output = await research_agent.run(_research_agent_input(payload))
-        await kernel.conversation_memory.add_message(
-            payload.conversation_id, "assistant", _research_summary_text(output)
+        return await _run_single_shot_agent_mode(
+            payload, kernel, research_agent, _research_summary_text
         )
 
-        async def research_event_stream() -> AsyncIterator[str]:
-            yield f"data: {json.dumps(_research_event_payload(output))}\n\n"
-            yield "event: done\ndata: {}\n\n"
-
-        return StreamingResponse(research_event_stream(), media_type="text/event-stream")
+    if payload.mode == "jurisprudence":
+        return await _run_single_shot_agent_mode(
+            payload, kernel, jurisprudence_agent, _jurisprudence_summary_text
+        )
 
     history = await kernel.conversation_memory.get_history(payload.conversation_id)
     prompt = _build_prompt(history, payload.message, case_id=payload.case_id)
