@@ -3,6 +3,7 @@ from functools import lru_cache
 from tmis.agents.contract_agent import ContractAgent
 from tmis.agents.jurisprudence_agent import JurisprudenceAgent
 from tmis.agents.research_agent import ResearchAgent
+from tmis.agents.watch_agent import WatchAgent
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.ai_fabric.bootstrap import get_ai_intelligence_fabric
 from tmis.ai_governance.bootstrap import get_ai_governance_platform
@@ -63,6 +64,27 @@ def get_contract_agent() -> ContractAgent:
         kernel=get_kernel(),
         case_store=get_case_intelligence_workflow().case_store,
         clause_engine=get_clause_engine(),
+        fabric=get_ai_intelligence_fabric(),
+        governance=get_ai_governance_platform(),
+    )
+
+
+@lru_cache
+def get_watch_agent() -> WatchAgent:
+    """Process-wide `WatchAgent` singleton (Sprint 36), the last of the
+    six `tmis.agents` agents made real by this roadmap: shares the same
+    `ResearchOrchestrator` singleton as `get_research_agent()`/
+    `get_jurisprudence_agent()` (filtered, per watch configuration, to the
+    connectors that configuration surveils) and, like `AnalysisAgent`/
+    `JurisprudenceAgent`/`ContractAgent`, the shared `TMISKernel`/
+    `AIIntelligenceFabric` for its optional alert synthesis plus
+    `AIGovernancePlatform` for explainability. No new store is wired here:
+    novelty detection is stateless (see `WatchAgent`'s own docstring and
+    docs/164-architecture-agent-veille.md).
+    """
+    return WatchAgent(
+        orchestrator=get_research_orchestrator(),
+        kernel=get_kernel(),
         fabric=get_ai_intelligence_fabric(),
         governance=get_ai_governance_platform(),
     )

@@ -1139,6 +1139,69 @@ suivant.
 > aucun sprint existant : la table détaillée et le total (41 sprints)
 > restent inchangés.
 
+> **Note de révision (après Sprint 36)** : le Sprint 36 relie le sixième
+> et **dernier** agent de `tmis.agents` que ce roadmap de 41 sprints
+> prévoyait de rendre réel — exactement comme annoncé à la position 36
+> de la table détaillée (« Agent Veille »). `WatchAgent` remplace le
+> placeholder Sprint 1 par une veille juridique réelle, combinant les
+> deux patrons déjà établis : la recherche n'est pas un nouveau moteur —
+> une configuration de veille (`query` + `connectors` surveillés lus
+> depuis `agent_input.context` + `case_id` optionnel) est traduite en un
+> seul appel `ResearchOrchestrator.search(query,
+> connector_names=connectors, case_id=...)` (Sprint 5, le même LRE que
+> `ResearchAgent`/`JurisprudenceAgent`, aucun second moteur de recherche
+> ni second registre de connecteurs — `ConnectorManager.list_connectors()`
+> confirme que les connecteurs surveillés sont déjà tous enregistrés sur
+> le `ConnectorManager` partagé du Kernel) ; chaque `ResearchCitation` de
+> la réponse est convertie en `Citation` par le même adaptateur partagé,
+> `tmis.agents.citations.research_citation_to_citation`. La détection de
+> ce qui est nouveau depuis la dernière exécution reste entièrement
+> stateless (Question Ouverte tranchée en Phase 0) : l'appelant fournit
+> `known_result_ids` dans `agent_input.context`, l'agent ne renvoie comme
+> `new_results` que ce qui n'y figure pas et renvoie systématiquement
+> l'ensemble des identifiants de cette exécution (`result_ids`) pour que
+> l'appelant les fusionne avant la prochaine exécution — aucun nouveau
+> store introduit ; la lecture directe de `ResearchHistoryPort` a confirmé
+> qu'il journalise chaque recherche mais ne compare jamais deux exécutions
+> entre elles, donc structurellement insuffisant pour cet usage sans
+> l'étendre à un rôle qu'il n'a jamais eu vocation à couvrir. Une synthèse
+> d'alerte générative optionnelle (produite seulement s'il existe au
+> moins un résultat nouveau) suit le même patron `AIIntelligenceFabric.
+> route()` puis `TMISKernel.complete()` que les trois agents précédents —
+> jamais un second client LLM — mais le contenu structuré (`new_results`)
+> reste systématiquement la source de vérité de l'alerte, le message
+> généré n'étant qu'une couche de lisibilité par-dessus.
+> `AIGovernancePlatform.explainability` reste branché, comme pour les
+> quatre agents précédents. Aucune tâche Celery périodique n'est câblée
+> (seconde Question Ouverte tranchée en Phase 0) : la roadmap ne
+> mentionne, pour ce sprint, qu'« alertes ciblées depuis sources
+> configurées », pas de planification automatique, et le patron Celery
+> existant (`tmis.core.tasks`) ne déclenche aujourd'hui que des
+> traitements événementiels, jamais périodiques — câbler une veille
+> récurrente exigerait un `beat_schedule` (absent du dépôt), une
+> configuration de veille nommée et persistée (hors périmètre de ce
+> sprint) et un mécanisme de notification (absent), donc ni triviale ni
+> strictement additive ; ce sujet reste un sprint futur non couvert par
+> cette table de 41 sprints. Voir docs/164-architecture-agent-veille.md
+> pour le détail complet du câblage et des deux décisions.
+>
+> **`DraftingAgent`, `StrategyAgent` et `CollaborationAgent` restent des
+> placeholders**, hors de ce roadmap de 41 sprints depuis la note de
+> révision après le Sprint 29 (voir cette note pour le détail de leur
+> absorption) — aucun sprint de cette table ne leur est dédié. Avec ce
+> sprint, les six agents de `tmis.agents` que ce roadmap prévoyait de
+> rendre réels le sont tous : `AnalysisAgent` (Sprint 29), `SynthesisAgent`
+> (Sprint 30), `VerifierAgent` (Sprint 31), `ResearchAgent` (Sprint 33),
+> `JurisprudenceAgent` (Sprint 34), `ContractAgent` (Sprint 35),
+> `WatchAgent` (Sprint 36) — sept agents réels en tout (la Phase 0 de ce
+> sprint a compté le nombre exact plutôt que de le supposer). Aucun
+> sprint suivant de cette table ne porte plus la mention « les N autres
+> agents de `tmis.agents` restent des placeholders ».
+>
+> Ce sprint ne couvre par anticipation aucun sprint futur et n'absorbe
+> aucun sprint existant : la table détaillée et le total (41 sprints)
+> restent inchangés.
+
 ## Vue d'ensemble
 
 ```mermaid
