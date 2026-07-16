@@ -116,7 +116,7 @@ def test_activating_a_demo_copilot_for_a_firm_makes_it_active() -> None:
 
     assert copilot_engine.active_copilots(firm_id) == []
 
-    copilot_engine.activate(firm_id, "copilot-contentieux")
+    copilot_engine.activate(firm_id, "copilot-contentieux", "demo-owner")
 
     active_ids = {c.id for c in copilot_engine.active_copilots(firm_id)}
     assert active_ids == {"copilot-contentieux"}

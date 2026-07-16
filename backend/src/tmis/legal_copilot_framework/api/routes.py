@@ -51,13 +51,24 @@ from tmis.legal_drafting.templates.schemas import DocumentType
 router = APIRouter(prefix="/legal-copilots", tags=["legal-copilot-framework"])
 """Phase 12's "installer, activer, désactiver" collapses to two REST
 actions here, not three: `POST /{id}/install` both records the
-per-firm `CopilotActivation` and turns it on (`CopilotEngine.
-activate`) — a firm never "has" a copilot without it being usable,
-mirroring how `platform_sdk.marketplace` install already works for
-plugins. Calling `/install` again after `/deactivate` re-activates
-it, so no separate `/activate` endpoint is needed. See the Sprint 24
-audit report for why per-copilot activation stays its own mechanism
-rather than reusing `business_platform.modules.ModuleRegistry`."""
+per-firm activation and turns it on (`CopilotEngine.activate`) — a
+firm never "has" a copilot without it being usable, mirroring how
+`platform_sdk.marketplace` install already works for plugins. Calling
+`/install` again after `/deactivate` re-activates it, so no separate
+`/activate` endpoint is needed. See the Sprint 24 audit report for why
+per-copilot activation stays its own mechanism rather than reusing
+`business_platform.modules.ModuleRegistry`.
+
+Since Sprint 44, `/install` also publishes the copilot to the shared
+`platform_sdk.marketplace` catalog on its first activation anywhere,
+if it hasn't been published explicitly via `/publish-to-marketplace`
+already — `CopilotEngine.activate` now installs through
+`ExtensionEngine`/`MarketplaceSubscriptionEngine` like any other
+plugin, which requires a `PUBLISHED` manifest to exist. See
+docs/171-audit-marketplace.md §4 and docs/reports/
+sprint-44-rapport-architecture.md for the behavioural change this
+implies (unchanged request/response shape, but `/install` now has a
+side effect it didn't have before)."""
 
 
 def _copilot_response(copilot: LegalCopilot) -> LegalCopilotResponse:
@@ -88,6 +99,8 @@ def _activation_response(activation: CopilotActivation) -> CopilotActivationResp
         firm_id=activation.firm_id,
         copilot_id=activation.copilot_id,
         active=activation.active,
+        version=activation.version,
+        granted_permissions=activation.granted_permissions,
         updated_at=activation.updated_at.isoformat(),
     )
 
@@ -124,6 +137,7 @@ def register_copilot(
         version=payload.version,
         author=payload.author,
         compatibility=payload.compatibility,
+        license=payload.license,
         dependencies=payload.dependencies,
         agent_ids=payload.agent_ids,
         compatible_models=payload.compatible_models,
@@ -176,6 +190,7 @@ def list_copilot_versions(
             status=manifest.status.value,
             dependencies=manifest.dependencies,
             compatibility=manifest.compatibility,
+            license=manifest.license,
             published_at=manifest.published_at.isoformat(),
         )
         for manifest in versions
@@ -190,7 +205,7 @@ def install_copilot(
 ) -> CopilotActivationResponse:
     authorize_or_403(payload.firm_id, payload.user_id, Permission.COPILOT_MANAGE)
     try:
-        activation = engine.activate(payload.firm_id, copilot_id)
+        activation = engine.activate(payload.firm_id, copilot_id, payload.user_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return _activation_response(activation)
@@ -203,7 +218,10 @@ def deactivate_copilot(
     engine: CopilotEngine = Depends(get_copilot_engine),
 ) -> CopilotActivationResponse:
     authorize_or_403(payload.firm_id, payload.user_id, Permission.COPILOT_MANAGE)
-    activation = engine.deactivate(payload.firm_id, copilot_id)
+    try:
+        activation = engine.deactivate(payload.firm_id, copilot_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return _activation_response(activation)
 
 

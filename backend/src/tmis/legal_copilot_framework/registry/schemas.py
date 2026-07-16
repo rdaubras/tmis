@@ -23,4 +23,11 @@ class CopilotManifest:
     status: CopilotStatus
     dependencies: tuple[str, ...] = ()
     compatibility: str = "*"
+    license: str = "proprietary"
+    """Same free-form vocabulary as `platform_sdk.plugin_system.
+    PluginManifest.license` (a plain string, e.g. "MIT" or
+    "proprietary") — replaces the `_LICENSE` constant that used to be
+    hard-coded in `copilot.marketplace.to_plugin_manifest`, one
+    licence per copilot version rather than one for every copilot
+    ever published."""
     published_at: datetime = field(default_factory=lambda: datetime.now(UTC))

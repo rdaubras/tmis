@@ -3,6 +3,7 @@ from functools import lru_cache
 from tmis.ai_fabric.bootstrap import get_prompt_optimizer, get_prompt_registry
 from tmis.ai_governance.bootstrap import get_human_validation_engine, get_policy_engine
 from tmis.ai_team.bootstrap import get_team_builder
+from tmis.business_platform.bootstrap import get_marketplace_subscription_engine
 from tmis.cabinet_knowledge.bootstrap import get_knowledge_space, get_writing_style_engine
 from tmis.cabinet_knowledge.templates.engine import CabinetTemplateEngine
 from tmis.cloud_operations.bootstrap import get_metrics_engine
@@ -10,10 +11,7 @@ from tmis.identity_platform.bootstrap import get_tenant_context_engine
 from tmis.legal_copilot_framework.context_engine.engine import ContextEngine
 from tmis.legal_copilot_framework.copilot.engine import CopilotEngine
 from tmis.legal_copilot_framework.copilot.marketplace import to_plugin_manifest
-from tmis.legal_copilot_framework.copilot.store import (
-    InMemoryCopilotActivationStore,
-    InMemoryCopilotStore,
-)
+from tmis.legal_copilot_framework.copilot.store import InMemoryCopilotStore
 from tmis.legal_copilot_framework.copilots.deps import DemoCopilotDeps
 from tmis.legal_copilot_framework.copilots.seed import seed_demo_copilots
 from tmis.legal_copilot_framework.document_packs.engine import DocumentPackEngine
@@ -35,7 +33,11 @@ from tmis.legal_copilot_framework.validation_policies.store import (
 from tmis.legal_copilot_framework.workflow_packs.engine import WorkflowPackEngine
 from tmis.legal_copilot_framework.workflow_packs.store import InMemoryWorkflowPackStore
 from tmis.legal_drafting.templates.registry import TemplateRegistry
-from tmis.platform_sdk.bootstrap import get_plugin_registry, get_publishing_engine
+from tmis.platform_sdk.bootstrap import (
+    get_extension_engine,
+    get_plugin_registry,
+    get_publishing_engine,
+)
 from tmis.platform_sdk.plugin_system.schemas import PluginManifest
 from tmis.workflow_automation.bootstrap import get_template_library
 
@@ -97,13 +99,20 @@ def get_copilot_metrics_engine() -> CopilotMetricsEngine:
 
 
 @lru_cache
-def get_copilot_engine() -> CopilotEngine:
-    return CopilotEngine(InMemoryCopilotStore(), InMemoryCopilotActivationStore())
+def get_copilot_registry() -> CopilotRegistry:
+    return CopilotRegistry(InMemoryCopilotRegistryStore())
 
 
 @lru_cache
-def get_copilot_registry() -> CopilotRegistry:
-    return CopilotRegistry(InMemoryCopilotRegistryStore())
+def get_copilot_engine() -> CopilotEngine:
+    return CopilotEngine(
+        InMemoryCopilotStore(),
+        get_copilot_registry(),
+        get_plugin_registry(),
+        get_publishing_engine(),
+        get_extension_engine(),
+        get_marketplace_subscription_engine(),
+    )
 
 
 @lru_cache

@@ -10,7 +10,6 @@ from tmis.ai_team.delegation.engine import DelegationEngine
 from tmis.ai_team.evaluation.engine import Evaluator
 from tmis.ai_team.human_loop.engine import HumanLoopEngine
 from tmis.ai_team.human_loop.store import InMemoryHumanDecisionStore
-from tmis.ai_team.marketplace.store import InMemoryMarketplaceCatalog
 from tmis.ai_team.memory.store import InMemoryAgentMemoryStore
 from tmis.ai_team.metrics.engine import MetricsCollector
 from tmis.ai_team.negotiation.engine import NegotiationEngine
@@ -45,11 +44,6 @@ def get_human_decision_store() -> InMemoryHumanDecisionStore:
 @lru_cache
 def get_agent_memory_store() -> InMemoryAgentMemoryStore:
     return InMemoryAgentMemoryStore()
-
-
-@lru_cache
-def get_marketplace_catalog() -> InMemoryMarketplaceCatalog:
-    return InMemoryMarketplaceCatalog()
 
 
 @lru_cache

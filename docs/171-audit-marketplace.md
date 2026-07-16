@@ -7,6 +7,20 @@
 > `docs/144-guide-marketplace-legal-copilot-framework.md`/
 > `docs/reports/sprint-24-rapport-audit.md` pour le diagnostic d'origine
 > (Sprint 24), que cet audit confirme et complète.
+>
+> **Mise à jour Sprint 44 — écart résolu.** L'écart d'activation décrit
+> ci-dessous (section « Écart structurel confirmé » et § Recommandation)
+> a été comblé : `CopilotEngine.activate` appelle désormais
+> `MarketplaceSubscriptionEngine.subscribe` (donc `ExtensionEngine.
+> install`) au lieu d'écrire dans son propre store, et `CopilotActivation`
+> est devenue une vue recalculée depuis l'`ExtensionInstance`
+> correspondant. Le quatrième module mort, `ai_team.marketplace`, a été
+> supprimé. Voir `docs/reports/sprint-44-rapport-audit.md` (Phase 0) et
+> `docs/reports/sprint-44-rapport-architecture.md` (implémentation, et le
+> détail de la rupture de compatibilité contrôlée introduite sur
+> `POST /legal-copilots/{id}/install`, autorisée explicitement par ce
+> sprint). Le reste de ce document est conservé tel quel comme trace
+> historique du diagnostic Sprint 43.
 
 ## Contexte
 

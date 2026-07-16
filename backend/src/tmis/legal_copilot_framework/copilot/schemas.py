@@ -43,12 +43,20 @@ class LegalCopilot:
 
 @dataclass(slots=True)
 class CopilotActivation:
-    """Per-firm enable/disable of one copilot — deliberately not
-    modeled on `business_platform.modules.TmisModule` (which
-    activates whole bounded contexts, not individual products); see
-    the Sprint 24 audit report."""
+    """A read-only view over the firm's `platform_sdk.extensions.
+    ExtensionInstance` for this copilot — no longer its own stored
+    record (see the Sprint 24 audit report for why per-copilot
+    activation stayed separate from `business_platform.modules.
+    TmisModule`, and docs/171-audit-marketplace.md §4 for why this
+    stopped being a *second* record to keep in sync with that
+    instance). `CopilotEngine.activate`/`.deactivate` write only
+    through `ExtensionEngine`/`MarketplaceSubscriptionEngine`; this
+    dataclass is reconstructed from the resulting instance on every
+    read, never persisted itself."""
 
     firm_id: str
     copilot_id: str
     active: bool
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    version: str
+    granted_permissions: frozenset[str]
+    updated_at: datetime
