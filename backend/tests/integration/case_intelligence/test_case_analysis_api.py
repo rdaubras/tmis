@@ -24,10 +24,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 
+import tmis.case_intelligence.cases.adapters.sqlalchemy_store  # noqa: F401
 import tmis.document_intelligence.adapters.sqlalchemy_store  # noqa: F401
 from tmis.agents.bootstrap import get_orchestrator
 from tmis.ai.kernel.bootstrap import get_kernel
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow, get_case_store
 from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
 from tmis.core.tasks.celery_app import celery_app
@@ -54,7 +55,11 @@ def _sqlite_backend(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> Iterat
         poolclass=StaticPool,
     )
     core_db_base.Base.metadata.create_all(
-        sync_engine, tables=[core_db_base.Base.metadata.tables["document_records"]]
+        sync_engine,
+        tables=[
+            core_db_base.Base.metadata.tables["document_records"],
+            core_db_base.Base.metadata.tables["case_profiles"],
+        ],
     )
     core_db_session.SessionLocal.configure(bind=sync_engine)
 
@@ -65,6 +70,7 @@ def _sqlite_backend(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> Iterat
     )
 
     get_case_intelligence_workflow.cache_clear()
+    get_case_store.cache_clear()
     get_document_pipeline.cache_clear()
     get_document_store.cache_clear()
     get_orchestrator.cache_clear()

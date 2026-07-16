@@ -7,11 +7,19 @@ Runs outside the FastAPI process, so it cannot share the app's in-process
 long-lived to subscribe to here) and calls `ingest_document()` directly,
 against the same `SQLAlchemyDocumentStore`/`SQLAlchemyCaseStore` the API
 and `process_document_task` use — never a second storage mechanism.
+
+`case_intelligence.bootstrap.get_case_store()` (Sprint 43) is used here
+instead of a fresh `SQLAlchemyCaseStore()` so this worker-process
+singleton and the FastAPI process's `get_case_intelligence_workflow()`
+converge on the exact same store wiring pattern (both read/write the same
+`case_profiles` table either way — the point of Sprint 43 is that neither
+one falls back to `InMemoryCaseStore` any more, not that they share one
+Python object across processes, which Celery workers never do).
 """
 
 import asyncio
 
-from tmis.case_intelligence.cases.adapters.sqlalchemy_store import SQLAlchemyCaseStore
+from tmis.case_intelligence.bootstrap import get_case_store
 from tmis.case_intelligence.workflow.case_workflow import CaseIntelligenceWorkflow
 from tmis.core.logging import get_logger
 from tmis.core.tasks.celery_app import celery_app
@@ -29,7 +37,7 @@ def trigger_case_workflow_task(case_id: str, document_id: str) -> str:
         raise ValueError(f"No document record for {document_id!r}")
 
     workflow = CaseIntelligenceWorkflow(
-        case_store=SQLAlchemyCaseStore(),
+        case_store=get_case_store(),
         document_store=document_store,
         auto_subscribe=False,
     )

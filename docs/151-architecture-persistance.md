@@ -101,22 +101,44 @@ flowchart TD
     AsyncEngine -.->|"même table, même Base"| SyncStore
 ```
 
-## Limite connue : deux vues de `CaseProfile` qui ne convergent pas encore
+## `CaseStorePort` désormais partagé (Sprint 43)
 
-`case_intelligence.bootstrap.get_case_intelligence_workflow()` (Sprint 4,
-utilisé par les endpoints synchrones `/api/v1/cases/*`) continue de
-construire son `CaseIntelligenceWorkflow` avec `InMemoryCaseStore` par
-défaut — ce câblage n'a pas été touché ce sprint, qui ajoute des
-adaptateurs derrière les ports existants sans changer leur câblage par
-défaut ailleurs dans le dépôt. Seul le nouveau chemin asynchrone
-(`trigger_case_workflow_task`) construit un `CaseIntelligenceWorkflow`
-avec `SQLAlchemyCaseStore`. Résultat : un dossier créé via
-`POST /api/v1/cases/{id}/profile` et un dossier enrichi via l'upload
-asynchrone d'un document ne sont, pour l'instant, pas la même ligne tant
-qu'un sprint futur ne réconcilie pas ce câblage. C'est documenté ici et
-dans le rapport d'audit plutôt que corrigé silencieusement, pour ne pas
-élargir le périmètre du sprint à un changement de câblage partagé par de
-nombreux tests existants (Sprint 4).
+**Avant.** Depuis le Sprint 4, `case_intelligence.bootstrap.
+get_case_intelligence_workflow()` — utilisé par les six endpoints
+synchrones `/api/v1/cases/*` et, via `agents.bootstrap`, par
+`get_orchestrator()`/`get_contract_agent()`/`get_jurisprudence_agent()` —
+ne passait pas de `case_store` du tout et retombait donc sur le défaut de
+`CaseIntelligenceWorkflow`, `InMemoryCaseStore()`. Seul le chemin
+asynchrone Celery (`core.tasks.case_tasks.trigger_case_workflow_task`)
+construisait un `SQLAlchemyCaseStore()` — une nouvelle instance à chaque
+tâche, qui plus est. Un dossier créé via `POST /api/v1/cases/{id}/profile`
+et un dossier enrichi via l'upload asynchrone d'un document n'étaient
+donc pas la même ligne : deux vues divergentes du même `CaseProfile`,
+documentées ici depuis le Sprint 26 et jamais reprises. Aucune donnée de
+production n'existait dans `InMemoryCaseStore` (voir
+`docs/reports/sprint-43-rapport-audit.md`), donc aucune migration n'était
+nécessaire pour refermer cet écart, seulement un changement de câblage.
+
+**Après.** Même patron que `document_intelligence.bootstrap.
+get_document_store()` (Sprint 37, section suivante) :
+
+```python
+@lru_cache
+def get_case_store() -> CaseStorePort:
+    return SQLAlchemyCaseStore()
+```
+
+`get_case_intelligence_workflow()` lui injecte désormais ce singleton
+(`case_store=get_case_store()`), et
+`core.tasks.case_tasks.trigger_case_workflow_task` a été mis à jour pour
+appeler `get_case_store()` plutôt que d'instancier son propre
+`SQLAlchemyCaseStore()` par tâche. `CaseIntelligenceWorkflow.__init__`
+garde `case_store: CaseStorePort | None = None` inchangé — seul le
+comportement *par défaut* des composition roots change, aucun port ni
+signature publique n'a bougé. Voir
+`docs/reports/sprint-43-rapport-audit.md` pour le recensement complet des
+points de câblage examinés et `docs/reports/sprint-43-rapport-architecture.md`
+pour le détail de la convergence.
 
 ## Versionning des documents
 
