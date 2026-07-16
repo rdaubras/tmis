@@ -1,6 +1,9 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_MIN_JWT_SECRET_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -19,9 +22,12 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     qdrant_url: str = "http://localhost:6333"
 
-    jwt_secret_key: str = "change-me-in-production"
+    jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    jwt_issuer: str = "tmis-api"
+    jwt_audience: str = "tmis-clients"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
     license_signing_key: str = "change-me-in-production"
     plugin_signing_key: str = "change-me-in-production"
     backup_storage_dir: str = "var/backups"
@@ -70,6 +76,23 @@ class Settings(BaseSettings):
     # local sentence-transformers cross-encoder model (still no API key).
     reranker_backend: str = "keyword_overlap"
     cross_encoder_model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    @model_validator(mode="after")
+    def _require_strong_jwt_secret_outside_debug(self) -> "Settings":
+        """A missing/short JWT secret is only tolerable in local dev
+        (`TMIS_DEBUG=true`, see backend/.env.example) where tokens never
+        leave the developer's machine. Anywhere else — including a
+        forgotten env var in a real deployment — a weak secret lets
+        anyone forge an access token, so refuse to start rather than
+        serve traffic under that condition (see
+        docs/07-strategie-securite.md)."""
+        if not self.debug and len(self.jwt_secret_key) < _MIN_JWT_SECRET_LENGTH:
+            raise RuntimeError(
+                "TMIS_JWT_SECRET_KEY must be set to a random secret of at least "
+                f"{_MIN_JWT_SECRET_LENGTH} characters when TMIS_DEBUG is not true. "
+                "Refusing to start with a missing or weak JWT secret."
+            )
+        return self
 
 
 @lru_cache

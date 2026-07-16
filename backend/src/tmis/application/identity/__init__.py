@@ -1,4 +1,5 @@
 """Use cases (commands & queries) for the `identity` bounded context.
 
-Implementation scheduled in a future sprint (see docs/09-roadmap-30-sprints.md).
+See `commands.py` for `LoginUseCase`/`RefreshUseCase` (security sprint,
+ADR-SEC-01).
 """
