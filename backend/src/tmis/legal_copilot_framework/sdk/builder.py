@@ -80,6 +80,7 @@ class CopilotBuilder:
                 status=CopilotStatus.DRAFT,
                 dependencies=spec.dependencies,
                 compatibility=spec.compatibility,
+                license=spec.license,
             )
         )
         return copilot

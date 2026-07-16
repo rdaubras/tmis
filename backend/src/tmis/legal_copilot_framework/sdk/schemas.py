@@ -19,6 +19,7 @@ class CopilotSpec:
     version: str
     author: str = "unknown"
     compatibility: str = "*"
+    license: str = "proprietary"
     dependencies: tuple[str, ...] = ()
     agent_ids: tuple[str, ...] = ()
     compatible_models: frozenset[str] = field(default_factory=frozenset)

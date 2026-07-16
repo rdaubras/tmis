@@ -11,6 +11,7 @@ class CopilotRegisterRequest(BaseModel):
     version: str
     author: str = "unknown"
     compatibility: str = "*"
+    license: str = "proprietary"
     dependencies: tuple[str, ...] = ()
     agent_ids: tuple[str, ...] = ()
     compatible_models: frozenset[str] = frozenset()
@@ -54,6 +55,8 @@ class CopilotActivationResponse(BaseModel):
     firm_id: str
     copilot_id: str
     active: bool
+    version: str
+    granted_permissions: frozenset[str]
     updated_at: str
 
 
@@ -65,6 +68,7 @@ class CopilotManifestResponse(BaseModel):
     status: str
     dependencies: tuple[str, ...]
     compatibility: str
+    license: str
     published_at: str
 
 

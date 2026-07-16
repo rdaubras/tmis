@@ -10,15 +10,29 @@ from tmis.ai_team.capabilities.schemas import LegalDomain
 from tmis.ai_team.registry.store import InMemoryAgentRegistry
 from tmis.ai_team.teams.engine import TeamBuilder
 from tmis.ai_team.teams.store import InMemoryTeamStore
+from tmis.business_platform.licenses.engine import LicenseEngine
+from tmis.business_platform.licenses.store import (
+    InMemoryFloatingPoolStore,
+    InMemoryLicenseGrantStore,
+)
+from tmis.business_platform.marketplace_subscriptions.engine import MarketplaceSubscriptionEngine
+from tmis.business_platform.marketplace_subscriptions.store import (
+    InMemoryExtensionSubscriptionStore,
+)
 from tmis.cabinet_knowledge.knowledge.engine import KnowledgeSpace
 from tmis.cabinet_knowledge.knowledge.store import InMemoryKnowledgeStore
 from tmis.cabinet_knowledge.templates.engine import CabinetTemplateEngine
+from tmis.cabinet_os.billing.engine import BillingEngine
+from tmis.cabinet_os.billing.gateway import ManualPaymentGateway, NoOpAccountingExport
+from tmis.cabinet_os.billing.store import (
+    InMemoryCreditNoteStore,
+    InMemoryInvoiceStore,
+    InMemoryPaymentStore,
+    InMemoryQuoteStore,
+)
 from tmis.legal_copilot_framework.copilot.engine import CopilotEngine
 from tmis.legal_copilot_framework.copilot.schemas import CopilotStatus
-from tmis.legal_copilot_framework.copilot.store import (
-    InMemoryCopilotActivationStore,
-    InMemoryCopilotStore,
-)
+from tmis.legal_copilot_framework.copilot.store import InMemoryCopilotStore
 from tmis.legal_copilot_framework.document_packs.engine import DocumentPackEngine
 from tmis.legal_copilot_framework.document_packs.store import InMemoryDocumentPackStore
 from tmis.legal_copilot_framework.knowledge_packs.engine import KnowledgePackEngine
@@ -38,6 +52,17 @@ from tmis.legal_copilot_framework.validation_policies.store import (
 from tmis.legal_copilot_framework.workflow_packs.engine import WorkflowPackEngine
 from tmis.legal_copilot_framework.workflow_packs.store import InMemoryWorkflowPackStore
 from tmis.legal_drafting.templates.registry import TemplateRegistry
+from tmis.platform.licensing.signing import LicenseKeySigner
+from tmis.platform_sdk.extensions.engine import ExtensionEngine
+from tmis.platform_sdk.extensions.store import InMemoryExtensionStore
+from tmis.platform_sdk.marketplace.engine import MarketplaceEngine
+from tmis.platform_sdk.marketplace.store import InMemoryReviewStore
+from tmis.platform_sdk.permissions.engine import PermissionEngine
+from tmis.platform_sdk.permissions.store import InMemoryPermissionStore
+from tmis.platform_sdk.plugin_registry.store import InMemoryPluginRegistry
+from tmis.platform_sdk.publishing.engine import PublishingEngine
+from tmis.platform_sdk.publishing.store import InMemoryPublishingStore
+from tmis.platform_sdk.validation.engine import PluginValidator
 from tmis.workflow_automation.template_library.defaults import build_default_templates
 from tmis.workflow_automation.template_library.engine import TemplateLibrary
 from tmis.workflow_automation.workflow_engine.engine import WorkflowEngine
@@ -69,8 +94,31 @@ def _builder() -> _BuilderFixture:
         HumanValidationEngine(InMemoryValidationStore()),
     )
     team_builder = TeamBuilder(InMemoryAgentRegistry(), InMemoryTeamStore())
-    copilot_engine = CopilotEngine(InMemoryCopilotStore(), InMemoryCopilotActivationStore())
+
+    plugin_registry = InMemoryPluginRegistry()
+    permission_engine = PermissionEngine(InMemoryPermissionStore())
+    extensions = ExtensionEngine(InMemoryExtensionStore(), plugin_registry, permission_engine)
+    marketplace = MarketplaceEngine(plugin_registry, InMemoryReviewStore(), extensions)
+    signer = LicenseKeySigner(secret="test-secret-0123456789abcdef")
+    licenses = LicenseEngine(InMemoryLicenseGrantStore(), InMemoryFloatingPoolStore(), signer)
+    billing = BillingEngine(
+        InMemoryQuoteStore(),
+        InMemoryInvoiceStore(),
+        InMemoryCreditNoteStore(),
+        InMemoryPaymentStore(),
+        ManualPaymentGateway(),
+        NoOpAccountingExport(),
+    )
+    subscriptions = MarketplaceSubscriptionEngine(
+        marketplace, licenses, billing, InMemoryExtensionSubscriptionStore()
+    )
+    publishing = PublishingEngine(
+        InMemoryPublishingStore(), plugin_registry, PluginValidator(plugin_registry, signer)
+    )
     registry = CopilotRegistry(InMemoryCopilotRegistryStore())
+    copilot_engine = CopilotEngine(
+        InMemoryCopilotStore(), registry, plugin_registry, publishing, extensions, subscriptions
+    )
     builder = CopilotBuilder(
         team_builder,
         copilot_engine,
