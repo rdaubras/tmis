@@ -8,7 +8,9 @@
 > `docs/reports/sprint-24-rapport-audit.md` pour le diagnostic d'origine
 > (Sprint 24), que cet audit confirme et complète.
 >
-> **Mise à jour Sprint 44 — écart résolu.** L'écart d'activation décrit
+> **Mise à jour Sprint 44 — écart résolu.**
+> **Statut : résolu au Sprint 44** — voir docs/reports/sprint-44-rapport-architecture.md
+> L'écart d'activation décrit
 > ci-dessous (section « Écart structurel confirmé » et § Recommandation)
 > a été comblé : `CopilotEngine.activate` appelle désormais
 > `MarketplaceSubscriptionEngine.subscribe` (donc `ExtensionEngine.
