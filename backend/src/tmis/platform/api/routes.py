@@ -16,7 +16,13 @@ def metrics() -> Response:
     """Prometheus text-exposition-format metrics (see
     docs/49-guide-supervision.md — Métriques). Deliberately outside
     `/api/v1` — metrics/health endpoints are an operational concern,
-    not a versioned business API."""
+    not a versioned business API. Still requires a token, though: unlike
+    `/health/live` and `/health/ready`, this is not in
+    `auth_guard.PUBLIC_PATHS` (ADR-SEC-03, docs/07-strategie-securite.md
+    — internal metrics are not broadcast without a token by default; an
+    unauthenticated Prometheus scrape target would be an explicit,
+    justified allowlist entry backed by a NetworkPolicy, not a silent
+    addition)."""
     registry = get_metrics_registry()
     return Response(content=registry.render(), media_type="text/plain; version=0.0.4")
 

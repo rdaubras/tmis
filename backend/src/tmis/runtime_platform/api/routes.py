@@ -36,10 +36,13 @@ from tmis.runtime_platform.runtime_orchestrator.engine import RuntimeOrchestrato
 from tmis.runtime_platform.runtime_orchestrator.schemas import RuntimeTask
 
 router = APIRouter(prefix="/runtime", tags=["runtime-platform"])
-"""Deliberately outside `/api/v1`, unauthenticated — same "operational
-concern, not a versioned business API" precedent as
-`cloud_operations.api.routes` and `platform.api.routes` (see
-`main.py`). `runtime_orchestrator.run`/`.resume` are intentionally
+"""Deliberately outside `/api/v1` — same "operational concern, not a
+versioned business API" precedent as `cloud_operations.api.routes` and
+`platform.api.routes` (see `main.py`). Outside `/api/v1` does not mean
+unauthenticated: `tmis.api.auth_guard.AuthenticationGuardMiddleware`
+(ADR-SEC-03) enforces the same access-token requirement on every route
+in the app regardless of where its router is mounted.
+`runtime_orchestrator.run`/`.resume` are intentionally
 *not* exposed here: they take a Python coroutine as their runner,
 which has no meaningful REST representation — see
 docs/runtime-platform guides and the Sprint 23 demo report for how a

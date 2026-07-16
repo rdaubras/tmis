@@ -1,25 +1,24 @@
 """Shared FastAPI dependencies for authentication & authorization.
 
-`get_current_principal` is the one place a request's JWT gets decoded and
-turned into a `Principal`. It is wired as a router-level dependency on
-every protected route (see `tmis.api.v1.router`, ADR-SEC-02: default-deny)
-rather than opted into per-route, so a new route is authenticated by
-default without its author having to remember to add anything.
+Token verification happens once per request, at the application boundary,
+in `tmis.api.auth_guard.AuthenticationGuardMiddleware` (ADR-SEC-03: the
+guard runs for every request regardless of which router handles it or
+where that router is mounted, so a route can no longer escape enforcement
+by being mounted outside `protected_router`). `get_current_principal`
+below is a *reader*, not a decoder: it hands route handlers the
+`Principal` the guard already stashed on `request.state.principal`, and
+fails closed (401) if that state is missing — reachable only if a route
+somehow bypassed the guard, or a test calls the dependency directly.
 """
 
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, Request
 
-from tmis.core.security import TokenError, decode_access_token
-
-_bearer_scheme = HTTPBearer(auto_error=False)
-
-# Every failure below — missing header, bad signature, expired token,
+# Every auth failure — missing header, bad signature, expired token,
 # malformed claims — surfaces as this one generic 401. Never a 500, and
 # never a message that discloses which of those it was (see
 # docs/07-strategie-securite.md).
@@ -38,21 +37,20 @@ class Principal:
     scopes: frozenset[str] = field(default_factory=frozenset)
 
 
-def get_current_principal(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)],
-) -> Principal:
-    if credentials is None:
+def principal_from_claims(claims: dict[str, Any]) -> Principal:
+    return Principal(
+        user_id=uuid.UUID(str(claims["sub"])),
+        firm_id=uuid.UUID(str(claims["firm_id"])),
+        role=str(claims.get("role", "")),
+        scopes=frozenset(claims.get("scopes", [])),
+    )
+
+
+def get_current_principal(request: Request) -> Principal:
+    principal: Principal | None = getattr(request.state, "principal", None)
+    if principal is None:
         raise HTTPException(status_code=401, detail=_UNAUTHENTICATED_DETAIL)
-    try:
-        claims = decode_access_token(credentials.credentials)
-        return Principal(
-            user_id=uuid.UUID(str(claims["sub"])),
-            firm_id=uuid.UUID(str(claims["firm_id"])),
-            role=str(claims.get("role", "")),
-            scopes=frozenset(claims.get("scopes", [])),
-        )
-    except (TokenError, KeyError, ValueError) as exc:
-        raise HTTPException(status_code=401, detail=_UNAUTHENTICATED_DETAIL) from exc
+    return principal
 
 
 def get_current_firm_id(

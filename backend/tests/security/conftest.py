@@ -11,12 +11,14 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 
 import tmis.infrastructure.persistence.models  # noqa: F401 — registers firms/users/cases
 from tmis.core import database as core_database
+from tmis.core.config import Settings, get_settings
 from tmis.core.security import hash_password
 from tmis.domain.firm.entities import Firm, SubscriptionPlan
 from tmis.domain.identity.entities import User
@@ -54,6 +56,24 @@ def _sqlite_database(tmp_path: object) -> Iterator[None]:
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
+
+
+@pytest.fixture
+def client_without_token(client: TestClient) -> TestClient:
+    """Same `TestClient(app)` as `client`, named for what
+    `test_every_non_public_route_requires_auth` actually needs: a client
+    that never carries an `Authorization` header."""
+    return client
+
+
+@pytest.fixture
+def app_under_test() -> FastAPI:
+    return app
+
+
+@pytest.fixture
+def settings() -> Settings:
+    return get_settings()
 
 
 @dataclass(frozen=True, slots=True)
