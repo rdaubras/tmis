@@ -1,13 +1,18 @@
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
+import tmis.case_intelligence.cases.adapters.sqlalchemy_store  # noqa: F401
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.ai.schemas.provider import ModelResponse, ProviderCapabilities
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow, get_case_store
+from tmis.core.db import base as core_db_base
+from tmis.core.db import session as core_db_session
 from tmis.main import app
 
 
@@ -47,6 +52,29 @@ def _parse_sse_chunks(body: str) -> list[str]:
         if "chunk" in payload:
             chunks.append(payload["chunk"])
     return chunks
+
+
+@pytest.fixture(autouse=True)
+def _sqlite_case_store(tmp_path: object) -> Iterator[None]:
+    """`case_id`-scoped tests below read/write real cases through
+    `workflow.case_store`, which since Sprint 43 is a `SQLAlchemyCaseStore`
+    (see docs/151-architecture-persistance.md) instead of an in-memory
+    default — point it at a throwaway sqlite database, same real-DB
+    fixture pattern as `test_case_api.py`."""
+    sync_engine = create_engine(
+        f"sqlite:///{tmp_path}/sprint43-chat-api.db",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    core_db_base.Base.metadata.create_all(
+        sync_engine, tables=[core_db_base.Base.metadata.tables["case_profiles"]]
+    )
+    core_db_session.SessionLocal.configure(bind=sync_engine)
+
+    get_case_intelligence_workflow.cache_clear()
+    get_case_store.cache_clear()
+
+    yield
 
 
 @pytest.fixture
