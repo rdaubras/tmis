@@ -54,30 +54,96 @@ Avant le sprint sécurité, l'authentification était **opt-in par route** :
 `0` route ne dépendait d'une vérification d'identité, et le tenant
 (`firm_id`) provenait d'un header `X-Firm-Id` fourni par le client — donc
 falsifiable. Ce modèle a été inversé : l'authentification est désormais
-**appliquée globalement** par le routeur agrégateur, avec une **allowlist
-publique explicite**. Une nouvelle route est protégée par défaut, sans
-action du développeur.
+**appliquée globalement**, avec une **allowlist publique explicite**. Une
+nouvelle route est protégée par défaut, sans action du développeur.
+
+### SEC-HOTFIX-01 — l'enforcement remonte à la frontière de l'app (ADR-SEC-03)
+
+Le default-deny d'ADR-SEC-02 avait été câblé comme une dépendance sur
+`protected_router` (`tmis.api.v1.router`) — donc effective uniquement pour
+les routeurs montés à travers ce fichier. Trois routeurs opérationnels
+(`platform`, `cloud_operations`, `runtime_platform` — 67 routes) sont
+montés directement sur `app` dans `main.py`, hors de `protected_router`,
+et échappaient donc silencieusement à l'authentification : le plan de
+contrôle et l'observabilité (traces, alertes, dashboards, tâches
+d'orchestration, ...) étaient accessibles sans token. Le test de
+non-régression du sprint (`test_unauthenticated_access.py`) ne l'a pas
+détecté par construction : il n'échantillonnait que des contextes montés
+sous `protected_router`, donc son périmètre épousait exactement celui du
+trou.
+
+**Correctif** : l'enforcement ne dépend plus du lieu de montage d'un
+routeur. Une **garde unique** (`tmis.api.auth_guard.
+AuthenticationGuardMiddleware`, middleware app-level) protège tout ce qui
+n'est pas explicitement listé dans `PUBLIC_PATHS`
+(`auth_guard.build_public_paths`) — quel que soit le routeur et quel que
+soit l'endroit où il est monté sur `app`. `get_current_principal`
+(`tmis.api.deps`) cesse de décoder le token lui-même : il devient un
+simple lecteur de `request.state.principal`, posé une seule fois par la
+garde — un seul décodage par requête, une seule source de vérité. La
+dépendance `dependencies=[Depends(get_current_principal)]` a été retirée
+de `protected_router` : la garde est désormais l'unique point
+d'application, pour éviter deux mécanismes qui pourraient diverger. Le
+split `public_router`/`protected_router` dans `tmis.api.v1.router` reste,
+mais purement organisationnel — il ne fait plus rien fonctionnellement.
+
+*Alternative rejetée* : ajouter `Depends(get_current_principal)` aux
+trois routeurs ops directement. Ça bouche le trou du jour mais laisse le
+lieu de montage comme piège permanent — le prochain routeur oublié
+rouvrirait le même trou. Le correctif retenu corrige la classe de bug,
+pas seulement l'instance.
+
+**Inventaire `PUBLIC_PATHS`** (`auth_guard.build_public_paths`) — l'unique
+liste des routes accessibles sans token :
+
+| Chemin | Raison |
+|---|---|
+| `/` | Racine de l'app (statut du service) |
+| `/docs`, `/redoc`, `/openapi.json` | Documentation OpenAPI |
+| `{api_v1_prefix}/health` | Sonde de supervision applicative |
+| `{api_v1_prefix}/auth/login`, `{api_v1_prefix}/auth/refresh` | Émettent les tokens — ne peuvent pas en exiger un |
+| `/platform/health/live` | Sonde liveness Kubernetes |
+| `/platform/health/ready` | Sonde readiness Kubernetes |
+
+**Décision `metrics`** : `/platform/metrics` et `/cloud-operations/metrics/*`
+restent **protégés par défaut** — absents de `PUBLIC_PATHS` volontairement.
+Un scraping Prometheus non authentifié n'est pas un ajout silencieux à
+l'allowlist : ce serait une entrée explicite, justifiée, adossée à une
+`NetworkPolicy` (`deploy/kubernetes/networkpolicy.yaml`) restreignant la
+source du scrape. Par défaut, la métrologie interne n'est pas diffusée
+sans token.
+
+**Ordre des middlewares** (`main.py`) : `AuthenticationGuardMiddleware`
+est enregistrée en premier, donc la plus interne — chaque middleware
+ajoutée après elle (CORS en tête) l'enveloppe et continue de s'appliquer
+même à un 401 qu'elle court-circuite. C'est nécessaire pour CORS en
+particulier : si `CORSMiddleware` n'enveloppait pas la garde, un 401
+renvoyé par la garde n'aurait pas d'en-tête `Access-Control-Allow-Origin`
+et le navigateur afficherait une erreur CORS opaque au lieu du 401 (testé
+dans `tests/security/test_unauthenticated_access.py::
+test_a_401_from_the_guard_still_carries_cors_headers`). La méthode
+`OPTIONS` (préflight CORS) contourne systématiquement la garde — un
+préflight ne porte jamais de token.
 
 ```mermaid
 flowchart LR
     subgraph Client
         A[Requête HTTP]
     end
-    subgraph "API /api/v1 (tmis.api.v1.router)"
-        B{public_router}
-        C[/auth/login, /auth/refresh, /health/]
-        D{protected_router\ndependencies=[get_current_principal]}
-        E["get_current_principal\n(decode + valide le JWT)"]
-        F["get_current_firm_id\n(firm_id = Principal.firm_id)"]
-        G[Tous les autres routeurs\n(cases, documents, chat, ...)]
+    subgraph "app (main.py)"
+        M{AuthenticationGuardMiddleware}
+        P["PUBLIC_PATHS\n(build_public_paths)"]
+        D["decode_access_token +\nprincipal_from_claims"]
+        S["request.state.principal"]
+        R[Routeur concerné\n(api_router, platform,\ncloud_operations, runtime_platform)]
+        G["get_current_principal\n(lecteur de request.state.principal)"]
     end
-    A --> B
-    B -->|allowlist| C
-    B -->|sinon| D
-    D --> E
-    E -->|401 si invalide/absent| A
-    E --> F
-    F --> G
+    A --> M
+    M -->|path dans PUBLIC_PATHS\nou méthode OPTIONS| R
+    M -->|sinon| D
+    D -->|401 si absent/invalide| A
+    D --> S --> R
+    R -->|route en a besoin| G
 ```
 
 Flux d'émission et de validation d'un token :
@@ -87,7 +153,8 @@ sequenceDiagram
     participant U as Client
     participant Auth as POST /auth/login
     participant Repo as SqlAlchemyUserRepository
-    participant API as Route protégée
+    participant Guard as AuthenticationGuardMiddleware
+    participant API as Route (n'importe quel routeur)
 
     U->>Auth: email + password
     Auth->>Repo: get_by_email(email)
@@ -96,10 +163,12 @@ sequenceDiagram
     Auth-->>U: 401 générique (si échec, quelle qu'en soit la cause)
     Auth-->>U: access_token (15 min) + refresh_token (7 j)
 
-    U->>API: Authorization: Bearer <access_token>
-    API->>API: decode_access_token\n(alg allowlist, iss, aud, token_type=access)
-    API-->>U: 401 si invalide/expiré/mauvais type
-    API->>API: Principal.firm_id -> filtre tenant
+    U->>Guard: Authorization: Bearer <access_token>
+    Guard->>Guard: decode_access_token\n(alg allowlist, iss, aud, token_type=access)
+    Guard-->>U: 401 si invalide/expiré/mauvais type/chemin non public
+    Guard->>Guard: request.state.principal = principal_from_claims(claims)
+    Guard->>API: requête relayée
+    API->>API: get_current_principal(request) -> Principal.firm_id -> filtre tenant
     API-->>U: 200 (données de la seule firm du token)
 ```
 

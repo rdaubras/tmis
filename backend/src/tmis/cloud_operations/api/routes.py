@@ -73,10 +73,13 @@ from tmis.platform.health.schemas import HealthStatus
 router = APIRouter(prefix="/cloud-operations", tags=["cloud-operations"])
 """REST surface for the sprint's "endpoints REST pour consulter
 métriques, traces, incidents, alertes, dashboards, rapports de
-capacité". Deliberately mounted outside `/api/v1`, unauthenticated,
-next to `platform.api.routes` (see `main.py`) — the same "operational
-concern, not a versioned business API" precedent already established
-there for metrics/health/monitoring."""
+capacité". Deliberately mounted outside `/api/v1`, next to
+`platform.api.routes` (see `main.py`) — the same "operational concern,
+not a versioned business API" precedent already established there for
+metrics/health/monitoring. Being outside `/api/v1` does not mean
+unauthenticated: `tmis.api.auth_guard.AuthenticationGuardMiddleware`
+(ADR-SEC-03) enforces the same access-token requirement on every route
+in the app regardless of where its router is mounted."""
 
 
 @router.get("/metrics/{category}")

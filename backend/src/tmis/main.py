@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from tmis.api.auth_guard import AuthenticationGuardMiddleware, build_public_paths
 from tmis.api.v1.router import api_router
 from tmis.cloud_operations.api.routes import router as cloud_operations_router
 from tmis.core.config import get_settings
@@ -25,6 +26,14 @@ app = FastAPI(
     version="0.1.0",
     description="AI Legal Operating System — API",
 )
+
+# Registered first so it ends up innermost (see the middleware-order note
+# below): every middleware added after it — CORS included — wraps it and
+# therefore still runs on a 401 it short-circuits. That matters for CORS
+# specifically: without it wrapping the guard, a 401 would carry no CORS
+# headers and the browser would show an opaque error instead of the 401
+# (ADR-SEC-03, docs/07-strategie-securite.md).
+app.middleware("http")(AuthenticationGuardMiddleware(build_public_paths(settings.api_v1_prefix)))
 
 app.add_middleware(
     CORSMiddleware,

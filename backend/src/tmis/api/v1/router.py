@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from tmis.ai_fabric.api.routes import router as ai_fabric_router
 from tmis.ai_governance.api.routes import router as ai_governance_router
 from tmis.ai_team.api.routes import router as ai_team_router
-from tmis.api.deps import get_current_principal
 from tmis.api.v1.auth.routes import router as auth_router
 from tmis.api.v1.case.routes import router as case_router
 from tmis.api.v1.case_intelligence.routes import router as case_intelligence_router
@@ -26,15 +25,19 @@ from tmis.platform_sdk.api.routes import router as platform_sdk_router
 from tmis.strategic_intelligence.api.routes import router as strategic_intelligence_router
 from tmis.workflow_automation.api.routes import router as workflow_automation_router
 
-# ADR-SEC-02 (default-deny): every route under /api/v1 requires a valid
-# access token unless it is explicitly mounted on `public_router` below.
-# A new bounded context's router is protected the moment it's added to
-# `protected_router` — there is no opt-in step to forget.
+# The public_router / protected_router split here is purely organizational
+# now — actual enforcement moved app-level (ADR-SEC-03, see
+# `tmis.api.auth_guard`, docs/07-strategie-securite.md) precisely because a
+# router-level dependency only protects routes mounted through this file,
+# and three routers (`platform`, `cloud_operations`, `runtime_platform`)
+# were mounted directly on `app`, bypassing it entirely. The authoritative
+# public allowlist is `auth_guard.build_public_paths`; the two routes
+# below must stay in sync with it.
 public_router = APIRouter()
 public_router.include_router(health_router)  # liveness/monitoring probes
 public_router.include_router(auth_router)  # /auth/login, /auth/refresh mint the tokens
 
-protected_router = APIRouter(dependencies=[Depends(get_current_principal)])
+protected_router = APIRouter()
 protected_router.include_router(case_router)
 protected_router.include_router(case_intelligence_router)
 protected_router.include_router(chat_router)
