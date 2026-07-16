@@ -3,6 +3,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from tmis.api.deps import Principal, require_role
 from tmis.identity_platform.abac.schemas import AbacAttributes
 from tmis.identity_platform.api.schemas import (
     AuthorizationCheckRequest,
@@ -445,14 +446,18 @@ def _security_event_response(event: SecurityEvent) -> SecurityEventResponse:
 
 @router.get("/security-events", response_model=list[SecurityEventResponse])
 def list_security_events(
-    firm_id: str, bus: SecurityEventBus = Depends(get_security_event_bus)
+    firm_id: str,
+    bus: SecurityEventBus = Depends(get_security_event_bus),
+    _principal: Principal = Depends(require_role("firm_admin", "platform_admin")),
 ) -> list[SecurityEventResponse]:
     return [_security_event_response(e) for e in bus.history if e.firm_id == firm_id]
 
 
 @router.get("/dashboard", response_model=IdentityDashboardResponse)
 def get_dashboard(
-    firm_id: str, monitoring: IdentityMonitoringEngine = Depends(get_identity_monitoring_engine)
+    firm_id: str,
+    monitoring: IdentityMonitoringEngine = Depends(get_identity_monitoring_engine),
+    _principal: Principal = Depends(require_role("firm_admin", "platform_admin")),
 ) -> IdentityDashboardResponse:
     dashboard = monitoring.dashboard(firm_id)
     return IdentityDashboardResponse(

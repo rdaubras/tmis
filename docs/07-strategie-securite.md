@@ -48,6 +48,105 @@ flowchart TB
   `firm_id` non contournable, vérifié en base (row-level security
   PostgreSQL) en plus du filtrage applicatif.
 
+### Modèle d'application : default-deny (ADR-SEC-02)
+
+Avant le sprint sécurité, l'authentification était **opt-in par route** :
+`0` route ne dépendait d'une vérification d'identité, et le tenant
+(`firm_id`) provenait d'un header `X-Firm-Id` fourni par le client — donc
+falsifiable. Ce modèle a été inversé : l'authentification est désormais
+**appliquée globalement** par le routeur agrégateur, avec une **allowlist
+publique explicite**. Une nouvelle route est protégée par défaut, sans
+action du développeur.
+
+```mermaid
+flowchart LR
+    subgraph Client
+        A[Requête HTTP]
+    end
+    subgraph "API /api/v1 (tmis.api.v1.router)"
+        B{public_router}
+        C[/auth/login, /auth/refresh, /health/]
+        D{protected_router\ndependencies=[get_current_principal]}
+        E["get_current_principal\n(decode + valide le JWT)"]
+        F["get_current_firm_id\n(firm_id = Principal.firm_id)"]
+        G[Tous les autres routeurs\n(cases, documents, chat, ...)]
+    end
+    A --> B
+    B -->|allowlist| C
+    B -->|sinon| D
+    D --> E
+    E -->|401 si invalide/absent| A
+    E --> F
+    F --> G
+```
+
+Flux d'émission et de validation d'un token :
+
+```mermaid
+sequenceDiagram
+    participant U as Client
+    participant Auth as POST /auth/login
+    participant Repo as SqlAlchemyUserRepository
+    participant API as Route protégée
+
+    U->>Auth: email + password
+    Auth->>Repo: get_by_email(email)
+    Repo-->>Auth: User (ou None)
+    Auth->>Auth: verify_password (temps constant,\nhash factice si email inconnu)
+    Auth-->>U: 401 générique (si échec, quelle qu'en soit la cause)
+    Auth-->>U: access_token (15 min) + refresh_token (7 j)
+
+    U->>API: Authorization: Bearer <access_token>
+    API->>API: decode_access_token\n(alg allowlist, iss, aud, token_type=access)
+    API-->>U: 401 si invalide/expiré/mauvais type
+    API->>API: Principal.firm_id -> filtre tenant
+    API-->>U: 200 (données de la seule firm du token)
+```
+
+**Résolution du tenant** : `api/v1/case/routes.py` lisait `firm_id` depuis
+un header `X-Firm-Id` fourni par le client. Ce chemin est supprimé —
+`get_current_firm_id` (`tmis.api.deps`) ne lit plus que
+`Principal.firm_id`, lui-même dérivé du JWT validé. Un `X-Firm-Id` envoyé
+par le client n'a plus aucun effet (testé explicitement, voir
+`tests/security/test_tenant_isolation.py::test_x_firm_id_header_is_ignored`).
+
+**Garde d'isolation au niveau des données** : `tmis.core.tenancy.
+scoped_query(model, firm_id)` est le seul point d'entrée qu'un repository
+doit utiliser pour interroger un modèle multi-tenant — il refuse
+(`TypeError`) de construire une requête sur un modèle qui ne déclare pas
+de colonne `firm_id`. L'oubli du filtre tenant devient une erreur au
+niveau du code, pas seulement une convention de revue.
+
+**RBAC minimal** : `require_role(*roles)` / `require_scope(*scopes)`
+(`tmis.api.deps`) sont des dépendances FastAPI qui lisent le `Principal`
+déjà validé et lèvent `403` si le rôle/scope est insuffisant. Le sprint
+pose le pattern et l'applique à deux routes sensibles
+(`identity-platform/dashboard`, `identity-platform/security-events`) —
+l'appliquer systématiquement au reste de l'API est une dette du sprint
+suivant.
+
+### Référence API — `/auth`
+
+| Route | Description |
+|---|---|
+| `POST /api/v1/auth/login` | `{email, password}` → `{access_token, refresh_token, token_type}`. Réponse `401` générique et indistinguable pour un email inconnu, un mauvais mot de passe, ou un compte désactivé (pas d'énumération de comptes). |
+| `POST /api/v1/auth/refresh` | `{refresh_token}` → un nouveau couple de tokens (rotation : l'utilisateur est rechargé depuis le repository, pas seulement relu depuis les anciens claims). Un access token présenté ici, ou un refresh token présenté à `/login`... à `/api/v1/cases`, sont rejetés (`token_type` vérifié). |
+
+Ces deux routes sont les seules routes d'authentification de l'allowlist
+publique — tout le reste de `/api/v1` exige `Authorization: Bearer
+<access_token>`.
+
+### Dette reconnue — deux stores utilisateurs (ADR-SEC-01)
+
+`tmis.identity_platform` (OAuth2/OIDC/RBAC/MFA riches, mais en mémoire,
+sans persistance) reste **non branché** sur le chemin de requête réel.
+Ce sprint retient `tmis.domain.identity` +
+`SqlAlchemyUserRepository` (persistant) comme unique source
+d'authentification (ADR-SEC-01) — on ne fait pas les deux à la fois. La
+réconciliation des deux stores (faire de `identity_platform` la
+véritable couche IAM, ou migrer son contenu vers `domain.identity`) est
+une dette explicite, à traiter dans un sprint dédié.
+
 ## Protection des données (RGPD)
 
 - **Minimisation** : seules les données nécessaires à la fonctionnalité

@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from tmis.ai_fabric.api.routes import router as ai_fabric_router
 from tmis.ai_governance.api.routes import router as ai_governance_router
 from tmis.ai_team.api.routes import router as ai_team_router
+from tmis.api.deps import get_current_principal
+from tmis.api.v1.auth.routes import router as auth_router
 from tmis.api.v1.case.routes import router as case_router
 from tmis.api.v1.case_intelligence.routes import router as case_intelligence_router
 from tmis.api.v1.chat.routes import router as chat_router
@@ -24,27 +26,38 @@ from tmis.platform_sdk.api.routes import router as platform_sdk_router
 from tmis.strategic_intelligence.api.routes import router as strategic_intelligence_router
 from tmis.workflow_automation.api.routes import router as workflow_automation_router
 
+# ADR-SEC-02 (default-deny): every route under /api/v1 requires a valid
+# access token unless it is explicitly mounted on `public_router` below.
+# A new bounded context's router is protected the moment it's added to
+# `protected_router` — there is no opt-in step to forget.
+public_router = APIRouter()
+public_router.include_router(health_router)  # liveness/monitoring probes
+public_router.include_router(auth_router)  # /auth/login, /auth/refresh mint the tokens
+
+protected_router = APIRouter(dependencies=[Depends(get_current_principal)])
+protected_router.include_router(case_router)
+protected_router.include_router(case_intelligence_router)
+protected_router.include_router(chat_router)
+protected_router.include_router(document_router)
+protected_router.include_router(watch_router)
+protected_router.include_router(legal_research_router)
+protected_router.include_router(legal_reasoning_router)
+protected_router.include_router(legal_drafting_router)
+protected_router.include_router(collaboration_router)
+protected_router.include_router(cabinet_os_router)
+protected_router.include_router(ai_team_router)
+protected_router.include_router(cabinet_knowledge_router)
+protected_router.include_router(platform_sdk_router)
+protected_router.include_router(ai_fabric_router)
+protected_router.include_router(ai_governance_router)
+protected_router.include_router(strategic_intelligence_router)
+protected_router.include_router(workflow_automation_router)
+protected_router.include_router(integration_hub_router)
+protected_router.include_router(identity_platform_router)
+protected_router.include_router(business_platform_router)
+protected_router.include_router(legal_copilot_framework_router)
+protected_router.include_router(legal_knowledge_graph_router)
+
 api_router = APIRouter()
-api_router.include_router(health_router)
-api_router.include_router(case_router)
-api_router.include_router(case_intelligence_router)
-api_router.include_router(chat_router)
-api_router.include_router(document_router)
-api_router.include_router(watch_router)
-api_router.include_router(legal_research_router)
-api_router.include_router(legal_reasoning_router)
-api_router.include_router(legal_drafting_router)
-api_router.include_router(collaboration_router)
-api_router.include_router(cabinet_os_router)
-api_router.include_router(ai_team_router)
-api_router.include_router(cabinet_knowledge_router)
-api_router.include_router(platform_sdk_router)
-api_router.include_router(ai_fabric_router)
-api_router.include_router(ai_governance_router)
-api_router.include_router(strategic_intelligence_router)
-api_router.include_router(workflow_automation_router)
-api_router.include_router(integration_hub_router)
-api_router.include_router(identity_platform_router)
-api_router.include_router(business_platform_router)
-api_router.include_router(legal_copilot_framework_router)
-api_router.include_router(legal_knowledge_graph_router)
+api_router.include_router(public_router)
+api_router.include_router(protected_router)

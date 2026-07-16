@@ -11,6 +11,11 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      # CI is not debug mode, so `tmis.core.config.Settings` refuses to
+      # start without a real (>=32 char) JWT secret (T8 fail-fast) — this
+      # is CI-only, never used outside this workflow.
+      TMIS_JWT_SECRET_KEY: ci-only-test-secret-do-not-use-in-any-real-environment
     services:
       postgres:
         image: postgres:16-alpine
