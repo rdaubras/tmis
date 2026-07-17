@@ -1,5 +1,5 @@
 """End-to-end: a query flows through the real `ResearchOrchestrator` (Sprint
-5, the LRE, via its own `get_research_orchestrator()` bootstrap — codes/
+5, the LRE, via its own `get_shared_research_orchestrator()` bootstrap — codes/
 jurisprudence/doctrine connectors plus the LRE's internal documentation and
 private database connectors), filtered to the "jurisprudence" connector, and
 comes back out through the real `JurisprudenceAgent` (Sprint 34) with its
@@ -13,7 +13,7 @@ import pytest
 from tmis.agents.contracts import AgentInput, ConfidenceLevel
 from tmis.agents.jurisprudence_agent import JurisprudenceAgent
 from tmis.ai.kernel.bootstrap import get_kernel
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import clear_research_caches, get_shared_research_orchestrator
 
 
 @pytest.fixture(autouse=True)
@@ -21,13 +21,13 @@ def _clear_singletons() -> None:
     """Same reset as `test_research_agent_integration.py`: both are
     `lru_cache`d process-wide singletons that must not leak connector
     registrations or history between tests."""
-    get_research_orchestrator.cache_clear()
+    clear_research_caches()
     get_kernel.cache_clear()
 
 
 @pytest.mark.asyncio
 async def test_query_flows_through_the_real_lre_filtered_to_jurisprudence() -> None:
-    orchestrator = get_research_orchestrator()
+    orchestrator = get_shared_research_orchestrator()
     agent = JurisprudenceAgent(orchestrator=orchestrator)
 
     task_id = uuid.uuid4()
@@ -57,7 +57,7 @@ async def test_query_flows_through_the_real_lre_filtered_to_jurisprudence() -> N
 
 @pytest.mark.asyncio
 async def test_agent_forwards_case_id_to_the_orchestrator_history() -> None:
-    orchestrator = get_research_orchestrator()
+    orchestrator = get_shared_research_orchestrator()
     agent = JurisprudenceAgent(orchestrator=orchestrator)
     case_id = str(uuid.uuid4())
 
@@ -76,7 +76,7 @@ async def test_agent_forwards_case_id_to_the_orchestrator_history() -> None:
 
 @pytest.mark.asyncio
 async def test_agent_reports_low_confidence_and_no_search_when_query_is_missing() -> None:
-    agent = JurisprudenceAgent(orchestrator=get_research_orchestrator())
+    agent = JurisprudenceAgent(orchestrator=get_shared_research_orchestrator())
     agent_input = AgentInput(task_id=uuid.uuid4(), case_id=None)
 
     output = await agent.run(agent_input)

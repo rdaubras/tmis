@@ -1,6 +1,6 @@
 """End-to-end: a watch configuration flows through the real
 `ResearchOrchestrator` (Sprint 5, the LRE, via its own
-`get_research_orchestrator()` bootstrap) and comes back out through the real
+`get_shared_research_orchestrator()` bootstrap) and comes back out through the real
 `WatchAgent` (Sprint 36) with its `ResearchCitation`s converted to the agents
 contract's `Citation` and an alert synthesized through the real
 `TMISKernel.complete()` — never a second search engine, never a second
@@ -13,7 +13,7 @@ import pytest
 from tmis.agents.contracts import AgentInput, ConfidenceLevel
 from tmis.agents.watch_agent import WatchAgent
 from tmis.ai.kernel.bootstrap import get_kernel
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import clear_research_caches, get_shared_research_orchestrator
 
 
 @pytest.fixture(autouse=True)
@@ -21,13 +21,13 @@ def _clear_singletons() -> None:
     """Same reset as `test_jurisprudence_agent_integration.py`: both are
     `lru_cache`d process-wide singletons that must not leak connector
     registrations or history between tests."""
-    get_research_orchestrator.cache_clear()
+    clear_research_caches()
     get_kernel.cache_clear()
 
 
 @pytest.mark.asyncio
 async def test_first_watch_run_reports_every_result_as_new() -> None:
-    orchestrator = get_research_orchestrator()
+    orchestrator = get_shared_research_orchestrator()
     agent = WatchAgent(orchestrator=orchestrator)
 
     task_id = uuid.uuid4()
@@ -58,7 +58,7 @@ async def test_first_watch_run_reports_every_result_as_new() -> None:
 
 @pytest.mark.asyncio
 async def test_a_second_run_with_the_first_runs_ids_reports_no_new_result() -> None:
-    orchestrator = get_research_orchestrator()
+    orchestrator = get_shared_research_orchestrator()
     agent = WatchAgent(orchestrator=orchestrator)
 
     first_input = AgentInput(
@@ -89,7 +89,7 @@ async def test_a_second_run_with_the_first_runs_ids_reports_no_new_result() -> N
 
 @pytest.mark.asyncio
 async def test_agent_forwards_case_id_to_the_orchestrator_history() -> None:
-    orchestrator = get_research_orchestrator()
+    orchestrator = get_shared_research_orchestrator()
     agent = WatchAgent(orchestrator=orchestrator)
     case_id = str(uuid.uuid4())
 
@@ -108,7 +108,7 @@ async def test_agent_forwards_case_id_to_the_orchestrator_history() -> None:
 
 @pytest.mark.asyncio
 async def test_agent_reports_low_confidence_and_no_search_when_query_is_missing() -> None:
-    agent = WatchAgent(orchestrator=get_research_orchestrator())
+    agent = WatchAgent(orchestrator=get_shared_research_orchestrator())
     agent_input = AgentInput(task_id=uuid.uuid4(), case_id=None)
 
     output = await agent.run(agent_input)

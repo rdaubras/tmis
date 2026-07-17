@@ -18,7 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tmis.ai.kernel.bootstrap import get_kernel
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import clear_research_caches, get_shared_research_orchestrator
 from tmis.main import app
 
 
@@ -28,7 +28,7 @@ def _clear_singletons() -> None:
     `ResearchOrchestrator` and the shared `TMISKernel` are `lru_cache`d
     process-wide singletons that must not leak connector registrations or
     research history between tests."""
-    get_research_orchestrator.cache_clear()
+    clear_research_caches()
     get_kernel.cache_clear()
     from tmis.agents.bootstrap import get_watch_agent
 
@@ -109,7 +109,7 @@ def test_watch_with_a_case_id(client: TestClient) -> None:
     )
 
     assert response.status_code == 200
-    orchestrator = get_research_orchestrator()
+    orchestrator = get_shared_research_orchestrator()
     entries = orchestrator.history.list_for_case(case_id)
     assert len(entries) == 1
     assert entries[0].query_text == "clause de non-concurrence"

@@ -1,6 +1,7 @@
 """Integration test for `SQLAlchemyResearchHistory` against a real
 (sqlite) database — exercises the actual SQL round-trip, not a mock."""
 
+import uuid
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 
@@ -13,6 +14,9 @@ from tmis.core.db.base import Base
 from tmis.legal_research.history.adapters.sqlalchemy_store import SQLAlchemyResearchHistory
 from tmis.legal_research.history.ports import ResearchHistoryPort
 from tmis.legal_research.history.schemas import ResearchHistoryEntry
+
+_FIRM_ID = uuid.uuid4()
+_OTHER_FIRM_ID = uuid.uuid4()
 
 
 @pytest.fixture
@@ -28,8 +32,14 @@ def session_factory() -> Iterator[sessionmaker[Session]]:
 
 
 @pytest.fixture
-def store(session_factory: sessionmaker[Session]) -> SQLAlchemyResearchHistory:
-    return SQLAlchemyResearchHistory(session_factory=session_factory)
+def session(session_factory: sessionmaker[Session]) -> Iterator[Session]:
+    with session_factory() as session:
+        yield session
+
+
+@pytest.fixture
+def store(session: Session) -> SQLAlchemyResearchHistory:
+    return SQLAlchemyResearchHistory(session, _FIRM_ID)
 
 
 # Naive datetime: SQLite's DateTime column drops tzinfo on round-trip
@@ -151,3 +161,15 @@ def test_list_for_case_returns_empty_for_unknown_case(
     store.record(_entry("run-1", case_id="case-1"))
 
     assert store.list_for_case("no-such-case") == []
+
+
+def test_an_entry_recorded_by_one_firm_is_invisible_to_another(session: Session) -> None:
+    store_a = SQLAlchemyResearchHistory(session, _FIRM_ID)
+    store_b = SQLAlchemyResearchHistory(session, _OTHER_FIRM_ID)
+
+    store_a.record(_entry("run-1", user_id="user-1", case_id="case-1"))
+
+    assert store_b.list_all() == []
+    assert store_b.list_for_user("user-1") == []
+    assert store_b.list_for_case("case-1") == []
+    assert len(store_a.list_all()) == 1

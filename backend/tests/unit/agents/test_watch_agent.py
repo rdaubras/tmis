@@ -18,6 +18,7 @@ from tmis.legal_research.normalization.normalizer import SourceNormalizer
 from tmis.legal_research.queries.engine import HeuristicQueryEngine
 from tmis.legal_research.queries.schemas import ResearchQuery
 from tmis.legal_research.ranking.configurable_ranker import ConfigurableRanker
+from tmis.legal_research.search.in_memory_store import InMemoryResearchSearchStore
 from tmis.legal_research.search.orchestrator import ResearchOrchestrator
 from tmis.legal_research.search.schemas import RelevanceScores
 from tmis.legal_research.sources.registry import SourceRegistry
@@ -70,8 +71,9 @@ def _build_orchestrator(search: object | None = None) -> ResearchOrchestrator:
         normalizer=SourceNormalizer(),
         ranker=ConfigurableRanker(SourceRegistry(), current_year_fn=lambda: 2026),
         citation_engine=CitationEngine(),
-        cache=ResearchCache(InMemoryCache()),
+        cache=ResearchCache(InMemoryCache(), "firm-1"),
         history=InMemoryResearchHistory(),
+        searches=InMemoryResearchSearchStore(),
         evaluator=ResearchEvaluator(),
     )
 

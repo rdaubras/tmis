@@ -11,7 +11,7 @@ The Sprint 43 audit flagged a latent risk in that adapter's callers
 correct *pairing* — no existing test drove this from a real
 `ResearchOrchestrator` run through to the adapted `Citation` objects, only
 hand-built fixtures on either side of the adapter in isolation. This test
-does, via the real, process-wide `get_research_orchestrator()` singleton
+does, via the real, process-wide `get_shared_research_orchestrator()` singleton
 (the same one `ResearchAgent`/`JurisprudenceAgent` use in production),
 against the Sprint 2 fixture connectors (no PISTE credentials are
 configured anywhere in this environment, see
@@ -22,7 +22,7 @@ from tmis.agents.contracts import AgentInput, ConfidenceLevel
 from tmis.agents.jurisprudence_agent import JurisprudenceAgent
 from tmis.agents.research_agent import ResearchAgent
 from tmis.ai.schemas.citation import Citation
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import get_shared_research_orchestrator
 from tmis.legal_research.citations.schemas import ResearchCitation
 
 # The Sprint 2 mock connectors do a naive substring match (see
@@ -40,7 +40,7 @@ def _agent_input() -> AgentInput:
 async def test_research_agent_citations_are_correctly_paired_from_a_real_orchestrator_run() -> (
     None
 ):
-    orchestrator = get_research_orchestrator()
+    orchestrator = get_shared_research_orchestrator()
     agent = ResearchAgent(orchestrator=orchestrator)
 
     output = await agent.run(_agent_input())
@@ -70,7 +70,7 @@ async def test_jurisprudence_agent_reuses_the_same_adapter_without_raising() -> 
     as `ResearchAgent` does (see `tmis.agents.citations`) — confirm the
     shared adapter is consumable from this second real production caller
     too, not just the one it was extracted from."""
-    orchestrator = get_research_orchestrator()
+    orchestrator = get_shared_research_orchestrator()
     agent = JurisprudenceAgent(orchestrator=orchestrator)
 
     output = await agent.run(_agent_input())

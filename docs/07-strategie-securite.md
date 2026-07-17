@@ -198,6 +198,25 @@ détail et pour la dette assumée (historique/validation/review/style
 restent en mémoire, donc partagés entre cabinets, cette tranche-ci) — les
 28 autres modules ne sont pas généralisés par ce sprint.
 
+**Généralisation du pattern (tranche `legal_research`)** : deuxième
+module stateful à reprendre le pattern, avec deux écarts propres que la
+tranche `cases -> drafting` n'avait pas — traités avec le même sérieux
+que l'isolation des données, pas comme une optimisation : `firm_id`
+préfixé dans **toutes** les clés du cache de recherche (`ResearchCache`,
+ADR-RESEARCH-01 — un connecteur privé mal scopé aurait servi les
+résultats d'un cabinet à un autre) et l'état d'une recherche
+(`_responses`/`_citations`, autrefois sur le singleton lui-même) devenu
+une table persistante, `research_searches`, scopée `firm_id`
+(ADR-RESEARCH-02) — nécessaire pour qu'un `GET /searches/{search_id}`,
+sur une requête et un orchestrateur différents de celui qui a produit la
+recherche, la retrouve encore. Voir docs/21-legal-research.md §
+"Persistance & isolation multi-tenant" pour le détail et pour la dette
+assumée (`legal_reasoning` et `tmis.agents` composent toujours
+`ResearchOrchestrator` en dehors de toute requête HTTP, via un singleton
+non isolé délibérément préservé — leur propre passage à l'isolation est
+un chantier séparé ; les métriques d'`evaluation` restent elles aussi
+non scopées, hors périmètre — voir l'Axe B de la roadmap).
+
 **RBAC minimal** : `require_role(*roles)` / `require_scope(*scopes)`
 (`tmis.api.deps`) sont des dépendances FastAPI qui lisent le `Principal`
 déjà validé et lèvent `403` si le rôle/scope est insuffisant. Le sprint

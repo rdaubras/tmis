@@ -7,7 +7,6 @@ class ResearchSearchRequest(BaseModel):
     query: str
     connector_names: list[str] | None = None
     filters: dict[str, str] | None = None
-    user_id: str | None = None
     case_id: str | None = None
 
 

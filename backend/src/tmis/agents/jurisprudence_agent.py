@@ -7,7 +7,7 @@ from tmis.ai_governance.overview import AIGovernancePlatform
 from tmis.case_intelligence.cases.in_memory_store import InMemoryCaseStore
 from tmis.case_intelligence.cases.ports import CaseStorePort
 from tmis.case_intelligence.cases.schemas import CaseProfile
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import get_shared_research_orchestrator
 from tmis.legal_research.search.orchestrator import ResearchOrchestrator
 from tmis.legal_research.search.schemas import ResearchResponse, ResearchResult
 
@@ -60,7 +60,7 @@ class JurisprudenceAgent:
         governance: AIGovernancePlatform | None = None,
         firm_id: str = "default",
     ) -> None:
-        self._orchestrator = orchestrator or get_research_orchestrator()
+        self._orchestrator = orchestrator or get_shared_research_orchestrator()
         self._kernel = kernel or TMISKernel()
         self._case_store: CaseStorePort = case_store or InMemoryCaseStore()
         self._fabric = fabric
