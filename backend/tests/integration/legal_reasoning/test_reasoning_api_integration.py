@@ -4,14 +4,14 @@ from fastapi.testclient import TestClient
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
 from tmis.legal_reasoning.bootstrap import get_reasoning_orchestrator
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import clear_research_caches
 from tmis.main import app
 
 
 @pytest.fixture(autouse=True)
 def _clear_singletons() -> None:
     get_reasoning_orchestrator.cache_clear()
-    get_research_orchestrator.cache_clear()
+    clear_research_caches()
     get_case_intelligence_workflow.cache_clear()
     get_kernel.cache_clear()
 

@@ -8,6 +8,8 @@ from sqlalchemy.pool import StaticPool
 import tmis.infrastructure.persistence.models  # noqa: F401 — registers firms/users/cases
 import tmis.legal_drafting.documents.sqlalchemy_store  # noqa: F401 — registers drafting_documents
 import tmis.legal_drafting.versioning.sqlalchemy_service  # noqa: F401 — registers versions table
+import tmis.legal_research.history.adapters.sqlalchemy_store  # noqa: F401 — registers research_history_entries
+import tmis.legal_research.search.sqlalchemy_store  # noqa: F401 — registers research_searches
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
 from tmis.core import database as core_database
@@ -19,7 +21,7 @@ from tmis.legal_drafting.bootstrap import (
     get_validation_service,
 )
 from tmis.legal_reasoning.bootstrap import get_reasoning_orchestrator
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import clear_research_caches
 from tmis.main import app
 
 _QUESTION = "contrat de travail à durée indéterminée peut être rompu"
@@ -44,7 +46,7 @@ def _clear_singletons(tmp_path: object) -> Iterator[None]:
     core_database.Base.metadata.create_all(engine)
 
     get_reasoning_orchestrator.cache_clear()
-    get_research_orchestrator.cache_clear()
+    clear_research_caches()
     get_case_intelligence_workflow.cache_clear()
     get_kernel.cache_clear()
     get_template_registry.cache_clear()

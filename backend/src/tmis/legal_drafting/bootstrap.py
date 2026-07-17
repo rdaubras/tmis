@@ -82,11 +82,15 @@ def get_document_orchestrator(
     process-wide collaborators as before (kernel, upstream engines,
     stateless registries) — see docs/28-legal-drafting.md for why the
     Legal Drafting Studio never re-implements case analysis, research or
-    reasoning.
+    reasoning. `get_research_orchestrator` is itself firm-scoped since
+    ADR-RESEARCH-02 (docs/21-legal-research.md) — this request's own
+    `session`/`firm_id` are threaded through to it so a drafting-
+    triggered search is isolated exactly like a direct
+    `/legal-research/search` call.
     """
     kernel = get_kernel()
     case_workflow = get_case_intelligence_workflow()
-    research_orchestrator = get_research_orchestrator()
+    research_orchestrator = get_research_orchestrator(session=session, firm_id=firm_id)
     reasoning_orchestrator = get_reasoning_orchestrator()
 
     return DocumentOrchestrator(

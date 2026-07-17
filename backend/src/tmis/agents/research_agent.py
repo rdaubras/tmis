@@ -1,7 +1,7 @@
 from tmis.agents.citations import research_citation_to_citation
 from tmis.agents.contracts import AgentInput, AgentOutput, ConfidenceLevel
 from tmis.ai_governance.overview import AIGovernancePlatform
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import get_shared_research_orchestrator
 from tmis.legal_research.search.orchestrator import ResearchOrchestrator
 from tmis.legal_research.search.schemas import ResearchResponse, ResearchResult
 
@@ -52,7 +52,7 @@ class ResearchAgent:
         governance: AIGovernancePlatform | None = None,
         firm_id: str = "default",
     ) -> None:
-        self._orchestrator = orchestrator or get_research_orchestrator()
+        self._orchestrator = orchestrator or get_shared_research_orchestrator()
         self._governance = governance
         self._firm_id = firm_id
 

@@ -16,7 +16,7 @@ from tmis.legal_research.queries.ports import QueryEnginePort
 from tmis.legal_research.queries.schemas import ResearchQuery
 from tmis.legal_research.ranking.ports import RankingPort
 from tmis.legal_research.ranking.schemas import RankingWeights
-from tmis.legal_research.search.ports import ResearchSearchPort
+from tmis.legal_research.search.ports import ResearchSearchPort, ResearchSearchStorePort
 from tmis.legal_research.search.schemas import RelevanceScores, ResearchResponse, ResearchResult
 
 
@@ -30,6 +30,17 @@ class ResearchOrchestrator:
 
     This class never talks to a model provider or a connector itself: it
     only calls the ports it was constructed with.
+
+    `history`, `searches` and `cache` are all firm-scoped by the caller
+    (ADR-RESEARCH-01/02, see docs/21-legal-research.md): every instance is
+    built fresh per request, on stores/cache already fixed to exactly one
+    `firm_id`, so this class itself never needs a `firm_id` parameter —
+    same pattern as `DocumentOrchestrator`'s per-request construction in
+    the `cases -> drafting` slice (docs/28-legal-drafting.md
+    ADR-SLICE-02). `searches` replaces what used to be a `_responses`/
+    `_citations` dict kept on the (formerly singleton) orchestrator
+    itself: a per-request object cannot remember a past search across
+    requests unless something durable does it instead.
     """
 
     def __init__(
@@ -42,6 +53,7 @@ class ResearchOrchestrator:
         citation_engine: CitationEngine,
         cache: ResearchCache,
         history: ResearchHistoryPort,
+        searches: ResearchSearchStorePort,
         evaluator: ResearchEvaluator,
     ) -> None:
         self._query_engine = query_engine
@@ -51,9 +63,8 @@ class ResearchOrchestrator:
         self._citation_engine = citation_engine
         self._cache = cache
         self._history = history
+        self._searches = searches
         self._evaluator = evaluator
-        self._responses: dict[str, ResearchResponse] = {}
-        self._citations: dict[str, tuple[ResearchCitation, ...]] = {}
 
     async def search(
         self,
@@ -86,8 +97,7 @@ class ResearchOrchestrator:
             cache_hit=cache_hit,
         )
         citations = tuple(self._citation_engine.build(r) for r in ranked)
-        self._responses[search_id] = response
-        self._citations[search_id] = citations
+        self._searches.save(response, citations, user_id=user_id, case_id=case_id)
 
         self._evaluator.record(
             ResearchMetrics(
@@ -165,10 +175,10 @@ class ResearchOrchestrator:
         return documents, scores, False
 
     def get_response(self, search_id: str) -> ResearchResponse | None:
-        return self._responses.get(search_id)
+        return self._searches.get(search_id)
 
     def get_citations(self, search_id: str) -> tuple[ResearchCitation, ...] | None:
-        return self._citations.get(search_id)
+        return self._searches.get_citations(search_id)
 
     @property
     def history(self) -> ResearchHistoryPort:

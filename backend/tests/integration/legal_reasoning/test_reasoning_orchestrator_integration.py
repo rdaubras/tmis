@@ -11,7 +11,7 @@ from tmis.case_intelligence.facts.schemas import Fact
 from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
 from tmis.legal_reasoning.bootstrap import get_reasoning_orchestrator
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import clear_research_caches
 
 
 @pytest.fixture(autouse=True)
@@ -36,7 +36,7 @@ def _clear_singletons(tmp_path: object) -> Iterator[None]:
     core_db_session.SessionLocal.configure(bind=sync_engine)
 
     get_reasoning_orchestrator.cache_clear()
-    get_research_orchestrator.cache_clear()
+    clear_research_caches()
     get_case_intelligence_workflow.cache_clear()
     get_case_store.cache_clear()
     get_kernel.cache_clear()

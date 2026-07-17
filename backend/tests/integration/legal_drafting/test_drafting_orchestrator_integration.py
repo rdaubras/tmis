@@ -9,6 +9,8 @@ from sqlalchemy.pool import StaticPool
 import tmis.case_intelligence.cases.adapters.sqlalchemy_store  # noqa: F401
 import tmis.legal_drafting.documents.sqlalchemy_store  # noqa: F401
 import tmis.legal_drafting.versioning.sqlalchemy_service  # noqa: F401
+import tmis.legal_research.history.adapters.sqlalchemy_store  # noqa: F401
+import tmis.legal_research.search.sqlalchemy_store  # noqa: F401
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow, get_case_store
 from tmis.case_intelligence.facts.schemas import Fact
@@ -27,7 +29,7 @@ from tmis.legal_drafting.export.schemas import ExportFormat
 from tmis.legal_drafting.templates.schemas import DocumentType
 from tmis.legal_drafting.validation.schemas import DraftDecision
 from tmis.legal_reasoning.bootstrap import get_reasoning_orchestrator
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import clear_research_caches
 
 # The Sprint 2 mock connectors do a naive substring match (see
 # docs/21-legal-research.md), so any question routed to legal research
@@ -63,7 +65,7 @@ def _clear_singletons(tmp_path: object) -> Iterator[Session]:
     core_db_session.SessionLocal.configure(bind=sync_engine)
 
     get_reasoning_orchestrator.cache_clear()
-    get_research_orchestrator.cache_clear()
+    clear_research_caches()
     get_case_intelligence_workflow.cache_clear()
     get_case_store.cache_clear()
     get_kernel.cache_clear()

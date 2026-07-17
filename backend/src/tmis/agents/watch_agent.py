@@ -4,7 +4,7 @@ from tmis.ai.kernel.kernel import TMISKernel
 from tmis.ai_fabric.fabric import AIIntelligenceFabric
 from tmis.ai_fabric.router.schemas import RoutingRequest
 from tmis.ai_governance.overview import AIGovernancePlatform
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import get_shared_research_orchestrator
 from tmis.legal_research.citations.schemas import ResearchCitation
 from tmis.legal_research.search.orchestrator import ResearchOrchestrator
 from tmis.legal_research.search.schemas import ResearchResponse, ResearchResult
@@ -68,7 +68,7 @@ class WatchAgent:
         governance: AIGovernancePlatform | None = None,
         firm_id: str = "default",
     ) -> None:
-        self._orchestrator = orchestrator or get_research_orchestrator()
+        self._orchestrator = orchestrator or get_shared_research_orchestrator()
         self._kernel = kernel or TMISKernel()
         self._fabric = fabric
         self._governance = governance

@@ -14,7 +14,7 @@ from tmis.ai_governance.bootstrap import get_ai_governance_platform
 from tmis.cabinet_knowledge.bootstrap import get_clause_engine
 from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
 from tmis.document_intelligence.bootstrap import get_document_store
-from tmis.legal_research.bootstrap import get_research_orchestrator
+from tmis.legal_research.bootstrap import get_shared_research_orchestrator
 
 
 @lru_cache
@@ -22,11 +22,13 @@ def get_research_agent() -> ResearchAgent:
     """Process-wide `ResearchAgent` singleton, wired on top of the shared
     `ResearchOrchestrator` (Sprint 5) and `AIGovernancePlatform`
     (Sprint 15) — same `lru_cache` composition-root pattern as
-    `tmis.legal_research.bootstrap.get_research_orchestrator` and
+    `tmis.legal_research.bootstrap.get_shared_research_orchestrator` (the
+    non-firm-scoped composition path, since this accessor has no request
+    to derive a `firm_id` from — see that function's own docstring) and
     `tmis.ai_governance.bootstrap.get_ai_governance_platform`.
     """
     return ResearchAgent(
-        orchestrator=get_research_orchestrator(),
+        orchestrator=get_shared_research_orchestrator(),
         governance=get_ai_governance_platform(),
     )
 
@@ -44,7 +46,7 @@ def get_jurisprudence_agent() -> JurisprudenceAgent:
     real `CaseProfile` rather than an agent-local store.
     """
     return JurisprudenceAgent(
-        orchestrator=get_research_orchestrator(),
+        orchestrator=get_shared_research_orchestrator(),
         kernel=get_kernel(),
         case_store=get_case_intelligence_workflow().case_store,
         fabric=get_ai_intelligence_fabric(),
@@ -91,7 +93,7 @@ def get_watch_agent() -> WatchAgent:
     docs/164-architecture-agent-veille.md).
     """
     return WatchAgent(
-        orchestrator=get_research_orchestrator(),
+        orchestrator=get_shared_research_orchestrator(),
         kernel=get_kernel(),
         fabric=get_ai_intelligence_fabric(),
         governance=get_ai_governance_platform(),
