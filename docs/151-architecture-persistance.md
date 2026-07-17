@@ -162,8 +162,15 @@ renvoie tout l'historique, du plus ancien au plus récent.
 ## Migrations
 
 Voir `docs/152-guide-migrations.md`. Une migration par domaine, chaînée
-linéairement (`0001_document_record` → ... → `0007_knowledge_object`),
-jamais une migration fourre-tout.
+linéairement (`0000_base_identity` → `0001_document_record` → ... →
+`0007_knowledge_object` → ...), jamais une migration fourre-tout.
+`0000_base_identity` (correctif SEC/DB-01) crée `firms`/`users`/`cases` —
+la racine de la chaîne, ajoutée après coup parce que ces trois tables
+n'avaient jamais eu de migration propre (`Base.metadata.create_all()`
+masquait l'absence dans tous les tests). `alembic upgrade head` sur une
+base vierge est désormais autoportant, et `tests/integration/
+test_schema_parity.py` garde la chaîne de migrations et `Base.metadata`
+en parité durablement.
 
 ## `DocumentStorePort` désormais partagé (Sprint 37)
 

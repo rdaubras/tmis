@@ -30,8 +30,9 @@ seconde : une nouvelle migration s'ajoute toujours à cette même chaîne.
 2. `revision` = le nom du fichier sans l'extension (ex.
    `"0008_mon_domaine"`). `down_revision` = la `revision` de la migration
    précédente dans la chaîne (vérifiez avec `alembic history`, voir plus
-   bas) — jamais `None` sauf pour `0001_document_record`, la racine de la
-   chaîne.
+   bas) — jamais `None` sauf pour `0000_base_identity`, la racine de la
+   chaîne (voir "Chaîne autoportante" ci-dessous ; `0001_document_record`
+   n'est plus la racine depuis le correctif SEC/DB-01).
 3. `upgrade()` : `op.create_table(...)` avec exactement les colonnes du
    modèle (mêmes noms, mêmes types, mêmes contraintes). Utilisez
    `sa.Uuid()` (portable, pas le type PostgreSQL-only
@@ -74,3 +75,35 @@ limité à sa seule table) — ces tests n'exécutent pas les migrations
 elles-mêmes, ils valident le modèle. La vérification de la chaîne
 Alembic complète (ci-dessus) est un contrôle séparé, à refaire à chaque
 migration ajoutée.
+
+`tests/integration/test_schema_parity.py` (correctif SEC/DB-01) est le
+garde-fou qui aurait attrapé le bug ce correctif corrige — jusqu'ici,
+tous les tests créaient leurs tables via `Base.metadata.create_all()`,
+jamais via `alembic upgrade head`, donc rien ne remarquait qu'un modèle
+sans migration correspondante (`firms`/`users`/`cases`, jamais migrées)
+laissait un `alembic upgrade head` sur base vierge produire un schéma
+incomplet. Ce test applique la chaîne réelle sur une base neuve et
+compare le résultat (tables, puis colonnes par table) à `Base.metadata` —
+un modèle ajouté sans sa migration, ou une migration créant une table
+sans modèle, le fait désormais échouer. **Toute nouvelle migration doit
+laisser ce test vert** ; ce n'est pas optionnel.
+
+## Chaîne autoportante (correctif SEC/DB-01)
+
+`0000_base_identity` (racine de la chaîne) crée `firms`/`users`/`cases` —
+les seules tables du schéma qui n'avaient jamais eu leur propre migration
+(elles préexistaient à Alembic dans ce dépôt, créées uniquement via
+`Base.metadata.create_all()`, que tous les tests utilisent à la place des
+migrations réelles). `alembic upgrade head` sur une base vierge est
+désormais autoportant : il produit le schéma complet, y compris ces
+fondations, sans dépendre d'une base déjà amorcée par ailleurs. Les
+migrations de rétro-remplissage (`0012_case_profiles_firm_id`,
+`0013_document_records_firm_id`) qui dérivent `firm_id` depuis `cases`
+n'émettent donc plus l'avertissement "no 'cases' table found" sur un
+premier déploiement.
+
+Les bases dev/staging déjà amorcées via `create_all()` (donc déjà à
+`0013` dans `alembic_version`) ne sont pas concernées : `firms`/`users`/
+`cases` existent déjà physiquement chez elles, et Alembic ne rejoue
+jamais une migration déjà marquée comme appliquée. Ce correctif ne
+change rien pour elles ; il ne vise que les déploiements propres.
