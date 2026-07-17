@@ -1,8 +1,14 @@
-"""Document upload API (Sprint 26 Phase 4): persists via the shared
-`DocumentStorePort` singleton (`tmis.document_intelligence.bootstrap.
-get_document_store()`, always `SQLAlchemyDocumentStore` in practice —
-Sprint 37), then triggers `DocumentIntelligencePipeline` asynchronously
-via Celery — see `tmis.core.tasks.document_tasks`.
+"""Document upload API (Sprint 26 Phase 4): persists via a firm-scoped
+`DocumentStorePort` (`tmis.document_intelligence.bootstrap.
+get_document_store(firm_id)`, always `SQLAlchemyDocumentStore` in
+practice — ADR-DOCINT-01, docs/14-document-intelligence.md), then
+triggers `DocumentIntelligencePipeline` asynchronously via Celery — see
+`tmis.core.tasks.document_tasks`.
+
+Every route in this router now takes `firm_id = Depends(get_current_firm_id)`
+and reads/writes through that firm's own scoped store (ADR-DOCINT-01): a
+`document_id` belonging to another firm resolves to `None` — `404`, never
+a leak of `raw_bytes` or any derived field.
 
 `GET /{document_id}/versions` is the one place in this router that reads
 via `tmis.core.db.session.AsyncSessionLocal` (the async engine) directly
@@ -10,12 +16,14 @@ against `DocumentRecordModel`, instead of through `DocumentStorePort`:
 that port only ever exposes the latest version (see
 `tmis.document_intelligence.storage.ports.DocumentStorePort`), it has no
 "list every version" method, so this read has no port to go through in
-the first place — see docs/151-architecture-persistance.md.
+the first place — see docs/151-architecture-persistance.md. It filters on
+`DocumentRecordModel.firm_id` directly for the same reason.
 
 `GET /{document_id}/analysis` (Sprint 39) exposes `ContractAgent`
-(already real since Sprint 35) as a fourth route on this same resource —
-a computed read triggered on demand, following the precedent set by
-`GET /cases/{case_id}/summary` (Sprint 19), not a second router — see
+(already real since Sprint 35, now firm-scoped too — ADR-DOCINT-01) as a
+fourth route on this same resource — a computed read triggered on
+demand, following the precedent set by `GET /cases/{case_id}/summary`
+(Sprint 19), not a second router — see
 docs/166-architecture-exposition-agent-contrats.md.
 """
 
@@ -81,7 +89,7 @@ async def upload_document(
     filename = file.filename or "unnamed"
     document_id = str(uuid.uuid4())
 
-    store = get_document_store()
+    store = get_document_store(firm_id)
     store.save(
         DocumentRecord(
             document_id=document_id,
@@ -105,8 +113,10 @@ async def upload_document(
 
 
 @router.get("/{document_id}", response_model=DocumentSummaryResponse)
-def get_document(document_id: str) -> DocumentSummaryResponse:
-    record = get_document_store().get(document_id)
+def get_document(
+    document_id: str, firm_id: uuid.UUID = Depends(get_current_firm_id)
+) -> DocumentSummaryResponse:
+    record = get_document_store(firm_id).get(document_id)
     if record is None:
         raise HTTPException(status_code=404, detail=f"No document {document_id!r}")
     return DocumentSummaryResponse(
@@ -119,13 +129,18 @@ def get_document(document_id: str) -> DocumentSummaryResponse:
 
 
 @router.get("/{document_id}/versions", response_model=list[DocumentVersionResponse])
-async def list_document_versions(document_id: str) -> list[DocumentVersionResponse]:
+async def list_document_versions(
+    document_id: str, firm_id: uuid.UUID = Depends(get_current_firm_id)
+) -> list[DocumentVersionResponse]:
     async with AsyncSessionLocal() as session:
         rows = (
             (
                 await session.execute(
                     select(DocumentRecordModel)
-                    .where(DocumentRecordModel.document_id == document_id)
+                    .where(
+                        DocumentRecordModel.document_id == document_id,
+                        DocumentRecordModel.firm_id == str(firm_id),
+                    )
                     .order_by(DocumentRecordModel.version.asc())
                 )
             )
@@ -153,9 +168,10 @@ async def analyze_document(
     domain: LegalDomain | None = None,
     compare_document_id: str | None = None,
     case_id: str | None = None,
+    firm_id: uuid.UUID = Depends(get_current_firm_id),
     contract_agent: ContractAgent = Depends(get_contract_agent),
 ) -> ContractAnalysisResponse:
-    record = get_document_store().get(document_id)
+    record = get_document_store(firm_id).get(document_id)
     if record is None:
         raise HTTPException(status_code=404, detail=f"No document {document_id!r}")
 

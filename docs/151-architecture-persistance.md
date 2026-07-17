@@ -220,3 +220,17 @@ comportement *par défaut* (composition root réelle) change. Voir
 câblage et `docs/reports/sprint-37-rapport-audit.md` pour l'impact sur
 les tests d'intégration qui dépendaient implicitement de l'ancien
 défaut en mémoire.
+
+> **Mise à jour ultérieure** : ce `get_document_store()` process-wide,
+> sans `firm_id`, décrit l'état du Sprint 37 — un seul cabinet en
+> pratique, et surtout un `SQLAlchemyDocumentStore` partagé qui aurait
+> laissé `raw_bytes` (le fichier uploadé lui-même) fuiter entre cabinets.
+> La tranche `document_intelligence` persistante & isolée (docs/14-
+> document-intelligence.md § "Persistance & isolation multi-tenant",
+> ADR-DOCINT-01) l'a depuis remplacé par `get_document_store(firm_id)` :
+> il n'existe plus de `SQLAlchemyDocumentStore` partagé par tout le
+> processus, ni de singleton `get_document_pipeline()`/`get_contract_
+> agent()` — les trois sont désormais assemblés par requête/tâche,
+> scopés au cabinet appelant. Le récit ci-dessus reste correct pour
+> comprendre *pourquoi* le câblage a convergé au Sprint 37 ; pour l'état
+> actuel, voir docs/14.

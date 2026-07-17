@@ -34,7 +34,7 @@ from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
 from tmis.core.tasks.celery_app import celery_app
 from tmis.core.tasks.document_tasks import process_document_task
-from tmis.document_intelligence.bootstrap import get_document_pipeline, get_document_store
+from tmis.document_intelligence.bootstrap import get_document_knowledge_graph
 from tmis.main import app
 
 _CONTRACT_TEXT = (
@@ -74,8 +74,7 @@ def _sqlite_backend(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> Iterat
     )
 
     clear_case_intelligence_caches()
-    get_document_pipeline.cache_clear()
-    get_document_store.cache_clear()
+    get_document_knowledge_graph.cache_clear()
     get_kernel.cache_clear()
 
     yield
@@ -88,13 +87,16 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def _create_case(client: TestClient, title: str = "Dossier") -> str:
+def _create_case(client: TestClient, title: str = "Dossier") -> tuple[str, str]:
     response = client.post("/api/v1/cases", json={"title": title})
     assert response.status_code == 201, response.text
-    return str(response.json()["id"])
+    body = response.json()
+    return str(body["id"]), str(body["firm_id"])
 
 
-def _upload_and_process(client: TestClient, text: str, filename: str = "bail.txt") -> str:
+def _upload_and_process(
+    client: TestClient, text: str, firm_id: str, filename: str = "bail.txt"
+) -> str:
     response = client.post(
         "/api/v1/documents/upload",
         data={},
@@ -102,7 +104,7 @@ def _upload_and_process(client: TestClient, text: str, filename: str = "bail.txt
     )
     assert response.status_code == 202
     document_id: str = response.json()["document_id"]
-    process_document_task(document_id, filename, "text/plain", None)
+    process_document_task(document_id, filename, "text/plain", None, firm_id)
     return document_id
 
 
@@ -113,7 +115,7 @@ def test_analysis_returns_404_for_unknown_case(client: TestClient) -> None:
 
 
 def test_analysis_without_document_id_for_an_existing_case(client: TestClient) -> None:
-    case_id = _create_case(client)
+    case_id, _ = _create_case(client)
     client.post(f"/api/v1/cases/{case_id}/profile", json={"title": "Dupont c. ACME"})
 
     response = client.get(f"/api/v1/cases/{case_id}/analysis")
@@ -127,9 +129,9 @@ def test_analysis_without_document_id_for_an_existing_case(client: TestClient) -
 
 
 def test_analysis_with_a_document_id(client: TestClient) -> None:
-    case_id = _create_case(client)
+    case_id, firm_id = _create_case(client)
     client.post(f"/api/v1/cases/{case_id}/profile", json={"title": "Dupont c. ACME"})
-    document_id = _upload_and_process(client, _CONTRACT_TEXT)
+    document_id = _upload_and_process(client, _CONTRACT_TEXT, firm_id)
 
     response = client.get(f"/api/v1/cases/{case_id}/analysis", params={"document_id": document_id})
 
@@ -143,7 +145,7 @@ def test_analysis_with_a_document_id(client: TestClient) -> None:
 
 
 def test_analysis_with_an_unknown_document_id_reports_a_warning(client: TestClient) -> None:
-    case_id = _create_case(client)
+    case_id, _ = _create_case(client)
     client.post(f"/api/v1/cases/{case_id}/profile", json={"title": "Dupont c. ACME"})
 
     response = client.get(
@@ -157,9 +159,9 @@ def test_analysis_with_an_unknown_document_id_reports_a_warning(client: TestClie
 
 
 def test_analysis_populates_the_synthesis_from_the_case_profile(client: TestClient) -> None:
-    case_id = _create_case(client, "Dossier ACME")
+    case_id, firm_id = _create_case(client, "Dossier ACME")
     client.post(f"/api/v1/cases/{case_id}/profile", json={"title": "Dossier ACME"})
-    document_id = _upload_and_process(client, _CONTRACT_TEXT)
+    document_id = _upload_and_process(client, _CONTRACT_TEXT, firm_id)
 
     response = client.get(f"/api/v1/cases/{case_id}/analysis", params={"document_id": document_id})
 
@@ -176,7 +178,7 @@ def test_analysis_returns_404_for_a_malformed_case_id(client: TestClient) -> Non
 
 
 def test_profile_route_is_unaffected(client: TestClient) -> None:
-    case_id = _create_case(client)
+    case_id, _ = _create_case(client)
     response = client.post(f"/api/v1/cases/{case_id}/profile", json={"title": "Dupont c. ACME"})
 
     assert response.status_code == 201
@@ -184,7 +186,7 @@ def test_profile_route_is_unaffected(client: TestClient) -> None:
 
 
 def test_summary_route_is_unaffected(client: TestClient) -> None:
-    case_id = _create_case(client)
+    case_id, _ = _create_case(client)
     client.post(f"/api/v1/cases/{case_id}/profile", json={"title": "Dupont c. ACME"})
 
     response = client.get(f"/api/v1/cases/{case_id}/summary")

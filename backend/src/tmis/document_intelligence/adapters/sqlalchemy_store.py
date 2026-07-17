@@ -1,7 +1,10 @@
 """Postgres-backed `DocumentStorePort` (Sprint 26 — see
-docs/151-architecture-persistance.md). Sits behind the exact same port as
-`InMemoryDocumentStore` (`tmis.document_intelligence.storage.ports.
-DocumentStorePort`) — the pipeline never knows which one it was given.
+docs/151-architecture-persistance.md), firm-scoped since ADR-DOCINT-01
+("document_intelligence" persistent & isolated slice, see
+docs/14-document-intelligence.md § Persistance & isolation multi-tenant).
+Sits behind the exact same port as `InMemoryDocumentStore`
+(`tmis.document_intelligence.storage.ports.DocumentStorePort`) — the
+pipeline never knows which one it was given.
 
 Reuses `tmis.core.db.base.Base` (the repo's single declarative base) and
 `tmis.core.db.dataclass_json` (the shared dataclass<->JSON codec used by
@@ -12,20 +15,29 @@ Versioning (see docs/09-roadmap-30-sprints.md, Sprint 26): `save()` always
 INSERTs a new row, never updates one in place. Each row is one version,
 linked to the previous one by `previous_version_id`. `get(document_id)`
 keeps the port's existing meaning — "the" record for that id — now defined
-as its latest version; `list_versions()` (not on the port, additional API
-surface used by the version-history endpoint) returns the full history.
+as its latest version, scoped to the store's own firm; `list_versions()`
+(not on the port, additional API surface used by the version-history
+endpoint) returns the full history, also scoped.
+
+`raw_bytes` — the uploaded file itself — lives in this table (`payload`
+carries everything else). Firm-scoping every read here is what closes the
+cross-tenant leak of that raw content (docs/14-document-intelligence.md §
+Points de vigilance); a `document_id` belonging to another firm resolves
+to `None`, never a row, so `raw_bytes` is never handed to the wrong
+tenant.
 """
 
 import uuid
 from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import JSON, ForeignKey, LargeBinary, String, select
+from sqlalchemy import JSON, ForeignKey, LargeBinary, String
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from tmis.core.db.base import Base
 from tmis.core.db.dataclass_json import from_json, to_json
 from tmis.core.db.session import SessionLocal
+from tmis.core.tenancy import scoped_query
 from tmis.document_intelligence.schemas.record import DocumentRecord
 
 
@@ -36,6 +48,7 @@ class DocumentRecordModel(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    firm_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
     version: Mapped[int] = mapped_column(nullable=False, default=1)
     previous_version_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("document_records.id"), default=None, nullable=True
@@ -70,15 +83,28 @@ class SQLAlchemyDocumentStore:
     types as `InMemoryDocumentStore`) on top of the repo's single sync
     SQLAlchemy engine — see `tmis.core.db.session` for why the sync engine
     is used here (the port's methods are synchronous, so the adapter must
-    be too)."""
+    be too).
 
-    def __init__(self, session_factory: Callable[[], Session] = SessionLocal) -> None:
+    Scoped to exactly one firm for its whole lifetime (ADR-DOCINT-01,
+    "document_intelligence" persistent & isolated slice, see
+    docs/14-document-intelligence.md) — mirrors `SQLAlchemyCaseStore`'s
+    "bind `firm_id` once, at construction" shape. Keeps the Sprint 26
+    `session_factory` constructor argument rather than a request-bound
+    `Session` (ADR-CASEINT-03's same reasoning applies here): this store
+    is also read and written from a Celery task that has no HTTP request
+    to borrow a `Session` from, only ever its own `firm_id`.
+    """
+
+    def __init__(
+        self, session_factory: Callable[[], Session] = SessionLocal, *, firm_id: uuid.UUID | str
+    ) -> None:
         self._session_factory = session_factory
+        self._firm_id = str(firm_id)
 
     def save(self, record: DocumentRecord) -> None:
         with self._session_factory() as session:
             latest = session.execute(
-                select(DocumentRecordModel)
+                scoped_query(DocumentRecordModel, self._firm_id)
                 .where(DocumentRecordModel.document_id == record.document_id)
                 .order_by(DocumentRecordModel.version.desc())
                 .limit(1)
@@ -86,6 +112,7 @@ class SQLAlchemyDocumentStore:
             row_fields = _record_to_row_fields(record)
             row = DocumentRecordModel(
                 document_id=record.document_id,
+                firm_id=self._firm_id,
                 version=(latest.version + 1) if latest else 1,
                 previous_version_id=latest.id if latest else None,
                 filename=record.filename,
@@ -98,7 +125,7 @@ class SQLAlchemyDocumentStore:
     def get(self, document_id: str) -> DocumentRecord | None:
         with self._session_factory() as session:
             row = session.execute(
-                select(DocumentRecordModel)
+                scoped_query(DocumentRecordModel, self._firm_id)
                 .where(DocumentRecordModel.document_id == document_id)
                 .order_by(DocumentRecordModel.version.desc())
                 .limit(1)
@@ -107,7 +134,11 @@ class SQLAlchemyDocumentStore:
 
     def list_ids(self) -> list[str]:
         with self._session_factory() as session:
-            rows = session.execute(select(DocumentRecordModel.document_id).distinct()).all()
+            rows = session.execute(
+                scoped_query(DocumentRecordModel, self._firm_id)
+                .with_only_columns(DocumentRecordModel.document_id)
+                .distinct()
+            ).all()
             return [row[0] for row in rows]
 
     def list_versions(self, document_id: str) -> list[DocumentRecord]:
@@ -117,7 +148,7 @@ class SQLAlchemyDocumentStore:
         with self._session_factory() as session:
             rows = (
                 session.execute(
-                    select(DocumentRecordModel)
+                    scoped_query(DocumentRecordModel, self._firm_id)
                     .where(DocumentRecordModel.document_id == document_id)
                     .order_by(DocumentRecordModel.version.asc())
                 )

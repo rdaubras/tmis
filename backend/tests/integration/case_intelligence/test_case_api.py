@@ -13,7 +13,10 @@ from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.case_intelligence.bootstrap import clear_case_intelligence_caches
 from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
-from tmis.document_intelligence.bootstrap import get_document_pipeline, get_document_store
+from tmis.document_intelligence.bootstrap import (
+    get_document_knowledge_graph,
+    get_document_pipeline,
+)
 from tmis.main import app
 
 _CONTRACT_TEXT = (
@@ -55,8 +58,7 @@ def _clear_singletons(tmp_path: object) -> Iterator[None]:
     core_db_session.SessionLocal.configure(bind=sync_engine)
 
     clear_case_intelligence_caches()
-    get_document_pipeline.cache_clear()
-    get_document_store.cache_clear()
+    get_document_knowledge_graph.cache_clear()
     get_kernel.cache_clear()
 
     yield
@@ -108,7 +110,7 @@ def test_get_profile_returns_404_for_a_malformed_case_id(client: TestClient) -> 
 def test_get_profile_reflects_documents_processed_for_the_case(client: TestClient) -> None:
     case_id, firm_id = _create_case(client)
     client.post(f"/api/v1/cases/{case_id}/profile", json={"title": "Dupont c. ACME"})
-    pipeline = get_document_pipeline()
+    pipeline = get_document_pipeline(firm_id)
     asyncio.run(
         pipeline.process(
             "bail.txt", "text/plain", _CONTRACT_TEXT.encode(), case_id=case_id, firm_id=firm_id
@@ -151,7 +153,7 @@ def test_soft_delete_sets_is_deleted_flag(client: TestClient) -> None:
 def test_timeline_endpoint_returns_consolidated_entries(client: TestClient) -> None:
     case_id, firm_id = _create_case(client)
     client.post(f"/api/v1/cases/{case_id}/profile", json={"title": "Dupont c. ACME"})
-    pipeline = get_document_pipeline()
+    pipeline = get_document_pipeline(firm_id)
     asyncio.run(
         pipeline.process(
             "bail.txt", "text/plain", _CONTRACT_TEXT.encode(), case_id=case_id, firm_id=firm_id
@@ -189,7 +191,7 @@ def test_summary_endpoint_returns_all_four_sections(client: TestClient) -> None:
 def test_search_endpoint_finds_indexed_facts(client: TestClient) -> None:
     case_id, firm_id = _create_case(client)
     client.post(f"/api/v1/cases/{case_id}/profile", json={"title": "Dupont c. ACME"})
-    pipeline = get_document_pipeline()
+    pipeline = get_document_pipeline(firm_id)
     asyncio.run(
         pipeline.process(
             "bail.txt", "text/plain", _CONTRACT_TEXT.encode(), case_id=case_id, firm_id=firm_id

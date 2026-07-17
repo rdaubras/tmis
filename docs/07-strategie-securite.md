@@ -240,6 +240,37 @@ ce cas) et la dette assumée (`legal_reasoning`/`tmis.agents`/`chat` sur
 le même singleton non isolé délibérément préservé que `legal_research` ;
 le graphe de relations reste volatile).
 
+**Généralisation du pattern (tranche `document_intelligence`, dernière de
+l'Axe A)** : quatrième et dernière module stateful à reprendre le
+pattern — celui qui ferme la boucle, puisque `document_intelligence` est
+l'**entrée** de toute la verticale `document → case → draft/research`.
+Écart propre à ce module : `document_records` porte `raw_bytes`, le
+fichier uploadé lui-même, pas seulement de la métadonnée dérivée — une
+fuite cross-tenant ici expose du contenu brut, la plus grave fuite
+possible de l'Axe A, ce qui fait du test "aucun octet cross-firm"
+(`tests/security/test_document_intelligence_isolation.py::
+test_firm_b_cannot_read_firm_as_raw_bytes`) le cœur de cette tranche,
+pas une formalité. `SQLAlchemyDocumentStore(firm_id=...)` exige
+désormais `firm_id` à la construction (ADR-DOCINT-01,
+docs/14-document-intelligence.md) ; la tâche Celery
+(`process_document_task`) exige elle aussi `firm_id` (sinon `ValueError`,
+"no processing without firm_id") et l'utilise pour construire son propre
+store et graphe de connaissances scopés — jamais seulement relayé à
+`case_intelligence`. Un document sans `case_id` (upload sans dossier,
+autorisé) est malgré tout estampillé au cabinet de l'uploadeur, dérivé du
+token, jamais de `case_id` — la migration `0013` (`document_records`,
+déjà peuplée) est la seule exception où `case_id → cases.firm_id` sert de
+source rétroactive, purge journalisée de toute ligne non rattachable.
+Voir docs/14-document-intelligence.md § "Persistance & isolation
+multi-tenant" pour le détail et la dette assumée (`raw_bytes` en base,
+structurellement coûteux à l'échelle mais isolé — sortie vers un stockage
+objet différée à un sprint futur ; graphe de connaissances volatile et
+non partagé entre workers Celery, comme celui de `case_intelligence`).
+Avec cette tranche, les quatre modules de l'Axe A
+(`cases`/`legal_drafting`, `legal_research`, `case_intelligence`,
+`document_intelligence`) sont tous firm-scopés à leurs points d'écriture
+et de lecture connus.
+
 **RBAC minimal** : `require_role(*roles)` / `require_scope(*scopes)`
 (`tmis.api.deps`) sont des dépendances FastAPI qui lisent le `Principal`
 déjà validé et lèvent `403` si le rôle/scope est insuffisant. Le sprint

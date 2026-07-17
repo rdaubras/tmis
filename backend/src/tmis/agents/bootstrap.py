@@ -65,27 +65,28 @@ def get_jurisprudence_agent() -> JurisprudenceAgent:
     )
 
 
-@lru_cache
-def get_contract_agent() -> ContractAgent:
-    """Process-wide `ContractAgent` singleton (Sprint 35), following the
-    same `AnalysisAgent`/`JurisprudenceAgent` composition: the shared
-    `TMISKernel`/`AIIntelligenceFabric` for its generative risk synthesis,
-    `AIGovernancePlatform` for explainability, the same `CaseStorePort` as
-    the Case Intelligence workflow, and the firm's real `ClauseEngine`
-    (Sprint 12, `tmis.cabinet_knowledge.bootstrap.get_clause_engine()`) for
-    clause risk/coverage detection. `document_store` is the shared
-    `DocumentStorePort` singleton (Sprint 37,
-    `tmis.document_intelligence.bootstrap.get_document_store()`) — the
-    same instance `get_document_pipeline()` and `Orchestrator`'s
-    `AnalysisAgent` use, rather than each composition root instantiating
-    its own `SQLAlchemyDocumentStore()`. `case_store` is
-    `get_shared_case_intelligence_workflow().case_store` for the same
-    reason as `get_jurisprudence_agent()` above (ADR-CASEINT-01,
-    docs/19-case-intelligence.md): no request, no `firm_id`.
+def get_contract_agent(
+    firm_id: uuid.UUID = Depends(get_current_firm_id),
+) -> ContractAgent:
+    """Assembled fresh on every call, scoped to the caller's `firm_id`
+    (ADR-DOCINT-01, docs/14-document-intelligence.md) — no longer the
+    Sprint 35 `lru_cache` singleton one `ContractAgent` shared by every
+    firm (see docs/151-architecture-persistance.md for that earlier
+    state). This is the accessor `GET /documents/{document_id}/analysis`
+    depends on (`tmis.api.v1.document.routes.analyze_document`), which
+    also checks the same firm-scoped `DocumentStorePort` for a `404`
+    before calling this agent — both must read the exact same store, or
+    the analysis could still resolve a document (or a
+    `compare_document_id`) belonging to another firm despite the route's
+    own check. `case_store` stays `get_shared_case_intelligence_workflow(
+    ).case_store` (ADR-CASEINT-01, docs/19-case-intelligence.md,
+    documented debt this slice does not close): the clause library,
+    `TMISKernel`/`AIIntelligenceFabric`/`AIGovernancePlatform` stay
+    process-wide singletons, unaffected by this firm-scoping.
     """
     return ContractAgent(
         kernel=get_kernel(),
-        document_store=get_document_store(),
+        document_store=get_document_store(firm_id),
         case_store=get_shared_case_intelligence_workflow().case_store,
         clause_engine=get_clause_engine(),
         fabric=get_ai_intelligence_fabric(),
@@ -143,7 +144,7 @@ def get_orchestrator(
 
     analysis_agent = AnalysisAgent(
         kernel=kernel,
-        document_store=get_document_store(),
+        document_store=get_document_store(firm_id),
         case_store=case_store,
         fabric=fabric,
         governance=governance,

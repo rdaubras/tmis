@@ -7,7 +7,6 @@ from tmis.agents.analysis_agent import AnalysisAgent
 from tmis.agents.contracts import AgentInput, AgentOutput
 from tmis.agents.synthesis_agent import SynthesisAgent
 from tmis.agents.verifier_agent import VerifierAgent
-from tmis.document_intelligence.bootstrap import get_document_store
 
 
 class OrchestratorState(TypedDict):
@@ -118,7 +117,15 @@ class Orchestrator:
         verifier_agent: VerifierAgent | None = None,
         synthesis_agent: SynthesisAgent | None = None,
     ) -> None:
-        self._analysis_agent = analysis_agent or AnalysisAgent(document_store=get_document_store())
+        # `document_store` is deliberately left to `AnalysisAgent`'s own
+        # default (`InMemoryDocumentStore`), never the real, firm-scoped
+        # `SQLAlchemyDocumentStore` (ADR-DOCINT-01, docs/14-document-
+        # intelligence.md) — this bare constructor has no `firm_id` to
+        # scope it with, and reaching for the real store without one
+        # would be exactly the cross-tenant leak that ADR closes. Only
+        # `agents.bootstrap.get_orchestrator(firm_id)` wires the real,
+        # scoped store.
+        self._analysis_agent = analysis_agent or AnalysisAgent()
         self._verifier_agent = verifier_agent or VerifierAgent()
         self._synthesis_agent = synthesis_agent or SynthesisAgent()
         self._graph = self._build_graph()

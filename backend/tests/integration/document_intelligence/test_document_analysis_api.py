@@ -27,7 +27,6 @@ import tmis.document_intelligence.adapters.sqlalchemy_store  # noqa: F401
 import tmis.legal_drafting.documents.sqlalchemy_store  # noqa: F401
 import tmis.legal_reasoning.reasoner.sqlalchemy_store  # noqa: F401
 import tmis.legal_research.history.adapters.sqlalchemy_store  # noqa: F401
-from tmis.agents.bootstrap import get_contract_agent
 from tmis.case_intelligence.bootstrap import (
     clear_case_intelligence_caches,
     get_shared_case_intelligence_workflow,
@@ -36,7 +35,7 @@ from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
 from tmis.core.tasks.celery_app import celery_app
 from tmis.core.tasks.document_tasks import process_document_task
-from tmis.document_intelligence.bootstrap import get_document_pipeline, get_document_store
+from tmis.document_intelligence.bootstrap import get_document_knowledge_graph
 from tmis.main import app
 
 _CONTRACT_TEXT = (
@@ -83,9 +82,7 @@ def _sqlite_backend(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> Iterat
     )
 
     clear_case_intelligence_caches()
-    get_document_pipeline.cache_clear()
-    get_document_store.cache_clear()
-    get_contract_agent.cache_clear()
+    get_document_knowledge_graph.cache_clear()
     from tmis.ai.kernel.bootstrap import get_kernel
 
     get_kernel.cache_clear()
@@ -100,6 +97,17 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+def _firm_id(client: TestClient) -> str:
+    """`process_document_task` now requires `firm_id` (ADR-DOCINT-01,
+    docs/14-document-intelligence.md) — every request in this file
+    carries the same default test token (see `tests/integration/
+    conftest.py`), so reading it off a throwaway `cases` row is the
+    simplest way to get it without decoding the token directly."""
+    response = client.post("/api/v1/cases", json={"title": "Dossier"})
+    assert response.status_code == 201, response.text
+    return str(response.json()["firm_id"])
+
+
 def _upload_and_process(client: TestClient, text: str, filename: str = "bail.txt") -> str:
     response = client.post(
         "/api/v1/documents/upload",
@@ -108,7 +116,7 @@ def _upload_and_process(client: TestClient, text: str, filename: str = "bail.txt
     )
     assert response.status_code == 202
     document_id: str = response.json()["document_id"]
-    process_document_task(document_id, filename, "text/plain", None)
+    process_document_task(document_id, filename, "text/plain", None, _firm_id(client))
     return document_id
 
 

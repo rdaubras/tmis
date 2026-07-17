@@ -32,7 +32,7 @@ from tmis.case_intelligence.workflow.case_workflow import CaseIntelligenceWorkfl
 from tmis.core.database import SessionLocal
 from tmis.core.logging import get_logger
 from tmis.core.tasks.celery_app import celery_app
-from tmis.document_intelligence.adapters.sqlalchemy_store import SQLAlchemyDocumentStore
+from tmis.document_intelligence.bootstrap import get_document_store
 from tmis.infrastructure.persistence.repositories import SqlAlchemyCaseRepository
 
 _LOGGER_NAME = "tmis.core.tasks.case_tasks"
@@ -65,7 +65,7 @@ def trigger_case_workflow_task(firm_id: str, case_id: str, document_id: str) -> 
         )
         return None
 
-    document_store = SQLAlchemyDocumentStore()
+    document_store = get_document_store(firm_uuid)
     record = document_store.get(document_id)
     if record is None:
         raise ValueError(f"No document record for {document_id!r}")
