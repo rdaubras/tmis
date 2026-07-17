@@ -1,6 +1,7 @@
 """Integration test for `SQLAlchemyDraftDocumentStore` against a real
 (sqlite) database — exercises the actual SQL round-trip, not a mock."""
 
+import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime
 
@@ -19,6 +20,9 @@ from tmis.legal_drafting.review.schemas import ReviewFinding, ReviewFindingType
 from tmis.legal_drafting.sections.schemas import Section
 from tmis.legal_drafting.templates.schemas import DocumentType
 
+_FIRM_ID = uuid.uuid4()
+_OTHER_FIRM_ID = uuid.uuid4()
+
 
 @pytest.fixture
 def session_factory() -> Iterator[sessionmaker[Session]]:
@@ -31,8 +35,14 @@ def session_factory() -> Iterator[sessionmaker[Session]]:
 
 
 @pytest.fixture
-def store(session_factory: sessionmaker[Session]) -> SQLAlchemyDraftDocumentStore:
-    return SQLAlchemyDraftDocumentStore(session_factory=session_factory)
+def session(session_factory: sessionmaker[Session]) -> Iterator[Session]:
+    with session_factory() as session:
+        yield session
+
+
+@pytest.fixture
+def store(session: Session) -> SQLAlchemyDraftDocumentStore:
+    return SQLAlchemyDraftDocumentStore(session, _FIRM_ID)
 
 
 def _sample_document(document_id: str, *, title: str = "Mise en demeure") -> Document:
@@ -141,3 +151,14 @@ def test_save_upserts_existing_id_in_place(store: SQLAlchemyDraftDocumentStore) 
     assert fetched is not None
     assert fetched.title == "v2"
     assert store.list_ids() == ["doc-1"]
+
+
+def test_a_document_saved_by_one_firm_is_invisible_to_another(session: Session) -> None:
+    store_a = SQLAlchemyDraftDocumentStore(session, _FIRM_ID)
+    store_b = SQLAlchemyDraftDocumentStore(session, _OTHER_FIRM_ID)
+
+    store_a.save(_sample_document("doc-1"))
+
+    assert store_b.get("doc-1") is None
+    assert store_b.list_ids() == []
+    assert store_a.list_ids() == ["doc-1"]

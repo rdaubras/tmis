@@ -1,16 +1,28 @@
+import uuid
 from collections.abc import Iterator
 
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import tmis.case_intelligence.cases.adapters.sqlalchemy_store  # noqa: F401
+import tmis.legal_drafting.documents.sqlalchemy_store  # noqa: F401
+import tmis.legal_drafting.versioning.sqlalchemy_service  # noqa: F401
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow, get_case_store
 from tmis.case_intelligence.facts.schemas import Fact
 from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
-from tmis.legal_drafting.bootstrap import get_document_orchestrator
+from tmis.legal_drafting.bootstrap import (
+    get_document_orchestrator,
+    get_draft_history,
+    get_style_engine,
+    get_style_registry,
+    get_template_registry,
+    get_validation_service,
+)
+from tmis.legal_drafting.documents.orchestrator import DocumentOrchestrator
 from tmis.legal_drafting.export.schemas import ExportFormat
 from tmis.legal_drafting.templates.schemas import DocumentType
 from tmis.legal_drafting.validation.schemas import DraftDecision
@@ -23,9 +35,11 @@ from tmis.legal_research.bootstrap import get_research_orchestrator
 # contrat de travail à durée indéterminée peut être rompu...").
 _QUESTION = "contrat de travail à durée indéterminée peut être rompu"
 
+_FIRM_ID = uuid.uuid4()
+
 
 @pytest.fixture(autouse=True)
-def _clear_singletons(tmp_path: object) -> Iterator[None]:
+def _clear_singletons(tmp_path: object) -> Iterator[Session]:
     """All bootstrap accessors are `lru_cache`d process-wide singletons;
     reset them before each test so state from one test never leaks into
     another (see docs/28-legal-drafting.md).
@@ -34,29 +48,44 @@ def _clear_singletons(tmp_path: object) -> Iterator[None]:
     docs/151-architecture-persistance.md), so point it at a throwaway
     sqlite database — same real-DB fixture pattern as `test_case_api.py`
     — instead of letting it fall through to whatever `SessionLocal` bind
-    a previous test file left behind."""
+    a previous test file left behind.
+
+    `get_document_orchestrator` is no longer an `lru_cache` singleton
+    (ADR-SLICE-02): it is assembled per request on a `Session` and a
+    `firm_id`, so tests now call it directly with both, the same way a
+    route would receive them from `Depends`."""
     sync_engine = create_engine(
         f"sqlite:///{tmp_path}/sprint43-drafting-orchestrator.db",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    core_db_base.Base.metadata.create_all(
-        sync_engine, tables=[core_db_base.Base.metadata.tables["case_profiles"]]
-    )
+    core_db_base.Base.metadata.create_all(sync_engine)
     core_db_session.SessionLocal.configure(bind=sync_engine)
 
-    get_document_orchestrator.cache_clear()
     get_reasoning_orchestrator.cache_clear()
     get_research_orchestrator.cache_clear()
     get_case_intelligence_workflow.cache_clear()
     get_case_store.cache_clear()
     get_kernel.cache_clear()
+    get_template_registry.cache_clear()
+    get_style_registry.cache_clear()
+    get_style_engine.cache_clear()
+    get_draft_history.cache_clear()
+    get_validation_service.cache_clear()
 
-    yield
+    session_factory: sessionmaker[Session] = sessionmaker(bind=sync_engine)
+    with session_factory() as session:
+        yield session
+
+
+def _orchestrator(session: Session) -> DocumentOrchestrator:
+    return get_document_orchestrator(session=session, firm_id=_FIRM_ID)
 
 
 @pytest.mark.asyncio
-async def test_create_draft_reaches_every_upstream_engine_end_to_end() -> None:
+async def test_create_draft_reaches_every_upstream_engine_end_to_end(
+    _clear_singletons: Session,
+) -> None:
     workflow = get_case_intelligence_workflow()
     profile = workflow.case_store.get_or_create("case-1", title="Dossier test")
     profile.facts.append(
@@ -69,7 +98,7 @@ async def test_create_draft_reaches_every_upstream_engine_end_to_end() -> None:
     )
     workflow.case_store.save(profile)
 
-    orchestrator = get_document_orchestrator()
+    orchestrator = _orchestrator(_clear_singletons)
     document = await orchestrator.create_draft(
         DocumentType.CONSULTATION,
         case_id="case-1",
@@ -87,8 +116,10 @@ async def test_create_draft_reaches_every_upstream_engine_end_to_end() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_draft_without_case_or_question_still_produces_boilerplate_sections() -> None:
-    orchestrator = get_document_orchestrator()
+async def test_create_draft_without_case_or_question_still_produces_boilerplate_sections(
+    _clear_singletons: Session,
+) -> None:
+    orchestrator = _orchestrator(_clear_singletons)
     document = await orchestrator.create_draft(DocumentType.NOTE_INTERNE)
 
     assert document.sections
@@ -97,8 +128,8 @@ async def test_create_draft_without_case_or_question_still_produces_boilerplate_
 
 
 @pytest.mark.asyncio
-async def test_full_lifecycle_regenerate_validate_export() -> None:
-    orchestrator = get_document_orchestrator()
+async def test_full_lifecycle_regenerate_validate_export(_clear_singletons: Session) -> None:
+    orchestrator = _orchestrator(_clear_singletons)
     document = await orchestrator.create_draft(
         DocumentType.COURRIER, question=_QUESTION, variables={"firm_name": "Cabinet Test"}
     )

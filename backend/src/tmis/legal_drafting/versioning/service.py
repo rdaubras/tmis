@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 from tmis.legal_drafting.paragraphs.schemas import Paragraph
 from tmis.legal_drafting.sections.schemas import Section
+from tmis.legal_drafting.versioning.diffing import diff_versions
 from tmis.legal_drafting.versioning.schemas import DocumentVersion, VersionDiff
 
 
@@ -54,22 +55,7 @@ class InMemoryVersioningService:
         vb = self.get(document_id, version_b)
         if va is None or vb is None:
             raise ValueError(f"Unknown version for document {document_id!r}")
-
-        texts_a = {p.id: p.text for s in va.sections for p in s.paragraphs}
-        texts_b = {p.id: p.text for s in vb.sections for p in s.paragraphs}
-
-        added = tuple(pid for pid in texts_b if pid not in texts_a)
-        removed = tuple(pid for pid in texts_a if pid not in texts_b)
-        changed = tuple(
-            pid for pid in texts_a if pid in texts_b and texts_a[pid] != texts_b[pid]
-        )
-        return VersionDiff(
-            version_a=version_a,
-            version_b=version_b,
-            added_paragraph_ids=added,
-            removed_paragraph_ids=removed,
-            changed_paragraph_ids=changed,
-        )
+        return diff_versions(va, vb)
 
     def restore(self, document_id: str, version_number: int) -> list[Section]:
         version = self.get(document_id, version_number)

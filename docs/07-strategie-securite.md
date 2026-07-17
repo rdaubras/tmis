@@ -186,6 +186,18 @@ doit utiliser pour interroger un modèle multi-tenant — il refuse
 de colonne `firm_id`. L'oubli du filtre tenant devient une erreur au
 niveau du code, pas seulement une convention de revue.
 
+**Généralisation du pattern (tranche `cases -> drafting`)** : `case`
+prouvait le pattern sur un seul modèle ; `legal_drafting.documents`
+(brouillons + versions) est le premier module stateful à le reprendre —
+store construit par requête sur `Depends(get_current_firm_id)`, chaque
+lecture/écriture via `scoped_query`, appartenance d'un dossier référencé
+vérifiée via `SqlAlchemyCaseRepository.get_by_id(case_id, firm_id)` avant
+toute création de brouillon. Voir docs/28-legal-drafting.md §
+"Persistance & isolation multi-tenant" (ADR-SLICE-01/02/03) pour le
+détail et pour la dette assumée (historique/validation/review/style
+restent en mémoire, donc partagés entre cabinets, cette tranche-ci) — les
+28 autres modules ne sont pas généralisés par ce sprint.
+
 **RBAC minimal** : `require_role(*roles)` / `require_scope(*scopes)`
 (`tmis.api.deps`) sont des dépendances FastAPI qui lisent le `Principal`
 déjà validé et lèvent `403` si le rôle/scope est insuffisant. Le sprint

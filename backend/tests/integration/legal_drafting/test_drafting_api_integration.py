@@ -1,9 +1,23 @@
+from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
+import tmis.infrastructure.persistence.models  # noqa: F401 — registers firms/users/cases
+import tmis.legal_drafting.documents.sqlalchemy_store  # noqa: F401 — registers drafting_documents
+import tmis.legal_drafting.versioning.sqlalchemy_service  # noqa: F401 — registers versions table
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
-from tmis.legal_drafting.bootstrap import get_document_orchestrator
+from tmis.core import database as core_database
+from tmis.legal_drafting.bootstrap import (
+    get_draft_history,
+    get_style_engine,
+    get_style_registry,
+    get_template_registry,
+    get_validation_service,
+)
 from tmis.legal_reasoning.bootstrap import get_reasoning_orchestrator
 from tmis.legal_research.bootstrap import get_research_orchestrator
 from tmis.main import app
@@ -12,12 +26,33 @@ _QUESTION = "contrat de travail à durée indéterminée peut être rompu"
 
 
 @pytest.fixture(autouse=True)
-def _clear_singletons() -> None:
-    get_document_orchestrator.cache_clear()
+def _clear_singletons(tmp_path: object) -> Iterator[None]:
+    """The document orchestrator itself is no longer an `lru_cache`
+    singleton (ADR-SLICE-02, docs/28-legal-drafting.md) — it is now
+    assembled per request on the request's own `Session`, scoped to the
+    caller's `firm_id`. This fixture points that shared sync engine at a
+    throwaway sqlite database (same pattern as
+    `tests/security/conftest.py`) instead of whatever `TMIS_DATABASE_URL`
+    happens to be configured to, and resets the collaborators that are
+    still process-wide singletons."""
+    engine = create_engine(
+        f"sqlite:///{tmp_path}/drafting-api.db",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    core_database.SessionLocal.configure(bind=engine)
+    core_database.Base.metadata.create_all(engine)
+
     get_reasoning_orchestrator.cache_clear()
     get_research_orchestrator.cache_clear()
     get_case_intelligence_workflow.cache_clear()
     get_kernel.cache_clear()
+    get_template_registry.cache_clear()
+    get_style_registry.cache_clear()
+    get_style_engine.cache_clear()
+    get_draft_history.cache_clear()
+    get_validation_service.cache_clear()
+    yield
 
 
 @pytest.fixture
