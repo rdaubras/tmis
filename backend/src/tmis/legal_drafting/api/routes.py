@@ -293,12 +293,16 @@ def get_history(
     document_id: str,
     orchestrator: DocumentOrchestrator = Depends(get_document_orchestrator),
 ) -> list[HistoryEntryResponse]:
+    try:
+        entries = orchestrator.history(document_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return [
         HistoryEntryResponse(
             id=e.id, document_id=e.document_id, action=e.action.value,
             author=e.author, timestamp=e.timestamp, details=e.details,
         )
-        for e in orchestrator.history(document_id)
+        for e in entries
     ]
 
 
