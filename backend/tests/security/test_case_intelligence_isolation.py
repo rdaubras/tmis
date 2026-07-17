@@ -87,13 +87,16 @@ def _publish_document_processed(**kwargs: Any) -> None:
     asyncio.run(kernel.event_bus.publish(DocumentProcessed(**kwargs)))
 
 
-def _seed_processed_document(document_id: str | None = None) -> str:
+def _seed_processed_document(
+    firm_id: uuid.UUID | str, document_id: str | None = None
+) -> str:
     """Persists a `PROCESSED` `DocumentRecord` directly through the real
-    `SQLAlchemyDocumentStore`, bypassing the upload API/Celery task —
-    the task/event isolation tests below only need a document to exist,
-    not a full pipeline run."""
+    `SQLAlchemyDocumentStore`, scoped to `firm_id` (ADR-DOCINT-01,
+    docs/14-document-intelligence.md) — bypassing the upload API/Celery
+    task, since the task/event isolation tests below only need a document
+    to exist for the right firm, not a full pipeline run."""
     document_id = document_id or str(uuid.uuid4())
-    SQLAlchemyDocumentStore().save(
+    SQLAlchemyDocumentStore(firm_id=firm_id).save(
         DocumentRecord(
             document_id=document_id,
             filename="bail.txt",
@@ -198,7 +201,7 @@ def test_trigger_case_workflow_task_rejects_a_case_owned_by_another_firm(
     firm_b = authenticated_session(email="b@example.com", firm_name="Cabinet B")
 
     case_a = _create_case(firm_a, "Dossier confidentiel A")
-    document_id = _seed_processed_document()
+    document_id = _seed_processed_document(firm_a.user.firm_id)
 
     result = trigger_case_workflow_task(str(firm_b.user.firm_id), case_a, document_id)
 
@@ -212,7 +215,7 @@ def test_trigger_case_workflow_task_for_the_owning_firm_succeeds(
 ) -> None:
     firm_a = authenticated_session(email="a@example.com", firm_name="Cabinet A")
     case_a = _create_case(firm_a, "Dossier A")
-    document_id = _seed_processed_document()
+    document_id = _seed_processed_document(firm_a.user.firm_id)
 
     result = trigger_case_workflow_task(str(firm_a.user.firm_id), case_a, document_id)
 
@@ -226,7 +229,7 @@ def test_trigger_case_workflow_task_rejects_a_malformed_case_id(
     authenticated_session: Callable[..., Any],
 ) -> None:
     firm_a = authenticated_session(email="a@example.com", firm_name="Cabinet A")
-    document_id = _seed_processed_document()
+    document_id = _seed_processed_document(firm_a.user.firm_id)
 
     result = trigger_case_workflow_task(str(firm_a.user.firm_id), "not-a-uuid", document_id)
 
@@ -245,7 +248,7 @@ def test_document_processed_event_rejects_a_case_owned_by_another_firm(
     firm_b = authenticated_session(email="b@example.com", firm_name="Cabinet B")
 
     case_a = _create_case(firm_a, "Dossier confidentiel A")
-    document_id = _seed_processed_document()
+    document_id = _seed_processed_document(firm_a.user.firm_id)
 
     _publish_document_processed(
         workflow_id=uuid.uuid4(),
@@ -264,7 +267,7 @@ def test_document_processed_event_without_firm_id_enriches_nothing(
 ) -> None:
     firm_a = authenticated_session(email="a@example.com", firm_name="Cabinet A")
     case_a = _create_case(firm_a, "Dossier A")
-    document_id = _seed_processed_document()
+    document_id = _seed_processed_document(firm_a.user.firm_id)
 
     _publish_document_processed(
         workflow_id=uuid.uuid4(),
@@ -282,7 +285,7 @@ def test_document_processed_event_for_the_owning_firm_enriches_the_case(
 ) -> None:
     firm_a = authenticated_session(email="a@example.com", firm_name="Cabinet A")
     case_a = _create_case(firm_a, "Dossier A")
-    document_id = _seed_processed_document()
+    document_id = _seed_processed_document(firm_a.user.firm_id)
 
     _publish_document_processed(
         workflow_id=uuid.uuid4(),
@@ -309,7 +312,7 @@ def test_relationship_graph_is_partitioned_per_firm(
     firm_b = authenticated_session(email="b@example.com", firm_name="Cabinet B")
 
     case_a = _create_case(firm_a, "Dossier A")
-    document_id = _seed_processed_document()
+    document_id = _seed_processed_document(firm_a.user.firm_id)
     trigger_case_workflow_task(str(firm_a.user.firm_id), case_a, document_id)
 
     graph_a = get_case_graph(firm_a.user.firm_id)

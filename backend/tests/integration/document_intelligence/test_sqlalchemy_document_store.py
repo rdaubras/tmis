@@ -1,6 +1,7 @@
 """Integration test for `SQLAlchemyDocumentStore` against a real (sqlite)
 database — exercises the actual SQL round-trip, not a mock."""
 
+import uuid
 from collections.abc import Iterator
 
 import pytest
@@ -30,9 +31,12 @@ def session_factory() -> Iterator[sessionmaker[Session]]:
     Base.metadata.drop_all(engine, tables=[Base.metadata.tables["document_records"]])
 
 
+_FIRM_ID = uuid.uuid4()
+
+
 @pytest.fixture
 def store(session_factory: sessionmaker[Session]) -> SQLAlchemyDocumentStore:
-    return SQLAlchemyDocumentStore(session_factory=session_factory)
+    return SQLAlchemyDocumentStore(session_factory=session_factory, firm_id=_FIRM_ID)
 
 
 def _sample_record(document_id: str, *, filename: str = "contrat.pdf") -> DocumentRecord:
@@ -118,3 +122,21 @@ def test_save_never_overwrites_in_place_new_version_is_a_new_row(
 
     versions = store.list_versions("doc-1")
     assert [v.filename for v in versions] == ["v1.pdf", "v2.pdf"]
+
+
+def test_a_document_saved_by_one_firm_is_invisible_to_another(
+    session_factory: sessionmaker[Session],
+) -> None:
+    """The central guarantee of ADR-DOCINT-01 (docs/14-document-
+    intelligence.md): `raw_bytes` — the uploaded file itself — must never
+    resolve for a `firm_id` that did not write it."""
+    store_a = SQLAlchemyDocumentStore(session_factory=session_factory, firm_id=uuid.uuid4())
+    store_b = SQLAlchemyDocumentStore(session_factory=session_factory, firm_id=uuid.uuid4())
+    store_a.save(_sample_record("doc-1"))
+
+    assert store_b.get("doc-1") is None
+    assert store_b.list_ids() == []
+    assert store_b.list_versions("doc-1") == []
+    fetched = store_a.get("doc-1")
+    assert fetched is not None
+    assert fetched.raw_bytes == b"%PDF-1.4 sample bytes"

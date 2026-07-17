@@ -44,7 +44,7 @@ from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
 from tmis.core.tasks.celery_app import celery_app
 from tmis.core.tasks.document_tasks import process_document_task
-from tmis.document_intelligence.bootstrap import get_document_pipeline, get_document_store
+from tmis.document_intelligence.bootstrap import get_document_knowledge_graph
 from tmis.main import app
 
 _CONTRACT_TEXT = (
@@ -81,8 +81,7 @@ def _sqlite_backend(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> Iterat
     )
 
     clear_case_intelligence_caches()
-    get_document_pipeline.cache_clear()
-    get_document_store.cache_clear()
+    get_document_knowledge_graph.cache_clear()
     from tmis.ai.kernel.bootstrap import get_kernel
 
     get_kernel.cache_clear()
@@ -142,10 +141,14 @@ def test_version_history_lists_only_the_initial_version_before_processing(
 
 
 def test_process_document_task_persists_the_next_version(client: TestClient) -> None:
+    case_response = client.post("/api/v1/cases", json={"title": "Dossier"})
+    assert case_response.status_code == 201, case_response.text
+    firm_id = str(case_response.json()["firm_id"])
+
     body = _upload(client)
     document_id = body["document_id"]
 
-    result_id = process_document_task(document_id, "bail.txt", "text/plain", None)
+    result_id = process_document_task(document_id, "bail.txt", "text/plain", None, firm_id)
 
     assert result_id == document_id
     get_response = client.get(f"/api/v1/documents/{document_id}")
@@ -182,22 +185,20 @@ def test_process_document_task_with_case_id_triggers_case_enrichment(client: Tes
     assert len(profile.document_ids) == 1
 
 
-def test_process_document_task_with_case_id_but_no_firm_id_does_not_enrich_any_case(
-    client: TestClient,
-) -> None:
-    """"No enqueue without firm_id" (T4, docs/19-case-intelligence.md):
-    a caller that never supplies `firm_id` (e.g. `document_intelligence`
-    itself is not firm-isolated — see `DocumentProcessed`'s own
-    docstring) must not silently touch case_intelligence state for
-    *some* firm — it must touch none."""
+def test_process_document_task_without_firm_id_raises(client: TestClient) -> None:
+    """ADR-DOCINT-01 (docs/14-document-intelligence.md): `firm_id` is
+    mandatory for `document_intelligence`'s own persisted/Celery path —
+    a caller that never supplies one cannot build a `DocumentStorePort`
+    at all, so this must fail loudly rather than silently process the
+    document for no tenant (the "no enqueue without firm_id" invariant
+    `trigger_case_workflow_task` separately enforces for the
+    case_intelligence side, T4, docs/19-case-intelligence.md)."""
     case_response = client.post("/api/v1/cases", json={"title": "Dossier"})
     assert case_response.status_code == 201, case_response.text
     case_id = str(case_response.json()["id"])
-    firm_id = str(case_response.json()["firm_id"])
 
     body = _upload(client, case_id=case_id)
     document_id = body["document_id"]
 
-    process_document_task(document_id, "bail.txt", "text/plain", case_id, None)
-
-    assert SQLAlchemyCaseStore(firm_id=firm_id).get(case_id) is None
+    with pytest.raises(ValueError, match="requires firm_id"):
+        process_document_task(document_id, "bail.txt", "text/plain", case_id, None)

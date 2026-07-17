@@ -107,11 +107,14 @@ class DocumentProcessed(Event):
     document_id: str
     success: bool
     case_id: str | None = None
-    # Optional (`document_intelligence` is not itself firm-isolated yet —
-    # see docs/19-case-intelligence.md, "case_intelligence" persistent &
-    # isolated slice, out-of-scope note): carried through, when the
-    # caller has it, purely so `case_intelligence`'s own event handler
-    # (ADR-CASEINT-01) can scope the resulting case enrichment to the
+    # Optional: `DocumentIntelligencePipeline.process()` stays a generic,
+    # agnostic building block (callable directly, with no tenant, e.g. in
+    # unit tests against an `InMemoryDocumentStore`), even though the
+    # persisted/Celery path always supplies it now (ADR-DOCINT-01, see
+    # docs/14-document-intelligence.md — "document_intelligence" persistent
+    # & isolated slice). Carried through, when the caller has it, so
+    # `case_intelligence`'s own event handler (ADR-CASEINT-01, docs/19-
+    # case-intelligence.md) can scope the resulting case enrichment to the
     # right cabinet instead of trusting `case_id` as a bare, unverified
     # string.
     firm_id: str | None = None

@@ -17,7 +17,8 @@ from tmis.case_intelligence.summaries.generator import CaseSummaryGenerator
 from tmis.case_intelligence.workflow.case_workflow import CaseIntelligenceWorkflow
 from tmis.core.database import SessionLocal
 from tmis.core.logging import get_logger
-from tmis.document_intelligence.bootstrap import get_document_pipeline
+from tmis.document_intelligence.bootstrap import get_document_pipeline, get_document_store
+from tmis.document_intelligence.storage.in_memory_store import InMemoryDocumentStore
 from tmis.infrastructure.persistence.repositories import SqlAlchemyCaseRepository
 
 _LOGGER_NAME = "tmis.case_intelligence.bootstrap"
@@ -103,7 +104,7 @@ def get_case_intelligence_workflow(
     calls this accessor directly with its own `firm_id`.
     """
     _register_document_processed_handler()
-    pipeline = get_document_pipeline()
+    pipeline = get_document_pipeline(firm_id)
     return CaseIntelligenceWorkflow(
         case_store=get_case_store(firm_id),
         knowledge_graph=get_case_graph(firm_id),
@@ -129,18 +130,22 @@ def get_case_intelligence_workflow(
 # scoped store), so it never reads or writes a row `get_case_
 # intelligence_workflow(firm_id)` also touches — no risk of one firm's
 # request populating what looks like a shared, cross-tenant cache.
+# `document_store` is `InMemoryDocumentStore()` for the same reason, since
+# ADR-DOCINT-01 (docs/14-document-intelligence.md): `document_intelligence`
+# no longer has an agnostic `SQLAlchemyDocumentStore` to reach for without
+# a `firm_id` — reaching for one here would reopen the very `raw_bytes`
+# leak that slice closed.
 # ----------------------------------------------------------------------
 
 
 @lru_cache
 def get_shared_case_intelligence_workflow() -> CaseIntelligenceWorkflow:
     _register_document_processed_handler()
-    pipeline = get_document_pipeline()
     return CaseIntelligenceWorkflow(
         case_store=InMemoryCaseStore(),
         knowledge_graph=InMemoryCaseGraph(),
         search_engine=CaseSearchEngine(),
-        document_store=pipeline.document_store,
+        document_store=InMemoryDocumentStore(),
         event_bus=get_kernel().event_bus,
         summary_generator=CaseSummaryGenerator(get_kernel()),
         auto_subscribe=False,
@@ -162,8 +167,12 @@ async def _handle_document_processed(event: DocumentProcessed) -> None:
     not to whichever firm happened to build the singleton first.
 
     `event.firm_id` is `None` for any `DocumentIntelligencePipeline.
-    process()` call that did not pass one (`document_intelligence` is
-    not firm-isolated yet, see `DocumentProcessed`'s own docstring) — a
+    process()` call that did not pass one — always populated by
+    `process_document_task` since ADR-DOCINT-01 (docs/14-document-
+    intelligence.md, that slice made `firm_id` mandatory for the
+    persisted/Celery path), but `pipeline.process()` itself stays a
+    generic, agnostic building block callable directly (e.g. in unit
+    tests against an `InMemoryDocumentStore`, with no tenant at all) — a
     document processed without a `firm_id` cannot be attributed to a
     cabinet, so no case is touched for it; this is the same "no enqueue
     without firm_id" invariant `trigger_case_workflow_task` enforces on
@@ -207,8 +216,8 @@ async def _handle_document_processed(event: DocumentProcessed) -> None:
         )
         return
 
-    pipeline = get_document_pipeline()
-    record = pipeline.document_store.get(event.document_id)
+    document_store = get_document_store(firm_uuid)
+    record = document_store.get(event.document_id)
     if record is None:
         return
 
@@ -216,7 +225,7 @@ async def _handle_document_processed(event: DocumentProcessed) -> None:
         case_store=get_case_store(firm_uuid),
         knowledge_graph=get_case_graph(firm_uuid),
         search_engine=get_case_search_engine(firm_uuid),
-        document_store=pipeline.document_store,
+        document_store=document_store,
         event_bus=get_kernel().event_bus,
         summary_generator=CaseSummaryGenerator(get_kernel()),
         auto_subscribe=False,

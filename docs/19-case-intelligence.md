@@ -288,9 +288,20 @@ route `/analysis` de ce module, donc **il est** firm-scopé
 du reste des routes `case_intelligence` sur le même `case_id`. Le graphe
 de relations reste volatile (perdu au redémarrage du processus) —
 persister `CaseNode`/`CaseEdge` est une décision différée (T3), pas
-oubliée. `document_intelligence` reste hors périmètre (prochaine
-conversion de l'Axe A) : `DocumentProcessed.firm_id` est une métadonnée
-additive optionnelle que ce module transporte sans être lui-même isolé.
+oubliée.
+
+> **Mise à jour ultérieure** : au moment de cette tranche,
+> `document_intelligence` restait hors périmètre — `DocumentProcessed.
+> firm_id` n'était qu'une métadonnée additive optionnelle transportée
+> sans que ce module soit lui-même isolé. La tranche `document_
+> intelligence` persistante & isolée (docs/14-document-intelligence.md §
+> "Persistance & isolation multi-tenant", ADR-DOCINT-01), dernière
+> conversion de l'Axe A, a depuis fermé ce dernier écart : `firm_id` y
+> est désormais obligatoire pour `process_document_task` et pour chaque
+> route `/documents/*`, et `SQLAlchemyDocumentStore` exige `firm_id` à la
+> construction — le paragraphe ci-dessus reste correct pour comprendre
+> l'état de cette tranche-ci ; pour l'état actuel de `document_
+> intelligence`, voir docs/14.
 
 **Règle de migration sur table déjà peuplée** (nouvelle règle du gabarit
 vertical-slice, alembic `0012_case_profiles_firm_id`) : `case_profiles`

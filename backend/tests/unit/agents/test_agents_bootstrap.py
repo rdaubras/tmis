@@ -8,7 +8,6 @@ from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.ai_fabric.bootstrap import get_ai_intelligence_fabric
 from tmis.ai_governance.bootstrap import get_ai_governance_platform
 from tmis.case_intelligence.bootstrap import clear_case_intelligence_caches
-from tmis.document_intelligence.bootstrap import get_document_store
 
 _FIRM_ID = uuid.uuid4()
 
@@ -20,13 +19,14 @@ def _clear_singletons() -> None:
     assertions never depend on what a previous test constructed first —
     same pattern as `tests/unit/document_intelligence/test_bootstrap.py`
     (Sprint 37). `get_orchestrator` is no longer one of them
-    (ADR-CASEINT-01, docs/19-case-intelligence.md) — it is assembled
-    fresh, per `firm_id`, on every call."""
+    (ADR-CASEINT-01, docs/19-case-intelligence.md), and neither is
+    `document_intelligence.bootstrap.get_document_store` (ADR-DOCINT-01,
+    docs/14-document-intelligence.md) — both are assembled fresh, per
+    `firm_id`, on every call."""
     get_kernel.cache_clear()
     get_ai_intelligence_fabric.cache_clear()
     get_ai_governance_platform.cache_clear()
     clear_case_intelligence_caches()
-    get_document_store.cache_clear()
 
 
 def test_get_orchestrator_agents_share_one_case_store_per_call() -> None:
@@ -66,10 +66,10 @@ def test_get_orchestrator_agents_share_the_governance_singleton() -> None:
     assert orchestrator._synthesis_agent._governance is governance  # noqa: SLF001
 
 
-def test_get_orchestrator_analysis_agent_shares_the_document_store_singleton() -> None:
+def test_get_orchestrator_analysis_agent_uses_the_firm_scoped_document_store() -> None:
     orchestrator = get_orchestrator(_FIRM_ID)
 
-    assert orchestrator._analysis_agent._document_store is get_document_store()  # noqa: SLF001
+    assert orchestrator._analysis_agent._document_store._firm_id == str(_FIRM_ID)  # noqa: SLF001
 
 
 def test_orchestrator_without_arguments_keeps_its_own_unshared_defaults() -> None:
