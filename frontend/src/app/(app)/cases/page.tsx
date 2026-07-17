@@ -1,11 +1,46 @@
-import { ModulePlaceholder } from "@/components/module-placeholder";
+import { listCases } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function CasesPage() {
+import { createCaseAction } from "./actions";
+
+export default async function CasesPage() {
+  const cases = await listCases();
+
   return (
-    <ModulePlaceholder
-      title="Dossiers"
-      description="Cycle de vie du dossier : parties, phases, statuts, échéances."
-      sprint={4}
-    />
+    <div className="flex flex-col gap-6">
+      <Card className="max-w-xl">
+        <CardHeader>
+          <CardTitle>Nouveau dossier</CardTitle>
+          <CardDescription>Cycle de vie du dossier : parties, phases, statuts.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={createCaseAction} className="flex gap-3">
+            <input
+              name="title"
+              required
+              placeholder="Titre du dossier"
+              className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <Button type="submit">Créer</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3">
+        {cases.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun dossier pour le moment.</p>
+        ) : (
+          cases.map((c) => (
+            <Card key={c.id}>
+              <CardHeader>
+                <CardTitle className="text-base">{c.title}</CardTitle>
+                <CardDescription>Statut : {c.status}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
   );
 }

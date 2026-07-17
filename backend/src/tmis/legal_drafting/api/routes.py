@@ -1,5 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+import uuid
 
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.orm import Session
+
+from tmis.api.deps import get_current_firm_id
+from tmis.core.database import get_db_session
+from tmis.infrastructure.persistence.repositories import SqlAlchemyCaseRepository
 from tmis.legal_drafting.api.schemas import (
     CreateDraftRequest,
     DraftCitationResponse,
@@ -21,6 +27,37 @@ from tmis.legal_drafting.templates.schemas import DocumentType
 from tmis.legal_drafting.validation.schemas import DraftDecision
 
 router = APIRouter(prefix="/legal-drafting", tags=["legal-drafting"])
+
+# Same 404 whether the case belongs to another firm, doesn't exist, or
+# isn't even a well-formed id — never confirms a cross-tenant case's
+# existence (mirrors `tmis.api.v1.case.routes.get_case`).
+_CASE_NOT_FOUND_DETAIL = "Dossier introuvable."
+
+
+def _resolve_owned_case_id(
+    case_id: str | None, firm_id: uuid.UUID, session: Session
+) -> str | None:
+    """ADR-SLICE-03 (docs/28-legal-drafting.md): a draft may only be
+    attached to a case the caller's firm actually owns. `Document.case_id`
+    is a plain string (shared with the unrelated, string-keyed
+    `case_intelligence.CaseProfile` used for drafting context/facts), while
+    the persistent, firm-scoped `cases` table keys on a `uuid.UUID` — the
+    explicit cast documented here is the resolution for that mismatch
+    (see docs/28-legal-drafting.md § points de vigilance), not a silent
+    trap. Returns the canonical string form of the owned case's id, or
+    `None` if `case_id` was `None` to begin with; raises 404 for anything
+    else that doesn't resolve to a case owned by `firm_id`.
+    """
+    if case_id is None:
+        return None
+    try:
+        case_uuid = uuid.UUID(case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=_CASE_NOT_FOUND_DETAIL) from exc
+    case = SqlAlchemyCaseRepository(session).get_by_id(case_uuid, firm_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail=_CASE_NOT_FOUND_DETAIL)
+    return str(case_uuid)
 
 
 def _to_draft_response(document: Document) -> DraftResponse:
@@ -94,12 +131,15 @@ def _parse_document_type(raw: str) -> DocumentType:
 @router.post("/drafts", response_model=DraftResponse)
 async def create_draft(
     payload: CreateDraftRequest,
+    firm_id: uuid.UUID = Depends(get_current_firm_id),
+    session: Session = Depends(get_db_session),
     orchestrator: DocumentOrchestrator = Depends(get_document_orchestrator),
 ) -> DraftResponse:
     document_type = _parse_document_type(payload.document_type)
+    case_id = _resolve_owned_case_id(payload.case_id, firm_id, session)
     document = await orchestrator.create_draft(
         document_type,
-        case_id=payload.case_id,
+        case_id=case_id,
         question=payload.question,
         reasoning_session_id=payload.reasoning_session_id,
         style_profile_id=payload.style_profile_id,

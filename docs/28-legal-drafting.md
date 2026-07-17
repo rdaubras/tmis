@@ -190,6 +190,107 @@ restauration, export), humaine ou automatique — l'historique est un
 journal d'audit, le versioning un mécanisme de restauration de
 contenu.
 
+## Persistance & isolation multi-tenant (tranche `cases -> drafting`)
+
+Le Sprint 7 stockait tout en mémoire (voir "Portée du Sprint 7"
+ci-dessous) ; la tranche verticale `cases -> drafting` fait du parcours
+`login -> dossier -> brouillon` le premier **de bout en bout** :
+persistant (survit à un redémarrage), isolé par cabinet, et consommé par
+un vrai frontend. `case` (`tmis.domain.case`, `SqlAlchemyCaseRepository`)
+était déjà la référence ; cette tranche généralise le pattern à
+`legal_drafting.documents` sans le déployer sur les autres modules
+(prochaine étape).
+
+**ADR-SLICE-01 — Une seule table de drafts, avec `firm_id`.**
+`drafting_documents` (JSON payload conservé) gagne une colonne `firm_id`
+indexée, jamais dans le payload (migration `0008`). Point d'attention
+réconcilié : la migration `0005_document_draft` porte un nom trompeur —
+son `upgrade()` créait déjà `drafting_documents` (pas une table
+`document_draft` séparée), donc il n'y avait rien à `drop_table` ; `0008`
+documente cette lecture plutôt que de fabriquer une suppression de table
+inexistante. Les versions de draft (cœur du module, voir "Versioning et
+historique") ont elles aussi leur table, `drafting_document_versions`
+(migration `0009`), scopée `firm_id` de la même façon.
+
+**ADR-SLICE-02 — Collaborateurs sans état en singleton, stores injectés
+par requête.** `legal_drafting.bootstrap.get_document_orchestrator`
+n'est plus un singleton `lru_cache` porteur d'un store partagé (grep de
+contrôle : aucun `lru_cache` ne doit envelopper un orchestrateur qui
+détient un store). Restent en singleton cachés uniquement les
+collaborateurs **sans état** : le kernel et les moteurs amont (Sprints
+4-6, inchangés), `TemplateRegistry`, `StyleProfileRegistry`,
+`StyleEngine` (données/formatage fixes, indépendants du cabinet). Le
+`SQLAlchemyDraftDocumentStore` et le `SQLAlchemyVersioningService` sont
+construits à chaque requête, adossés à la `Session` de la requête
+(`Depends(get_db_session)`) et scopés par `principal.firm_id`
+(`Depends(get_current_firm_id)`) — chaque méthode qu'ils exposent passe
+par `core.tenancy.scoped_query`, exactement comme
+`SqlAlchemyCaseRepository`. `firm_id` est fixé à la construction (pas un
+paramètre de méthode) : le port `DocumentStorePort`/`VersioningPort`
+garde sa signature d'origine, et `DocumentOrchestrator` n'a besoin
+d'aucun changement d'API publique — signal que le pattern reste aussi
+lisible que la version `case`.
+
+**Dette technique assumée (documentée, pas silencieuse) :** l'historique
+(`InMemoryDraftHistory`), la validation (`HumanInTheLoopService`), le
+Review Engine et le Style Engine restent en mémoire et **partagés entre
+cabinets** (toujours des singletons de processus). Les construire par
+requête sans les persister aurait fait disparaître leur état entre deux
+requêtes — une régression, pas un progrès — donc ils restent des
+singletons jusqu'à leur propre passage en persistance. C'est un choix
+explicite de périmètre (voir la tâche source de ce sprint), pas un oubli.
+
+**ADR-SLICE-03 — Le token est la seule source du `firm_id`, aussi côté
+draft.** `create_draft` dérive `firm_id` de `get_current_firm_id` puis,
+si `case_id` est fourni, vérifie que ce dossier appartient au cabinet
+appelant via `SqlAlchemyCaseRepository.get_by_id(case_uuid, firm_id)` —
+sinon `404` (jamais un draft rattaché au dossier d'un autre cabinet).
+Point de vigilance résolu explicitement : `Document.case_id` est une
+chaîne (partagée avec l'identifiant, non lié au cabinet, du
+`CaseProfile` de `case_intelligence` utilisé pour le contexte/les
+faits), tandis que la table `cases` référence clé sur un `uuid.UUID` —
+le cast `uuid.UUID(case_id)` est fait une fois, explicitement, dans
+`_resolve_owned_case_id` (`legal_drafting/api/routes.py`), avec un `404`
+(jamais un `500`) si le format est invalide. Les autres routes
+(`get_draft`, `.../versions`, `regenerate_*`, `restore_version`)
+n'ont besoin d'aucune vérification d'appartenance dédiée : le store
+scopé par `firm_id` garantit déjà qu'un `document_id` d'un autre cabinet
+renvoie `None` (donc `404`, ou une liste de versions vide).
+
+```mermaid
+sequenceDiagram
+    actor Avocat
+    participant FE as Frontend (Next.js)
+    participant Auth as /auth/login
+    participant API as API REST
+    participant CaseRepo as SqlAlchemyCaseRepository
+    participant Store as SQLAlchemyDraftDocumentStore
+
+    Avocat->>FE: email + mot de passe
+    FE->>Auth: POST /auth/login
+    Auth-->>FE: access_token (claims: sub, firm_id, role)
+    FE->>FE: cookie httpOnly (jamais lu par le JS client)
+    Avocat->>FE: créer un dossier
+    FE->>API: POST /cases (Authorization: Bearer)
+    API->>API: firm_id = get_current_firm_id(token)
+    API-->>FE: Case{id, firm_id}
+    Avocat->>FE: générer un brouillon pour ce dossier
+    FE->>API: POST /legal-drafting/drafts {case_id}
+    API->>CaseRepo: get_by_id(case_id, firm_id)
+    CaseRepo-->>API: Case ou None (404 si None/autre cabinet)
+    API->>Store: SQLAlchemyDraftDocumentStore(session, firm_id)
+    API-->>FE: Document (scopé firm_id)
+```
+
+Frontend (`frontend/src/`) : `lib/session.ts` porte le cookie httpOnly
+(jamais `localStorage`, jamais lu côté client — voir points de
+vigilance), `lib/api.ts` l'injecte en `Authorization: Bearer` sur
+chaque appel serveur (Server Components/Actions uniquement, aucun
+fetch depuis le navigateur). `/login`, `/cases`, `/drafting`,
+`/drafting/[id]` parlent à la vraie API ; c'est le chemin nominal
+uniquement (pas de régénération de section, pas d'export, pas de
+validation depuis l'UI ce sprint).
+
 ## Export
 
 Trois formats, chacun préservant la structure et les citations — voir
@@ -232,8 +333,11 @@ Documenté automatiquement via OpenAPI (`/openapi.json`, `/docs`).
   (`Section.paragraphs: list[Paragraph]`) supporte déjà plusieurs
   paragraphes par section pour un futur sprint.
 - Stockage en mémoire (`InMemoryDocumentStore`, historique,
-  versioning), comme les moteurs précédents ; la persistance suit le
-  même calendrier (Sprint 9, voir docs/09-roadmap-30-sprints.md).
+  versioning), comme les moteurs précédents ; **mis à jour par la
+  tranche `cases -> drafting`** — voir "Persistance & isolation
+  multi-tenant" ci-dessus : `documents`/`versioning` sont désormais
+  persistants et scopés par cabinet, `history`/`validation` restent en
+  mémoire (dette documentée).
 - Le Review Engine reste heuristique ; un moteur plus sophistiqué peut
   le remplacer derrière `ReviewEnginePort` sans toucher
   `DocumentOrchestrator`.

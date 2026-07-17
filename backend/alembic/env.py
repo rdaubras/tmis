@@ -13,6 +13,9 @@ from tmis.core.database import Base
 from tmis.document_intelligence.adapters import sqlalchemy_store as document_store  # noqa: F401
 from tmis.infrastructure.persistence import models  # noqa: F401  (registers models on Base)
 from tmis.legal_drafting.documents import sqlalchemy_store as drafting_store  # noqa: F401
+from tmis.legal_drafting.versioning import (
+    sqlalchemy_service as drafting_versioning_store,  # noqa: E501,F401
+)
 from tmis.legal_reasoning.reasoner import sqlalchemy_store as reasoning_store  # noqa: F401
 from tmis.legal_research.history.adapters import (
     sqlalchemy_store as research_history_store,  # noqa: E501,F401
