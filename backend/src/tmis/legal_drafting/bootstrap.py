@@ -86,10 +86,14 @@ def get_document_orchestrator(
     ADR-RESEARCH-02 (docs/21-legal-research.md) — this request's own
     `session`/`firm_id` are threaded through to it so a drafting-
     triggered search is isolated exactly like a direct
-    `/legal-research/search` call.
+    `/legal-research/search` call. `get_case_intelligence_workflow` is
+    itself firm-scoped since ADR-CASEINT-01 (docs/19-case-
+    intelligence.md) — this request's own `firm_id` is threaded through
+    to it the same way, so a draft's case context is isolated exactly
+    like a direct `/api/v1/cases/*` call.
     """
     kernel = get_kernel()
-    case_workflow = get_case_intelligence_workflow()
+    case_workflow = get_case_intelligence_workflow(firm_id)
     research_orchestrator = get_research_orchestrator(session=session, firm_id=firm_id)
     reasoning_orchestrator = get_reasoning_orchestrator()
 

@@ -140,6 +140,15 @@ signature publique n'a bougé. Voir
 points de câblage examinés et `docs/reports/sprint-43-rapport-architecture.md`
 pour le détail de la convergence.
 
+> **Mise à jour ultérieure** : ce `get_case_store()` process-wide, sans
+> `firm_id`, décrit l'état du Sprint 43 — un seul cabinet en pratique.
+> La tranche `case_intelligence` persistante & isolée (docs/19-case-
+> intelligence.md § "Persistance & isolation multi-tenant") l'a depuis
+> remplacé par `get_case_store(firm_id)` : il n'existe plus de
+> `SQLAlchemyCaseStore` partagé par tout le processus. Le récit
+> ci-dessus reste correct pour comprendre *pourquoi* le câblage a
+> convergé au Sprint 43 ; pour l'état actuel du câblage, voir docs/19.
+
 ## Versionning des documents
 
 `document_records` a une clé primaire de substitution (`id`, UUID) — pas

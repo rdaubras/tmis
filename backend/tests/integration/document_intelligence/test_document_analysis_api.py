@@ -28,7 +28,10 @@ import tmis.legal_drafting.documents.sqlalchemy_store  # noqa: F401
 import tmis.legal_reasoning.reasoner.sqlalchemy_store  # noqa: F401
 import tmis.legal_research.history.adapters.sqlalchemy_store  # noqa: F401
 from tmis.agents.bootstrap import get_contract_agent
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.case_intelligence.bootstrap import (
+    clear_case_intelligence_caches,
+    get_shared_case_intelligence_workflow,
+)
 from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
 from tmis.core.tasks.celery_app import celery_app
@@ -79,7 +82,7 @@ def _sqlite_backend(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> Iterat
         process_document_task, "delay", lambda *a, **kw: _FakeAsyncResult("fake-task-id")
     )
 
-    get_case_intelligence_workflow.cache_clear()
+    clear_case_intelligence_caches()
     get_document_pipeline.cache_clear()
     get_document_store.cache_clear()
     get_contract_agent.cache_clear()
@@ -205,7 +208,7 @@ def test_analysis_with_a_known_case_id(client: TestClient) -> None:
 
     document_id = _upload_and_process(client, _CONTRACT_TEXT)
     case_id = str(uuid.uuid4())
-    get_case_intelligence_workflow().case_store.get_or_create(case_id, title="Dossier ACME")
+    get_shared_case_intelligence_workflow().case_store.get_or_create(case_id, title="Dossier ACME")
 
     response = client.get(
         f"/api/v1/documents/{document_id}/analysis", params={"case_id": case_id}

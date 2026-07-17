@@ -1,18 +1,16 @@
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
 
-import tmis.case_intelligence.cases.adapters.sqlalchemy_store  # noqa: F401
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.ai.schemas.provider import ModelResponse, ProviderCapabilities
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow, get_case_store
-from tmis.core.db import base as core_db_base
-from tmis.core.db import session as core_db_session
+from tmis.case_intelligence.bootstrap import (
+    clear_case_intelligence_caches,
+    get_shared_case_intelligence_workflow,
+)
 from tmis.main import app
 
 
@@ -55,26 +53,15 @@ def _parse_sse_chunks(body: str) -> list[str]:
 
 
 @pytest.fixture(autouse=True)
-def _sqlite_case_store(tmp_path: object) -> Iterator[None]:
-    """`case_id`-scoped tests below read/write real cases through
-    `workflow.case_store`, which since Sprint 43 is a `SQLAlchemyCaseStore`
-    (see docs/151-architecture-persistance.md) instead of an in-memory
-    default — point it at a throwaway sqlite database, same real-DB
-    fixture pattern as `test_case_api.py`."""
-    sync_engine = create_engine(
-        f"sqlite:///{tmp_path}/sprint43-chat-api.db",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    core_db_base.Base.metadata.create_all(
-        sync_engine, tables=[core_db_base.Base.metadata.tables["case_profiles"]]
-    )
-    core_db_session.SessionLocal.configure(bind=sync_engine)
-
-    get_case_intelligence_workflow.cache_clear()
-    get_case_store.cache_clear()
-
-    yield
+def _clear_case_workflow_singleton() -> None:
+    """The chat route composes `get_shared_case_intelligence_workflow()`
+    (ADR-CASEINT-01, docs/19-case-intelligence.md: chat has no
+    `firm_id` to scope by, so it stays on the legacy, non-firm-scoped,
+    in-memory `CaseStorePort` — no database needed here at all, unlike
+    `test_case_api.py`'s firm-scoped, persistent `SQLAlchemyCaseStore`).
+    Reset it before each test so cases created by one test don't leak
+    into another."""
+    clear_case_intelligence_caches()
 
 
 @pytest.fixture
@@ -143,7 +130,7 @@ def test_chat_stream_with_unknown_case_id_returns_404(client: TestClient) -> Non
 
 
 def test_chat_stream_with_known_case_id_injects_it_and_streams(client: TestClient) -> None:
-    workflow = get_case_intelligence_workflow()
+    workflow = get_shared_case_intelligence_workflow()
     profile = workflow.case_store.get_or_create("case-chat-1", title="Dossier Chat")
 
     response = client.post(
@@ -236,7 +223,7 @@ def test_chat_stream_research_mode_with_a_non_uuid_case_id_still_searches(
     string ids (see `_research_agent_input`); one that doesn't parse as a
     UUID must not break research mode, it just isn't tagged onto the LRE
     history entry."""
-    workflow = get_case_intelligence_workflow()
+    workflow = get_shared_case_intelligence_workflow()
     workflow.case_store.get_or_create("case-chat-research-1", title="Dossier Recherche")
 
     response = client.post(
@@ -323,7 +310,7 @@ def test_chat_stream_jurisprudence_mode_with_no_result_still_returns_a_clean_eve
 def test_chat_stream_jurisprudence_mode_with_a_non_uuid_case_id_still_searches(
     client: TestClient,
 ) -> None:
-    workflow = get_case_intelligence_workflow()
+    workflow = get_shared_case_intelligence_workflow()
     workflow.case_store.get_or_create("case-chat-jurisprudence-1", title="Dossier Jurisprudence")
 
     response = client.post(

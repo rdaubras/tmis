@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tmis.ai.kernel.bootstrap import get_kernel
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.case_intelligence.bootstrap import clear_case_intelligence_caches
 from tmis.legal_reasoning.bootstrap import get_reasoning_orchestrator
 from tmis.legal_research.bootstrap import clear_research_caches
 from tmis.main import app
@@ -12,7 +12,7 @@ from tmis.main import app
 def _clear_singletons() -> None:
     get_reasoning_orchestrator.cache_clear()
     clear_research_caches()
-    get_case_intelligence_workflow.cache_clear()
+    clear_case_intelligence_caches()
     get_kernel.cache_clear()
 
 

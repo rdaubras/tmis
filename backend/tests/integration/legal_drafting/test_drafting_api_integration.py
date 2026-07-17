@@ -11,7 +11,7 @@ import tmis.legal_drafting.versioning.sqlalchemy_service  # noqa: F401 — regis
 import tmis.legal_research.history.adapters.sqlalchemy_store  # noqa: F401 — registers research_history_entries
 import tmis.legal_research.search.sqlalchemy_store  # noqa: F401 — registers research_searches
 from tmis.ai.kernel.bootstrap import get_kernel
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.case_intelligence.bootstrap import clear_case_intelligence_caches
 from tmis.core import database as core_database
 from tmis.legal_drafting.bootstrap import (
     get_draft_history,
@@ -47,7 +47,7 @@ def _clear_singletons(tmp_path: object) -> Iterator[None]:
 
     get_reasoning_orchestrator.cache_clear()
     clear_research_caches()
-    get_case_intelligence_workflow.cache_clear()
+    clear_case_intelligence_caches()
     get_kernel.cache_clear()
     get_template_registry.cache_clear()
     get_style_registry.cache_clear()

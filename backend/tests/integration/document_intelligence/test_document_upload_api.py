@@ -34,10 +34,11 @@ import tmis.cabinet_knowledge.knowledge.adapters.sqlalchemy_store  # noqa: F401
 import tmis.case_intelligence.cases.adapters.sqlalchemy_store  # noqa: F401
 import tmis.collaboration.workspace.adapters.sqlalchemy_store  # noqa: F401
 import tmis.document_intelligence.adapters.sqlalchemy_store  # noqa: F401
+import tmis.infrastructure.persistence.models  # noqa: F401 — registers firms/users/cases
 import tmis.legal_drafting.documents.sqlalchemy_store  # noqa: F401
 import tmis.legal_reasoning.reasoner.sqlalchemy_store  # noqa: F401
 import tmis.legal_research.history.adapters.sqlalchemy_store  # noqa: F401
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.case_intelligence.bootstrap import clear_case_intelligence_caches
 from tmis.case_intelligence.cases.adapters.sqlalchemy_store import SQLAlchemyCaseStore
 from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
@@ -79,7 +80,7 @@ def _sqlite_backend(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> Iterat
         process_document_task, "delay", lambda *a, **kw: _FakeAsyncResult("fake-task-id")
     )
 
-    get_case_intelligence_workflow.cache_clear()
+    clear_case_intelligence_caches()
     get_document_pipeline.cache_clear()
     get_document_store.cache_clear()
     from tmis.ai.kernel.bootstrap import get_kernel
@@ -159,18 +160,44 @@ def test_process_document_task_persists_the_next_version(client: TestClient) -> 
 
 
 def test_process_document_task_with_case_id_triggers_case_enrichment(client: TestClient) -> None:
-    # Note: the synchronous /api/v1/cases endpoints still read/write via
-    # `get_case_intelligence_workflow()`'s default `InMemoryCaseStore`
-    # (Sprint 4 wiring, unchanged by this sprint — see
-    # docs/151-architecture-persistance.md, "Known seam"), while the
-    # Celery-triggered path below uses `SQLAlchemyCaseStore` explicitly.
-    # So this test verifies enrichment through the same SQLAlchemy store
-    # the task itself uses, not through the in-memory-backed API.
-    body = _upload(client, case_id="case-1")
+    """`firm_id` now travels with `case_id` all the way to
+    `trigger_case_workflow_task` (ADR-CASEINT-01, docs/19-case-
+    intelligence.md) — `process_document_task` is called directly here
+    (as a Celery worker would invoke it), not through `.delay()`, so this
+    exercises the real async path end to end: `case_id` must also name a
+    real `cases` row this firm owns (ADR-CASEINT-02), so the case is
+    created through the real `/api/v1/cases` API first."""
+    case_response = client.post("/api/v1/cases", json={"title": "Dossier"})
+    assert case_response.status_code == 201, case_response.text
+    case_id = str(case_response.json()["id"])
+    firm_id = str(case_response.json()["firm_id"])
+
+    body = _upload(client, case_id=case_id)
     document_id = body["document_id"]
 
-    process_document_task(document_id, "bail.txt", "text/plain", "case-1")
+    process_document_task(document_id, "bail.txt", "text/plain", case_id, firm_id)
 
-    profile = SQLAlchemyCaseStore().get("case-1")
+    profile = SQLAlchemyCaseStore(firm_id=firm_id).get(case_id)
     assert profile is not None
     assert len(profile.document_ids) == 1
+
+
+def test_process_document_task_with_case_id_but_no_firm_id_does_not_enrich_any_case(
+    client: TestClient,
+) -> None:
+    """"No enqueue without firm_id" (T4, docs/19-case-intelligence.md):
+    a caller that never supplies `firm_id` (e.g. `document_intelligence`
+    itself is not firm-isolated — see `DocumentProcessed`'s own
+    docstring) must not silently touch case_intelligence state for
+    *some* firm — it must touch none."""
+    case_response = client.post("/api/v1/cases", json={"title": "Dossier"})
+    assert case_response.status_code == 201, case_response.text
+    case_id = str(case_response.json()["id"])
+    firm_id = str(case_response.json()["firm_id"])
+
+    body = _upload(client, case_id=case_id)
+    document_id = body["document_id"]
+
+    process_document_task(document_id, "bail.txt", "text/plain", case_id, None)
+
+    assert SQLAlchemyCaseStore(firm_id=firm_id).get(case_id) is None

@@ -1,4 +1,7 @@
+import uuid
 from functools import lru_cache
+
+from fastapi import Depends
 
 from tmis.agents.analysis_agent import AnalysisAgent
 from tmis.agents.contract_agent import ContractAgent
@@ -11,8 +14,12 @@ from tmis.agents.watch_agent import WatchAgent
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.ai_fabric.bootstrap import get_ai_intelligence_fabric
 from tmis.ai_governance.bootstrap import get_ai_governance_platform
+from tmis.api.deps import get_current_firm_id
 from tmis.cabinet_knowledge.bootstrap import get_clause_engine
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.case_intelligence.bootstrap import (
+    get_case_intelligence_workflow,
+    get_shared_case_intelligence_workflow,
+)
 from tmis.document_intelligence.bootstrap import get_document_store
 from tmis.legal_research.bootstrap import get_shared_research_orchestrator
 
@@ -41,14 +48,18 @@ def get_jurisprudence_agent() -> JurisprudenceAgent:
     agent()` (the LRE, filtered to the "jurisprudence" connector) and,
     like `AnalysisAgent`, the shared `TMISKernel`/`AIIntelligenceFabric`
     for its generative comparison step plus `AIGovernancePlatform` for
-    explainability. `CaseStorePort` is the same store the Case
-    Intelligence workflow reads/writes, so a `case_id` resolves to the
-    real `CaseProfile` rather than an agent-local store.
+    explainability. `CaseStorePort` is
+    `get_shared_case_intelligence_workflow().case_store` (ADR-CASEINT-01,
+    docs/19-case-intelligence.md) — this accessor, like `get_research_
+    agent()`, has no request to derive a `firm_id` from, so it composes
+    the same non-firm-scoped, documented-debt case store the legacy
+    `CaseIntelligenceWorkflow` singleton always used, not the firm-scoped
+    persistent one `/api/v1/cases/*` now reads and writes.
     """
     return JurisprudenceAgent(
         orchestrator=get_shared_research_orchestrator(),
         kernel=get_kernel(),
-        case_store=get_case_intelligence_workflow().case_store,
+        case_store=get_shared_case_intelligence_workflow().case_store,
         fabric=get_ai_intelligence_fabric(),
         governance=get_ai_governance_platform(),
     )
@@ -67,12 +78,15 @@ def get_contract_agent() -> ContractAgent:
     `tmis.document_intelligence.bootstrap.get_document_store()`) — the
     same instance `get_document_pipeline()` and `Orchestrator`'s
     `AnalysisAgent` use, rather than each composition root instantiating
-    its own `SQLAlchemyDocumentStore()`.
+    its own `SQLAlchemyDocumentStore()`. `case_store` is
+    `get_shared_case_intelligence_workflow().case_store` for the same
+    reason as `get_jurisprudence_agent()` above (ADR-CASEINT-01,
+    docs/19-case-intelligence.md): no request, no `firm_id`.
     """
     return ContractAgent(
         kernel=get_kernel(),
         document_store=get_document_store(),
-        case_store=get_case_intelligence_workflow().case_store,
+        case_store=get_shared_case_intelligence_workflow().case_store,
         clause_engine=get_clause_engine(),
         fabric=get_ai_intelligence_fabric(),
         governance=get_ai_governance_platform(),
@@ -100,27 +114,30 @@ def get_watch_agent() -> WatchAgent:
     )
 
 
-@lru_cache
-def get_orchestrator() -> Orchestrator:
-    """Process-wide `Orchestrator` singleton (Sprint 41), consolidating the
-    ad hoc wiring `Orchestrator.__init__` falls back to when no agent is
-    injected: that default builds its own `AnalysisAgent`, `VerifierAgent`
-    and `SynthesisAgent` each with their own private `TMISKernel`/
-    `InMemoryCaseStore`, and `fabric`/`governance` left at `None` — none of
-    it shared with the rest of this composition root, unlike
-    `get_contract_agent()`/`get_jurisprudence_agent()`/`get_watch_agent()`
-    above. This accessor builds the same three agents once, with the same
-    four singletons already used by those three: `get_kernel()`,
-    `get_case_intelligence_workflow().case_store`,
-    `get_ai_intelligence_fabric()`, `get_ai_governance_platform()` — plus
-    `get_document_store()` for `AnalysisAgent`, exactly as `Orchestrator`'s
-    own no-argument default already does. `Orchestrator()` built with no
-    arguments keeps its private, unshared default construction unchanged;
-    only callers that go through `get_orchestrator()` see the fully wired
-    version.
+def get_orchestrator(
+    firm_id: uuid.UUID = Depends(get_current_firm_id),
+) -> Orchestrator:
+    """Assembled fresh on every call, scoped to the caller's `firm_id`
+    (ADR-CASEINT-01, docs/19-case-intelligence.md) — no longer the Sprint
+    41 `lru_cache` singleton. `get_orchestrator` backs exactly one route,
+    case_intelligence's own `GET /{case_id}/analysis`
+    (`tmis.api.v1.case_intelligence.routes`), so unlike
+    `get_jurisprudence_agent()`/`get_contract_agent()` above it *is*
+    firm-scoped: that route's `_get_profile_or_404` check and this
+    orchestrator's `AnalysisAgent`/`VerifierAgent`/`SynthesisAgent` must
+    all read and write the exact same `CaseProfile` for the same
+    `case_id`, or the analysis silently stops seeing what the rest of
+    the resource just wrote (see docs/19-case-intelligence.md — non-
+    régression composition). Built on the same four collaborators as
+    before: `get_kernel()`, `get_case_intelligence_workflow(firm_id).
+    case_store`, `get_ai_intelligence_fabric()`, `get_ai_governance_
+    platform()` — plus `get_document_store()` for `AnalysisAgent`.
+    `Orchestrator()` built with no arguments keeps its private, unshared
+    default construction unchanged; only callers that go through
+    `get_orchestrator()` see the fully wired, firm-scoped version.
     """
     kernel = get_kernel()
-    case_store = get_case_intelligence_workflow().case_store
+    case_store = get_case_intelligence_workflow(firm_id).case_store
     fabric = get_ai_intelligence_fabric()
     governance = get_ai_governance_platform()
 

@@ -121,6 +121,7 @@ class DocumentIntelligencePipeline:
         document_id: str | None = None,
         source: str = "upload",
         case_id: str | None = None,
+        firm_id: str | None = None,
     ) -> DocumentRecord:
         document_id = document_id or str(uuid.uuid4())
         run_id = uuid.uuid4()
@@ -295,7 +296,11 @@ class DocumentIntelligencePipeline:
 
         await self.event_bus.publish(
             DocumentProcessed(
-                workflow_id=run_id, document_id=document_id, success=True, case_id=case_id
+                workflow_id=run_id,
+                document_id=document_id,
+                success=True,
+                case_id=case_id,
+                firm_id=firm_id,
             )
         )
         return record

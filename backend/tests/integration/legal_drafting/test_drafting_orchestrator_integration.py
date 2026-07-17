@@ -12,7 +12,10 @@ import tmis.legal_drafting.versioning.sqlalchemy_service  # noqa: F401
 import tmis.legal_research.history.adapters.sqlalchemy_store  # noqa: F401
 import tmis.legal_research.search.sqlalchemy_store  # noqa: F401
 from tmis.ai.kernel.bootstrap import get_kernel
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow, get_case_store
+from tmis.case_intelligence.bootstrap import (
+    clear_case_intelligence_caches,
+    get_case_intelligence_workflow,
+)
 from tmis.case_intelligence.facts.schemas import Fact
 from tmis.core.db import base as core_db_base
 from tmis.core.db import session as core_db_session
@@ -66,8 +69,7 @@ def _clear_singletons(tmp_path: object) -> Iterator[Session]:
 
     get_reasoning_orchestrator.cache_clear()
     clear_research_caches()
-    get_case_intelligence_workflow.cache_clear()
-    get_case_store.cache_clear()
+    clear_case_intelligence_caches()
     get_kernel.cache_clear()
     get_template_registry.cache_clear()
     get_style_registry.cache_clear()
@@ -88,7 +90,7 @@ def _orchestrator(session: Session) -> DocumentOrchestrator:
 async def test_create_draft_reaches_every_upstream_engine_end_to_end(
     _clear_singletons: Session,
 ) -> None:
-    workflow = get_case_intelligence_workflow()
+    workflow = get_case_intelligence_workflow(_FIRM_ID)
     profile = workflow.case_store.get_or_create("case-1", title="Dossier test")
     profile.facts.append(
         Fact(

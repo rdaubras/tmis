@@ -12,6 +12,15 @@ never overwrites in place (see
 `tmis.document_intelligence.adapters.sqlalchemy_store`) — the pipeline's
 own final save produces the next version of the same document, not a
 second document.
+
+`firm_id` is threaded through purely as passthrough metadata (see
+`tmis.ai.events.events.DocumentProcessed`, docs/19-case-intelligence.md):
+`document_intelligence` itself is not firm-isolated yet (a separate,
+later conversion), but the caller's `firm_id` — always available at the
+upload route, since every request already passes through the auth
+boundary — must still reach `trigger_case_workflow_task` (ADR-CASEINT-01)
+so the case_intelligence side of this async path is never entered
+without tenant context.
 """
 
 import asyncio
@@ -26,7 +35,11 @@ _LOGGER_NAME = "tmis.core.tasks.document_tasks"
 
 @celery_app.task(name="tmis.document_intelligence.process_document")  # type: ignore[untyped-decorator]
 def process_document_task(
-    document_id: str, filename: str, content_type: str, case_id: str | None = None
+    document_id: str,
+    filename: str,
+    content_type: str,
+    case_id: str | None = None,
+    firm_id: str | None = None,
 ) -> str:
     logger = get_logger(_LOGGER_NAME)
     document_store = SQLAlchemyDocumentStore()
@@ -42,13 +55,14 @@ def process_document_task(
             initial.raw_bytes,
             document_id=document_id,
             case_id=case_id,
+            firm_id=firm_id,
         )
     )
     logger.info("document_pipeline_completed", document_id=processed.document_id)
 
-    if case_id is not None:
+    if case_id is not None and firm_id is not None:
         from tmis.core.tasks.case_tasks import trigger_case_workflow_task
 
-        trigger_case_workflow_task.delay(case_id, processed.document_id)
+        trigger_case_workflow_task.delay(firm_id, case_id, processed.document_id)
 
     return processed.document_id

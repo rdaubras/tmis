@@ -28,6 +28,7 @@ from tmis.agents.bootstrap import get_contract_agent
 from tmis.agents.contract_agent import ContractAgent
 from tmis.agents.contracts import AgentInput
 from tmis.ai.schemas.agent import AgentOutput
+from tmis.api.deps import get_current_firm_id
 from tmis.api.v1.document.schemas import (
     CitationResponse,
     ContractAnalysisResponse,
@@ -74,6 +75,7 @@ def _to_analysis_response(document_id: str, output: AgentOutput) -> ContractAnal
 async def upload_document(
     file: UploadFile = File(...),
     case_id: str | None = Form(default=None),
+    firm_id: uuid.UUID = Depends(get_current_firm_id),
 ) -> DocumentUploadResponse:
     raw_bytes = await file.read()
     filename = file.filename or "unnamed"
@@ -90,7 +92,11 @@ async def upload_document(
     )
 
     task = process_document_task.delay(
-        document_id, filename, file.content_type or "application/octet-stream", case_id
+        document_id,
+        filename,
+        file.content_type or "application/octet-stream",
+        case_id,
+        str(firm_id),
     )
 
     return DocumentUploadResponse(

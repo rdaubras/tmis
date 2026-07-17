@@ -1,47 +1,30 @@
-from collections.abc import Iterator
-
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
 
-import tmis.case_intelligence.cases.adapters.sqlalchemy_store  # noqa: F401
 from tmis.ai.kernel.bootstrap import get_kernel
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow, get_case_store
+from tmis.case_intelligence.bootstrap import (
+    clear_case_intelligence_caches,
+    get_shared_case_intelligence_workflow,
+)
 from tmis.case_intelligence.facts.schemas import Fact
-from tmis.core.db import base as core_db_base
-from tmis.core.db import session as core_db_session
 from tmis.legal_reasoning.bootstrap import get_reasoning_orchestrator
 from tmis.legal_research.bootstrap import clear_research_caches
 
 
 @pytest.fixture(autouse=True)
-def _clear_singletons(tmp_path: object) -> Iterator[None]:
+def _clear_singletons() -> None:
     """All bootstrap accessors are `lru_cache`d process-wide singletons;
     reset them before each test so state from one test never leaks into
     another (see docs/25-legal-reasoning.md).
 
-    `workflow.case_store` is a `SQLAlchemyCaseStore` since Sprint 43 (see
-    docs/151-architecture-persistance.md), so point it at a throwaway
-    sqlite database — same real-DB fixture pattern as `test_case_api.py`
-    — instead of letting it fall through to whatever `SessionLocal` bind
-    a previous test file left behind."""
-    sync_engine = create_engine(
-        f"sqlite:///{tmp_path}/sprint43-reasoning-orchestrator.db",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    core_db_base.Base.metadata.create_all(
-        sync_engine, tables=[core_db_base.Base.metadata.tables["case_profiles"]]
-    )
-    core_db_session.SessionLocal.configure(bind=sync_engine)
-
+    `legal_reasoning` composes `get_shared_case_intelligence_workflow()`
+    (ADR-CASEINT-01, docs/19-case-intelligence.md) — the legacy,
+    non-firm-scoped, in-memory `CaseStorePort` — not the firm-scoped,
+    persistent `SQLAlchemyCaseStore` `/api/v1/cases/*` uses, so no
+    database setup is needed here."""
     get_reasoning_orchestrator.cache_clear()
     clear_research_caches()
-    get_case_intelligence_workflow.cache_clear()
-    get_case_store.cache_clear()
+    clear_case_intelligence_caches()
     get_kernel.cache_clear()
-
-    yield
 
 
 @pytest.mark.asyncio
@@ -60,7 +43,7 @@ async def test_reason_reaches_a_real_sprint2_connector_end_to_end() -> None:
 
 @pytest.mark.asyncio
 async def test_reason_consumes_case_facts_from_the_shared_case_intelligence_workflow() -> None:
-    workflow = get_case_intelligence_workflow()
+    workflow = get_shared_case_intelligence_workflow()
     profile = workflow.case_store.get_or_create("case-1", title="Dossier test")
     profile.facts.append(
         Fact(
