@@ -9,6 +9,8 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
+from fastapi import FastAPI
+
 import tmis.legal_drafting.documents.sqlalchemy_store  # noqa: F401 — registers drafting_documents
 import tmis.legal_drafting.versioning.sqlalchemy_service  # noqa: F401 — registers versions table
 from tmis.core.database import SessionLocal
@@ -147,6 +149,52 @@ def test_two_firms_in_the_same_process_share_no_draft_state(
 
         assert orchestrator_a.get_document(draft_a["id"]) is not None
         assert orchestrator_b.get_document(draft_a["id"]) is None
+
+
+def test_history_isolation(authenticated_session: Callable[..., Any]) -> None:
+    firm_a = authenticated_session(email="a@example.com", firm_name="Cabinet A")
+    firm_b = authenticated_session(email="b@example.com", firm_name="Cabinet B")
+
+    draft = _create_draft(firm_a)
+
+    own = firm_a.client.get(f"/api/v1/legal-drafting/drafts/{draft['id']}/history")
+    assert own.status_code == 200 and own.json()  # la création y est déjà enregistrée
+
+    leaked = firm_b.client.get(f"/api/v1/legal-drafting/drafts/{draft['id']}/history")
+    assert leaked.status_code == 404
+
+
+def _drafting_doc_get_paths(app_under_test: FastAPI, draft_id: str) -> list[str]:
+    prefix = "/api/v1/legal-drafting/drafts/{document_id}"
+    # /versions and /versions/compare are excluded: unlike every other route
+    # here they don't go through `_require_document`, but `VersioningPort`
+    # is independently firm-scoped at the persistence layer (`scoped_query`
+    # in sqlalchemy_service.py), so no content actually leaks — they return
+    # 200/[] or 422 (missing required query params) rather than 404. That's
+    # a real inconsistency, but a different, lower-severity one than the
+    # `history` leak this fix targets, and fixing it is out of scope here
+    # (see DoD: report separately, don't expand silently).
+    excluded_suffixes = ("/versions", "/versions/compare")
+    return [
+        route.path.replace("{document_id}", draft_id)
+        for route in app_under_test.routes
+        if getattr(route, "path", "").startswith(prefix)
+        and "GET" in (getattr(route, "methods", None) or set())
+        and route.path[len(prefix) :] not in excluded_suffixes
+    ]
+
+
+def test_no_drafting_get_route_leaks_across_firms(
+    authenticated_session: Callable[..., Any], app_under_test: FastAPI
+) -> None:
+    firm_a = authenticated_session(email="a@example.com", firm_name="Cabinet A")
+    firm_b = authenticated_session(email="b@example.com", firm_name="Cabinet B")
+    draft = _create_draft(firm_a)
+
+    paths = _drafting_doc_get_paths(app_under_test, draft["id"])
+    assert paths, "le walk de routes ne doit pas être vide"
+    for path in paths:
+        assert firm_b.client.get(path).status_code == 404, f"{path} fuit cross-firm"
 
 
 def test_draft_persists_across_a_brand_new_session_and_store_instance(

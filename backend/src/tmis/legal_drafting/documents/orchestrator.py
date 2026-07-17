@@ -516,6 +516,7 @@ class DocumentOrchestrator:
         return self._require_document(document_id).review_findings
 
     def history(self, document_id: str) -> list[DraftHistoryEntry]:
+        self._require_document(document_id)
         return self._history.list_for_document(document_id)
 
     # ------------------------------------------------------------------
