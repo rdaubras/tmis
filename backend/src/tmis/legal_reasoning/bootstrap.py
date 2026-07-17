@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from tmis.ai.kernel.bootstrap import get_kernel
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.case_intelligence.bootstrap import get_shared_case_intelligence_workflow
 from tmis.legal_reasoning.reasoner.adapters import CaseIntelligenceCaseAdapter, LegalResearchAdapter
 from tmis.legal_reasoning.reasoner.orchestrator import ReasoningOrchestrator
 from tmis.legal_research.bootstrap import get_shared_research_orchestrator
@@ -15,15 +15,17 @@ def get_reasoning_orchestrator() -> ReasoningOrchestrator:
     `ResearchOrchestrator` (Sprint 5) — the LRE² never re-implements case
     analysis or documentary search, it composes what already exists.
 
-    Uses `get_shared_research_orchestrator`, not the firm-scoped
-    `get_research_orchestrator` (ADR-RESEARCH-02,
-    docs/21-legal-research.md): this accessor has no request to derive a
-    `firm_id`/`Session` from, and `legal_reasoning` itself has not been
+    Uses `get_shared_research_orchestrator` and
+    `get_shared_case_intelligence_workflow`, not the firm-scoped
+    `get_research_orchestrator`/`get_case_intelligence_workflow`
+    (ADR-RESEARCH-02, docs/21-legal-research.md; ADR-CASEINT-01,
+    docs/19-case-intelligence.md): this accessor has no request to derive
+    a `firm_id`/`Session` from, and `legal_reasoning` itself has not been
     through its own firm-isolation pass yet — giving it a fabricated
     `firm_id` here would look isolated without being isolated.
     """
     kernel = get_kernel()
-    case_workflow = get_case_intelligence_workflow()
+    case_workflow = get_shared_case_intelligence_workflow()
     research_orchestrator = get_shared_research_orchestrator()
 
     return ReasoningOrchestrator(

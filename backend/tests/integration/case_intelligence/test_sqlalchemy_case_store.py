@@ -1,6 +1,7 @@
 """Integration test for `SQLAlchemyCaseStore` against a real (sqlite)
 database — exercises the actual SQL round-trip, not a mock."""
 
+import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime
 
@@ -19,6 +20,9 @@ from tmis.case_intelligence.issues.schemas import IssueStatus, LegalIssue
 from tmis.case_intelligence.timeline.schemas import CaseTimelineEntry, TimelineInconsistency
 from tmis.core.db.base import Base
 
+_FIRM_ID = uuid.uuid4()
+_OTHER_FIRM_ID = uuid.uuid4()
+
 
 @pytest.fixture
 def session_factory() -> Iterator[sessionmaker[Session]]:
@@ -32,7 +36,7 @@ def session_factory() -> Iterator[sessionmaker[Session]]:
 
 @pytest.fixture
 def store(session_factory: sessionmaker[Session]) -> SQLAlchemyCaseStore:
-    return SQLAlchemyCaseStore(session_factory=session_factory)
+    return SQLAlchemyCaseStore(session_factory=session_factory, firm_id=_FIRM_ID)
 
 
 def _sample_profile(case_id: str, *, title: str = "Dupont c. Martin") -> CaseProfile:
@@ -154,3 +158,16 @@ def test_resaving_existing_case_id_overwrites_rather_than_duplicates(
     assert fetched is not None
     assert fetched.title == "Updated Title"
     assert store.list_ids() == ["case-1"]
+
+
+def test_a_profile_saved_by_one_firm_is_invisible_to_another(
+    session_factory: sessionmaker[Session],
+) -> None:
+    store_a = SQLAlchemyCaseStore(session_factory=session_factory, firm_id=_FIRM_ID)
+    store_b = SQLAlchemyCaseStore(session_factory=session_factory, firm_id=_OTHER_FIRM_ID)
+
+    store_a.save(_sample_profile("case-1"))
+
+    assert store_b.get("case-1") is None
+    assert store_b.list_ids() == []
+    assert store_a.get("case-1") is not None

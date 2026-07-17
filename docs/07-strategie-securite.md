@@ -217,6 +217,29 @@ non isolé délibérément préservé — leur propre passage à l'isolation est
 un chantier séparé ; les métriques d'`evaluation` restent elles aussi
 non scopées, hors périmètre — voir l'Axe B de la roadmap).
 
+**Généralisation du pattern (tranche `case_intelligence`)** : troisième
+module stateful à reprendre le pattern, avec un écart propre que ni
+`cases -> drafting` ni `legal_research` n'avaient : faire traverser
+`firm_id` **hors de la requête HTTP**. `CaseProfile` a trois points
+d'écriture — une route web, une tâche Celery
+(`trigger_case_workflow_task`) et un handler d'événement de domaine
+(`DocumentProcessed`) — et seul le premier passait par une requête avant
+cette tranche. `firm_id` est désormais un argument obligatoire de la
+tâche et un champ de l'événement, vérifié contre le dossier propriétaire
+(`SqlAlchemyCaseRepository.get_by_id`) aux trois points d'entrée, pas
+seulement à la frontière web (ADR-CASEINT-01/02) — un test dédié invoque
+la tâche et publie l'événement directement, sans passer par HTTP, pour
+le prouver (`tests/security/test_case_intelligence_isolation.py`,
+`test_trigger_case_workflow_task_rejects_a_case_owned_by_another_firm`,
+`test_document_processed_event_rejects_a_case_owned_by_another_firm`) :
+une suite qui ne testerait que les routes passerait au vert même si ce
+chemin async fuyait encore. Voir docs/19-case-intelligence.md §
+"Persistance & isolation multi-tenant" pour le détail, la règle de
+migration two-step sur une table déjà peuplée (première du gabarit dans
+ce cas) et la dette assumée (`legal_reasoning`/`tmis.agents`/`chat` sur
+le même singleton non isolé délibérément préservé que `legal_research` ;
+le graphe de relations reste volatile).
+
 **RBAC minimal** : `require_role(*roles)` / `require_scope(*scopes)`
 (`tmis.api.deps`) sont des dépendances FastAPI qui lisent le `Principal`
 déjà validé et lèvent `403` si le rôle/scope est insuffisant. Le sprint

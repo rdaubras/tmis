@@ -177,17 +177,156 @@ Chaque étape émet aussi un log structuré
 (`case_intelligence_step_completed` / `_failed`) avec le `case_id` et la
 durée.
 
+## Persistance & isolation multi-tenant (tranche `case_intelligence`)
+
+Sprint 43 rendait `CaseProfile` persistant (`SQLAlchemyCaseStore`,
+`case_profiles`) mais pas isolé : un `firm_id`, oui, mais surtout
+**trois points d'entrée** écrivant le même profil de dossier — une
+route web, une tâche Celery (`trigger_case_workflow_task`) et un
+handler d'événement de domaine (`DocumentProcessed`) — et un seul
+d'entre eux passait par une requête HTTP. Cette tranche généralise à
+`case_intelligence` le pattern déjà prouvé sur `cases -> drafting`
+(ADR-SLICE-01/02/03, docs/28-legal-drafting.md) et `legal_research`
+(ADR-RESEARCH-01/02, docs/21-legal-research.md), avec un écart propre à
+ce module : faire traverser `firm_id` **hors de la requête HTTP**, une
+première dans cette roadmap.
+
+**ADR-CASEINT-01 — Le `firm_id` traverse les trois points d'entrée.**
+`SQLAlchemyCaseStore` exige `firm_id` à la construction (comme
+`ResearchCache`) ; il n'existe plus de `SQLAlchemyCaseStore` agnostique
+— `case_intelligence.bootstrap.get_case_store()` est devenu `get_case_
+store(firm_id)`. La tâche Celery (`trigger_case_workflow_task(firm_id,
+case_id, document_id)`) et l'événement déclencheur
+(`DocumentProcessed.firm_id`, propagé par `DocumentIntelligencePipeline.
+process(firm_id=...)` et `process_document_task`) portent désormais
+`firm_id` en plus de `case_id`. Toute lecture/écriture de profil est
+scopée ; un événement ou une tâche sans `firm_id` est rejeté et journalisé
+(`case_workflow_event_rejected_no_firm_id`), jamais traité pour un
+cabinet devinable.
+
+**ADR-CASEINT-02 — Réconciliation avec l'entité `cases` isolée.**
+`case_id` n'est plus un identifiant libre : c'est l'id d'un dossier
+**existant du cabinet appelant**. Les trois points d'entrée vérifient
+l'appartenance via le repo `cases` déjà firm-scopé
+(`SqlAlchemyCaseRepository.get_by_id(case_id, firm_id)`) avant toute
+création ou lecture de profil — `404` côté web
+(`api/v1/case_intelligence/routes.py::_resolve_owned_case_id`, même
+forme que `legal_drafting`/`legal_research`), rejet journalisé côté
+tâche/événement. Un `case_id` qui ne résout à aucun dossier du cabinet
+(malformé, inexistant, ou appartenant à un autre cabinet) ne crée
+jamais de profil.
+
+**ADR-CASEINT-03 — Ne pas copier aveuglément le pattern `research`.**
+`research`/`drafting` injectent la **session de la requête** dans leurs
+stores. `SQLAlchemyCaseStore` garde au contraire le `session_factory`
+du Sprint 43 (`SQLAlchemyCaseStore(session_factory, *, firm_id)`) : la
+tâche Celery et le handler d'événement n'ont pas de requête HTTP dont
+emprunter une `Session` — seulement leur propre `firm_id`. Chaque
+méthode continue d'ouvrir et fermer sa propre session, exactement comme
+avant cette tranche.
+
+**Fin du singleton porteur d'état.** `get_case_intelligence_workflow()`
+n'est plus un singleton `lru_cache` partagé par tout le processus et
+abonné à l'`EventBus` dès sa construction. `get_case_intelligence_
+workflow(firm_id)` assemble un `CaseIntelligenceWorkflow` jetable à
+chaque appel, scopé au `firm_id` appelant ; l'abonnement à
+`DocumentProcessed` est désormais un handler autonome
+(`_handle_document_processed`), enregistré une seule fois sur
+l'`EventBus` du Kernel partagé (`_register_document_processed_handler`,
+motif déjà utilisé par `legal_research.bootstrap.get_search_engine`
+pour l'enregistrement des connecteurs), qui résout `firm_id`/`case_id`
+**depuis l'événement lui-même** plutôt que depuis un état fixé à la
+construction — un même processus peut ainsi traiter des documents de
+plusieurs cabinets sans qu'aucun ne voie l'état d'un autre.
+
+`relationships.CaseGraphPort` (T3) et `search.CaseSearchEngine` sont
+tous deux partitionnés par `firm_id` via `get_case_graph(firm_id)`/
+`get_case_search_engine(firm_id)`, deux accesseurs `lru_cache` keyés par
+`firm_id` : contrairement au store (état en base, une instance jetable
+par appel suffit), le graphe et l'index de recherche gardent leur état
+**dans l'objet Python lui-même** (adjacence en mémoire pour l'un, un
+`InMemoryVectorIndex` frais par instance pour l'autre) — une instance
+jetable par appel leur ferait tout oublier entre deux requêtes. Un seul
+graphe/index par cabinet, jamais un graphe global partagé.
+
+```mermaid
+sequenceDiagram
+    actor Avocat
+    participant API as API REST
+    participant Task as trigger_case_workflow_task (Celery)
+    participant Bus as EventBus (partagé)
+    participant CaseRepo as SqlAlchemyCaseRepository
+    participant Store as SQLAlchemyCaseStore (par firm_id)
+
+    Avocat->>API: POST /cases/{case_id}/profile (Authorization: Bearer)
+    API->>API: firm_id = principal du token
+    API->>CaseRepo: get_by_id(case_id, firm_id) ou 404
+    API->>Store: get_case_store(firm_id).get_or_create(...)
+
+    Note over Task,Bus: Chemin async — le vrai piège
+    Task->>CaseRepo: get_by_id(case_id, firm_id) ou rejet journalisé
+    Task->>Store: get_case_store(firm_id).ingest_document(...)
+    Bus->>Bus: DocumentProcessed(case_id, firm_id)
+    Bus->>CaseRepo: get_by_id(case_id, firm_id) ou rejet journalisé
+    Bus->>Store: get_case_store(firm_id).ingest_document(...)
+```
+
+**Dette technique assumée (documentée, pas silencieuse) :**
+`legal_reasoning`, les accesseurs `tmis.agents` sans requête
+(`get_jurisprudence_agent`, `get_contract_agent`) et `tmis.api.v1.chat.
+routes` composent `CaseIntelligenceWorkflow` en dehors de toute requête
+HTTP avec un `firm_id` résolvable — ils continuent d'utiliser `case_
+intelligence.bootstrap.get_shared_case_intelligence_workflow()`, un
+singleton `lru_cache` préservé délibérément (`InMemoryCaseStore`/
+`InMemoryCaseGraph`, jamais les stores firm-scopés) : leur propre passage
+à l'isolation par cabinet est un chantier séparé, plus large, que cette
+tranche n'entreprend pas — même position que `legal_research` sur
+`legal_reasoning`/`tmis.agents` (voir docs/21-legal-research.md).
+`agents.bootstrap.get_orchestrator` fait exception : il ne sert que la
+route `/analysis` de ce module, donc **il est** firm-scopé
+(`get_orchestrator(firm_id)`), pour ne jamais désynchroniser l'analyse
+du reste des routes `case_intelligence` sur le même `case_id`. Le graphe
+de relations reste volatile (perdu au redémarrage du processus) —
+persister `CaseNode`/`CaseEdge` est une décision différée (T3), pas
+oubliée. `document_intelligence` reste hors périmètre (prochaine
+conversion de l'Axe A) : `DocumentProcessed.firm_id` est une métadonnée
+additive optionnelle que ce module transporte sans être lui-même isolé.
+
+**Règle de migration sur table déjà peuplée** (nouvelle règle du gabarit
+vertical-slice, alembic `0012_case_profiles_firm_id`) : `case_profiles`
+est le premier module de ce gabarit dont la table contient déjà des
+lignes réelles au moment d'ajouter `firm_id` — un `ADD COLUMN firm_id
+NOT NULL` nu y échouerait, et même s'il réussissait, chaque ligne
+existante a besoin d'un vrai `firm_id`, pas d'une valeur inventée.
+Migration en trois temps : colonne `nullable=True` ; rétro-remplissage
+en dérivant le `firm_id` de chaque ligne depuis la ligne `cases` que son
+`case_id` nomme (`cases.firm_id` — `cases` est déjà firm-scopée) ; une
+ligne dont le `case_id` ne résout à aucune ligne `cases` (id malformé,
+dossier depuis supprimé) est journalisée puis purgée plutôt que laissée
+avec un `firm_id` nul ou deviné ; colonne repassée `nullable=False` +
+index. Le passage à `nullable=False` utilise `op.batch_alter_table`, pas
+un `op.alter_column` nu : SQLite n'a pas d'`ALTER COLUMN ... SET NOT
+NULL`, et le mode batch est un no-op inoffensif sur Postgres — la seule
+forme qui fonctionne sur les deux moteurs que ce dépôt cible. Voir
+`tests/integration/case_intelligence/test_migration_case_profiles_firm_id.py`
+pour la vérification `upgrade`/`downgrade` sur une base déjà peuplée
+(lignes possédées, orphelines par id malformé, orphelines par id bien
+formé mais sans dossier propriétaire). Cette recette devient la règle
+standard du gabarit pour toute future table déjà peuplée qui gagne
+`firm_id`.
+
 ## API REST
 
 | Méthode | Route | Rôle |
 |---|---|---|
-| `POST` | `/api/v1/cases/{case_id}/profile` | Création explicite du profil enrichi |
-| `GET` | `/api/v1/cases/{case_id}/profile` | Consultation (404 si non créé) |
+| `POST` | `/api/v1/cases/{case_id}/profile` | Création explicite du profil enrichi (`case_id` doit nommer un dossier possédé par le cabinet appelant, sinon `404`) |
+| `GET` | `/api/v1/cases/{case_id}/profile` | Consultation (404 si non créé ou non possédé) |
 | `PATCH` | `/api/v1/cases/{case_id}/profile` | Mise à jour (ex. titre) |
 | `DELETE` | `/api/v1/cases/{case_id}/profile` | Suppression logique (`is_deleted`) |
 | `GET` | `/api/v1/cases/{case_id}/timeline` | Chronologie consolidée |
 | `GET` | `/api/v1/cases/{case_id}/summary` | Résumé (exécutif, chronologique, documentaire, points ouverts) |
 | `GET` | `/api/v1/cases/{case_id}/search?q=` | Recherche unifiée |
+| `GET` | `/api/v1/cases/{case_id}/analysis?document_id=` | Analyse complète via `agents.Orchestrator` (firm-scopé) |
 
 Documenté automatiquement via OpenAPI (`/openapi.json`, `/docs`). La
 création d'un dossier au sens administratif (`firm_id`, titre, statut
@@ -195,15 +334,18 @@ facturable) reste `POST /api/v1/cases` (Sprint 1,
 `tmis.domain.case`) — le profil CIE est la couche d'enrichissement,
 voir le docstring de `tmis.case_intelligence.cases`.
 
-## Portée du Sprint 4
+## Portée du Sprint 4 (historique)
 
 - Aucune rédaction juridique avancée : le CIE comprend et structure le
   dossier, il ne produit pas encore de brouillon de conclusions ou de
   consultation (Sprint 18 et suivants, voir
   docs/09-roadmap-30-sprints.md).
-- Stockage en mémoire (`InMemoryCaseStore`), comme le DIE en Sprint 3 ;
-  la persistance SQLAlchemy suit le même calendrier que
-  `DocumentRecord` (Sprint 6-7).
+- Stockage en mémoire (`InMemoryCaseStore`) à l'origine ; la tranche
+  persistante & isolée `case_intelligence` (voir ci-dessus) l'a
+  remplacé par `SQLAlchemyCaseStore` en production —
+  `InMemoryCaseStore` reste utilisé pour les tests unitaires et la
+  composition partagée non isolée (`legal_reasoning`, `tmis.agents`,
+  `chat`).
 - La détection de questions juridiques reste heuristique
   (incohérences temporelles, faits contestés) ; un détecteur plus
   sophistiqué (règles métier, ou appelant `TMISKernel.complete()`) peut

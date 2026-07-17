@@ -14,7 +14,7 @@ from tmis.ai.guardrails.exceptions import GuardrailViolation
 from tmis.ai.kernel.bootstrap import get_kernel
 from tmis.ai.kernel.kernel import TMISKernel
 from tmis.api.v1.chat.schemas import ChatMessageRequest
-from tmis.case_intelligence.bootstrap import get_case_intelligence_workflow
+from tmis.case_intelligence.bootstrap import get_shared_case_intelligence_workflow
 from tmis.case_intelligence.workflow.case_workflow import CaseIntelligenceWorkflow
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -113,7 +113,7 @@ async def _run_single_shot_agent_mode(
 async def stream_chat(
     payload: ChatMessageRequest,
     kernel: TMISKernel = Depends(get_kernel),
-    workflow: CaseIntelligenceWorkflow = Depends(get_case_intelligence_workflow),
+    workflow: CaseIntelligenceWorkflow = Depends(get_shared_case_intelligence_workflow),
     research_agent: ResearchAgent = Depends(get_research_agent),
     jurisprudence_agent: JurisprudenceAgent = Depends(get_jurisprudence_agent),
 ) -> StreamingResponse:
