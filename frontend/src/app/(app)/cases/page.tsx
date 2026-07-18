@@ -1,6 +1,10 @@
+import Link from "next/link";
+import { Folder } from "lucide-react";
+
 import { listCases } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 
 import { createCaseAction } from "./actions";
 
@@ -29,15 +33,21 @@ export default async function CasesPage() {
 
       <div className="grid gap-3">
         {cases.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun dossier pour le moment.</p>
+          <EmptyState
+            icon={Folder}
+            title="Aucun dossier pour le moment"
+            description="Créez votre premier dossier pour commencer à travailler."
+          />
         ) : (
           cases.map((c) => (
-            <Card key={c.id}>
-              <CardHeader>
-                <CardTitle className="text-base">{c.title}</CardTitle>
-                <CardDescription>Statut : {c.status}</CardDescription>
-              </CardHeader>
-            </Card>
+            <Link key={c.id} href={`/cases/${c.id}`}>
+              <Card className="transition-colors hover:bg-accent/50">
+                <CardHeader>
+                  <CardTitle className="text-base">{c.title}</CardTitle>
+                  <CardDescription>Statut : {c.status}</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
           ))
         )}
       </div>
