@@ -16,7 +16,13 @@ seconde : une nouvelle migration s'ajoute toujours à cette même chaîne.
    ce dépôt sont écrites à la main, jamais générées par
    `alembic revision --autogenerate` (qui exigerait une base réelle déjà
    à jour) — mais elles doivent rester le miroir exact des `mapped_column`
-   du modèle.
+   du modèle. Seule exception à ce jour : `0000_base_identity` (`firms`/
+   `users`/`cases`, correctif SEC/DB-01), dont les colonnes `Enum` Postgres
+   ont été obtenues via `--autogenerate` contre une base réelle déjà à
+   `0013`, puis élaguées pour ne garder que ces trois tables — précisément
+   pour éviter d'écrire les types ENUM à la main et diverger de ce que
+   `create_all` génère. Repartez de cette méthode si une future migration
+   introduit elle aussi une colonne `Enum` Python.
 2. Le module du modèle doit être importé dans `backend/alembic/env.py`
    (liste d'imports en tête de fichier, un par domaine) pour que
    `Base.metadata` le connaisse — nécessaire seulement si vous voulez un
@@ -30,7 +36,7 @@ seconde : une nouvelle migration s'ajoute toujours à cette même chaîne.
 2. `revision` = le nom du fichier sans l'extension (ex.
    `"0008_mon_domaine"`). `down_revision` = la `revision` de la migration
    précédente dans la chaîne (vérifiez avec `alembic history`, voir plus
-   bas) — jamais `None` sauf pour `0001_document_record`, la racine de la
+   bas) — jamais `None` sauf pour `0000_base_identity`, la racine de la
    chaîne.
 3. `upgrade()` : `op.create_table(...)` avec exactement les colonnes du
    modèle (mêmes noms, mêmes types, mêmes contraintes). Utilisez
@@ -74,3 +80,15 @@ limité à sa seule table) — ces tests n'exécutent pas les migrations
 elles-mêmes, ils valident le modèle. La vérification de la chaîne
 Alembic complète (ci-dessus) est un contrôle séparé, à refaire à chaque
 migration ajoutée.
+
+`backend/tests/integration/test_schema_parity.py` fait ce contrôle en
+continu, en CI : il exécute la chaîne Alembic complète sur une base
+vierge et compare le jeu de tables (et de colonnes) obtenu à
+`Base.metadata.tables`. Si vous ajoutez un modèle sans lui écrire de
+migration (ou une migration `create_table` sans modèle correspondant),
+ce test échoue — c'est le garde-fou qui a motivé le correctif SEC/DB-01
+(`0000_base_identity`), voir docs/151-architecture-persistance.md. Si
+votre nouveau module de modèle vit dans un fichier que `backend/alembic/
+env.py` n'importe pas encore, ajoutez-y l'import (même règle que le
+point 2 ci-dessus) **et** dans `test_schema_parity.py`, sinon
+`Base.metadata` ne le verra pas et le test ne pourra pas le comparer.

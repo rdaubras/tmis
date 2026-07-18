@@ -162,8 +162,29 @@ renvoie tout l'historique, du plus ancien au plus récent.
 ## Migrations
 
 Voir `docs/152-guide-migrations.md`. Une migration par domaine, chaînée
-linéairement (`0001_document_record` → ... → `0007_knowledge_object`),
-jamais une migration fourre-tout.
+linéairement (`0000_base_identity` → `0001_document_record` → ... →
+`0013_document_records_firm_id`), jamais une migration fourre-tout.
+
+**La chaîne est autoportante** (correctif SEC/DB-01) : `0000_base_
+identity`, la racine de la chaîne (`down_revision = None`), crée
+`firms`/`users`/`cases` — les trois tables que `tmis.infrastructure.
+persistence.models` déclare mais qu'aucune migration ne créait avant ce
+correctif (elles n'existaient que via `Base.metadata.create_all()` dans
+les tests). `alembic upgrade head` sur une base vierge suffit désormais à
+obtenir un schéma complet et utilisable ; les backfills `0012`/`0013`
+(qui dérivent un `firm_id` depuis `cases`) trouvent leurs fondations dès
+le départ, sans purger de lignes faute de table `cases`.
+
+La parité modèles ORM ↔ migrations est testée : `backend/tests/
+integration/test_schema_parity.py` fait tourner la chaîne Alembic
+complète sur une base vierge et compare l'ensemble des tables (et, par
+table, l'ensemble des colonnes) obtenu à `Base.metadata.tables`. Tout
+modèle sans migration correspondante (ou l'inverse) fait échouer ce test
+— voir le docstring du fichier pour le détail, y compris un écart
+préexistant et hors périmètre de ce correctif qu'il révèle
+(`alembic/env.py` n'importe pas `tmis.legal_research.search.
+sqlalchemy_store`, donc `--autogenerate` seul ne verrait pas
+`research_searches`).
 
 ## `DocumentStorePort` désormais partagé (Sprint 37)
 
