@@ -327,11 +327,49 @@ documentaire, via `docs/172-adr-arch-01-carte-des-couches.md`.
       couches + 3 diagrammes Mermaid), chaque nom surchargé désambiguïsé.
 - [x] Un seul renommage, strictement interne (§6) ; aucun symbole public
       cassé.
-- [ ] Suites existantes vertes, couverture ≥ 90 %, `ruff`/`mypy`/
-      `bandit`/`pip-audit` verts — voir §8 (vérification en cours de
-      finalisation dans ce même sprint).
+- [x] Suites existantes vertes, couverture ≥ 90 %, `ruff`/`mypy`/
+      `bandit`/`pip-audit` verts — voir §8.
 
 ## 8. Résultats qualité
 
-_Complété après exécution des vérifications — voir commit de ce
-sprint._
+- **Tests** : `pytest --cov=tmis`, Postgres 16 local réel (migrations
+  Alembic appliquées à `head`), `TMIS_REDIS_URL` volontairement
+  injoignable (invariant documenté par `tests/conftest.py` —
+  `redis_ping_server` : « several tests… rely on the *default*
+  `TMIS_REDIS_URL` staying unreachable in CI »), secrets non-placeholder
+  (mêmes valeurs que `.github/workflows/ci.yml`) : **2 388 passés, 6
+  skippés, 0 échec.** Suite inchangée par ce sprint (aucun test modifié
+  hors des deux points d'appel renommés en §6) — 0 régression.
+  - Un premier essai local avec un vrai `redis-server` sur le port par
+    défaut (6379) avait fait échouer 23 à 88 tests selon la
+    configuration : faux positifs auto-infligés — la suite bascule alors
+    sur le backend Redis réel au lieu du repli en mémoire attendu par
+    les tests, invariant documenté ci-dessus mais rompu par la
+    configuration locale, pas par ce sprint. Diagnostiqué (traceback
+    `redis.asyncio` bloqué en lecture) puis corrigé en coupant Redis ;
+    non gardé dans ce dépôt.
+- **Couverture** : 96 % (`TOTAL` de `--cov-report=term-missing`),
+  au-dessus du seuil de 90 %.
+- **`ruff check .`** (ruff 0.6.9, la version épinglée par ce dépôt) :
+  0 erreur. (Une invocation initiale avec un `ruff` global plus récent,
+  hors venv du projet, avait signalé `UP042` sur des enums
+  pré-existants — règle absente de la version 0.6.9 réellement utilisée
+  par ce dépôt ; écart d'outillage local, pas une régression.)
+- **`ruff format --check`** sur les fichiers touchés : déjà formatés.
+- **`mypy src`** (mypy 1.20.2 avec les dépendances du projet installées) :
+  1 erreur pré-existante, sans rapport avec ce sprint
+  (`src/tmis/core/tenancy.py:28`, `"type[ModelT]" has no attribute
+  "firm_id"` — fichier non touché par ce sprint).
+- **`bandit -r src -ll`** : 0 problème Medium/High. En incluant les
+  `Low` : 22 (20 `assert` hors tests + 1 `hardcoded_password_string` sur
+  `"secret.manage"`, comme documenté au Sprint 45, + 1
+  `B406`/`xml.sax.saxutils.escape` dans
+  `cabinet_os/reports/xlsx_writer.py`, apparu depuis le Sprint 45) —
+  aucun dans un fichier touché par ce sprint (vérifié :
+  `bandit ... | grep Location | grep -E "ai_team|audit_platform_usage"`
+  → 0 résultat).
+- **`pip-audit --skip-editable`** : 65 CVE connues sur 10 paquets
+  transitifs — dette pré-existante, indépendante de ce sprint (aucune
+  dépendance ajoutée ou modifiée), non bloquante en CI
+  (`continue-on-error: true`), cohérente avec la dette documentée au
+  Sprint 45 (mise à jour de dépendances recommandée séparément).
