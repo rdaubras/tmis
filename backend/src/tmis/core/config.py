@@ -4,6 +4,7 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _MIN_JWT_SECRET_LENGTH = 32
+_DEFAULT_SIGNING_KEY_PLACEHOLDER = "change-me-in-production"
 
 
 class Settings(BaseSettings):
@@ -92,6 +93,27 @@ class Settings(BaseSettings):
                 f"{_MIN_JWT_SECRET_LENGTH} characters when TMIS_DEBUG is not true. "
                 "Refusing to start with a missing or weak JWT secret."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _require_real_signing_keys_outside_debug(self) -> "Settings":
+        """`license_signing_key`/`plugin_signing_key` ship with the
+        placeholder default `"change-me-in-production"` so local dev
+        (`TMIS_DEBUG=true`) works out of the box. Left on that default —
+        or blank — anywhere else, anyone can forge a license or plugin
+        signature, so refuse to start exactly like the JWT secret above
+        (see docs/07-strategie-securite.md)."""
+        if self.debug:
+            return self
+        for field_name in ("license_signing_key", "plugin_signing_key"):
+            value = getattr(self, field_name)
+            if not value or value == _DEFAULT_SIGNING_KEY_PLACEHOLDER:
+                env_var = f"TMIS_{field_name.upper()}"
+                raise RuntimeError(
+                    f"{env_var} must be set to a real secret (not the default "
+                    f"placeholder) when TMIS_DEBUG is not true. Refusing to start "
+                    "with a missing or default signing key."
+                )
         return self
 
 

@@ -1,19 +1,27 @@
 from functools import lru_cache
 
+import redis
+from sqlalchemy import text
+
 from tmis.ai.kernel.bootstrap import get_kernel
+from tmis.core import database as core_database
 from tmis.core.config import get_settings
 from tmis.platform.health.checks import CallableHealthCheck
 from tmis.platform.health.connector_backend_check import ConnectorBackendHealthCheck
 from tmis.platform.health.engine import HealthCheckEngine
 
+_REDIS_PROBE_TIMEOUT_SECONDS = 2.0
+
 
 def _check_database() -> bool:
-    """**Known limitation** (see docs/49-guide-supervision.md — Health
-    Checks): verifies the connection string is configured, not that
-    the database actually answers. Wiring a real `engine.connect()`
-    probe needs an async-aware health check port, deferred to when
-    TMIS's persistence layer (Sprint "Module Document") lands."""
-    return bool(get_settings().database_url)
+    """Opens a real connection through the shared SQLAlchemy engine
+    (`tmis.core.database.engine`, `pool_pre_ping=True`) and executes
+    `SELECT 1` — a stale/unreachable database raises, which
+    `CallableHealthCheck.check()` turns into DOWN, never a 500 (see
+    docs/49-guide-supervision.md — Health Checks)."""
+    with core_database.engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+    return True
 
 
 def _check_cache() -> bool:
@@ -36,9 +44,20 @@ def _check_event_bus() -> bool:
 
 
 def _check_queue() -> bool:
-    """No Celery app is constructed yet in this codebase — reports
-    healthy based on configuration presence only."""
-    return bool(get_settings().redis_url)
+    """Real `PING` against the Redis broker (bounded by a short
+    connect/socket timeout so an unreachable Redis can't hang the
+    readiness probe) — an exception propagates to
+    `CallableHealthCheck.check()`, which reports DOWN with the
+    exception message as detail."""
+    client = redis.Redis.from_url(
+        get_settings().redis_url,
+        socket_connect_timeout=_REDIS_PROBE_TIMEOUT_SECONDS,
+        socket_timeout=_REDIS_PROBE_TIMEOUT_SECONDS,
+    )
+    try:
+        return bool(client.ping())
+    finally:
+        client.close()
 
 
 def _check_connectors() -> bool:
@@ -52,12 +71,11 @@ def get_health_check_engine() -> HealthCheckEngine:
     docs/49-guide-supervision.md), plus `connector_backends` (Sprint 27,
     see docs/154-guide-configuration-connecteurs.md) which reports
     DEGRADED when a connector is running on its in-memory fixture for
-    lack of configuration. Every probe here is a lightweight,
-    synchronous, structural check — see each function's docstring for
-    what it does and does not verify; replacing a probe with a real
-    one (an actual `SELECT 1`, a real `PING`) means swapping the
-    callable passed to `CallableHealthCheck`, not touching
-    `HealthCheckEngine`.
+    lack of configuration. `database` and `queue` dial the real
+    dependency (`SELECT 1`, `PING`); `cache`/`ai_kernel`/`event_bus`/
+    `connectors` are structural in-memory checks against the AI
+    Kernel, and `storage` always reports healthy since no
+    object-storage client exists yet — see each function's docstring.
     """
     engine = HealthCheckEngine()
     engine.register(CallableHealthCheck("database", _check_database))
