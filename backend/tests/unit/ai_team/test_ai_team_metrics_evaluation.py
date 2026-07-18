@@ -1,4 +1,4 @@
-from tmis.ai_team.evaluation.engine import Evaluator
+from tmis.ai_team.evaluation.engine import MissionQualityScorer
 from tmis.ai_team.metrics.engine import MetricsCollector
 
 
@@ -57,7 +57,9 @@ def test_evaluator_scores_perfect_run_at_full_quality() -> None:
     collector = MetricsCollector()
     summary = collector.summary_for_mission("m1")
 
-    evaluation = Evaluator().evaluate_mission("m1", average_agent_quality=0.9, metrics=summary)
+    evaluation = MissionQualityScorer().evaluate_mission(
+        "m1", average_agent_quality=0.9, metrics=summary
+    )
 
     assert evaluation.overall_quality_score == 0.9
     assert "Aucune validation humaine" in evaluation.notes[0]
@@ -69,7 +71,9 @@ def test_evaluator_penalizes_revisions() -> None:
     collector.record_revision("m1")
     summary = collector.summary_for_mission("m1")
 
-    evaluation = Evaluator().evaluate_mission("m1", average_agent_quality=0.9, metrics=summary)
+    evaluation = MissionQualityScorer().evaluate_mission(
+        "m1", average_agent_quality=0.9, metrics=summary
+    )
 
     assert evaluation.overall_quality_score < 0.9
     assert any("révision" in note for note in evaluation.notes)
@@ -80,7 +84,9 @@ def test_evaluator_penalizes_low_consensus() -> None:
     collector.record_consensus("m1", resolved=False)
     summary = collector.summary_for_mission("m1")
 
-    evaluation = Evaluator().evaluate_mission("m1", average_agent_quality=1.0, metrics=summary)
+    evaluation = MissionQualityScorer().evaluate_mission(
+        "m1", average_agent_quality=1.0, metrics=summary
+    )
 
     assert evaluation.overall_quality_score < 1.0
     assert any("Désaccord" in note for note in evaluation.notes)
@@ -92,6 +98,8 @@ def test_evaluator_score_never_goes_negative() -> None:
         collector.record_revision("m1")
     summary = collector.summary_for_mission("m1")
 
-    evaluation = Evaluator().evaluate_mission("m1", average_agent_quality=0.1, metrics=summary)
+    evaluation = MissionQualityScorer().evaluate_mission(
+        "m1", average_agent_quality=0.1, metrics=summary
+    )
 
     assert evaluation.overall_quality_score >= 0.0

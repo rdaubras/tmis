@@ -2,7 +2,7 @@ from tmis.ai_team.evaluation.schemas import MissionEvaluation
 from tmis.ai_team.metrics.schemas import MissionMetricsSummary
 
 
-class Evaluator:
+class MissionQualityScorer:
     """Scores a completed mission (see docs/55-guide-coordinateur.md —
     Evaluation): the average registered quality of the agents that ran,
     weighted down by disagreement (`consensus_rate`) and by how many

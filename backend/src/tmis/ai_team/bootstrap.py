@@ -7,7 +7,7 @@ from tmis.ai_team.coordinator.engine import CoordinatorEngine
 from tmis.ai_team.coordinator.store import InMemoryMissionStore
 from tmis.ai_team.critique.engine import CritiqueEngine
 from tmis.ai_team.delegation.engine import DelegationEngine
-from tmis.ai_team.evaluation.engine import Evaluator
+from tmis.ai_team.evaluation.engine import MissionQualityScorer
 from tmis.ai_team.human_loop.engine import HumanLoopEngine
 from tmis.ai_team.human_loop.store import InMemoryHumanDecisionStore
 from tmis.ai_team.memory.store import InMemoryAgentMemoryStore
@@ -97,8 +97,8 @@ def get_human_loop_engine() -> HumanLoopEngine:
 
 
 @lru_cache
-def get_evaluator() -> Evaluator:
-    return Evaluator()
+def get_evaluator() -> MissionQualityScorer:
+    return MissionQualityScorer()
 
 
 @lru_cache
