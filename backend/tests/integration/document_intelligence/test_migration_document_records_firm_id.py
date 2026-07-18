@@ -12,10 +12,13 @@ inside each row's own JSON `payload`, if present (see the migration's own
 module docstring for why `DocumentRecord` never grew a persisted
 `case_id` field and what that means for the backfill).
 
-`firms`/`users`/`cases` are not themselves Alembic-managed tables in this
-repo (created via `Base.metadata.create_all`, same as every other test
-that needs them — see `tests/security/conftest.py`), so this test creates
-them directly rather than through more migrations.
+`firms`/`users`/`cases` are Alembic-managed since `0000_base_identity`
+(SEC/DB-01), but this test still seeds them via `Base.metadata.
+create_all` rather than by upgrading through `0000_base_identity` itself
+— it only exercises the chain from `_DOWN_REVISION` (`0012_case_
+profiles_firm_id`) onward, so it needs the tables `0013` reads from
+present beforehand by some means, same as every other test that needs
+them (see `tests/security/conftest.py`).
 """
 
 import json

@@ -7,10 +7,13 @@ this is the first migration in the repo that has to backfill a new
 happens to still be empty (see the migration's own module docstring for
 why a naked `ADD COLUMN ... NOT NULL` cannot be used here).
 
-`firms`/`users`/`cases` are not themselves Alembic-managed tables in
-this repo (created via `Base.metadata.create_all`, same as every other
-test that needs them — see `tests/security/conftest.py`), so this test
-creates them directly rather than through more migrations.
+`firms`/`users`/`cases` are Alembic-managed since `0000_base_identity`
+(SEC/DB-01), but this test still seeds them via `Base.metadata.
+create_all` rather than by upgrading through `0000_base_identity` itself
+— it only exercises the chain from `_DOWN_REVISION` (`0011_research_
+searches`) onward, so it needs the tables `0012` reads from present
+beforehand by some means, same as every other test that needs them (see
+`tests/security/conftest.py`).
 """
 
 import sqlite3
