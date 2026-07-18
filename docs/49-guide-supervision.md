@@ -58,6 +58,25 @@ tous les pods) et `GET /platform/health/ready` (agrège les 7 sondes :
 base de données, cache, stockage, AI Kernel, Event Bus, queue,
 connecteurs ; `DOWN` > `DEGRADED` > `UP`, 503 si `DOWN`).
 
+**`database`** et **`queue`** interrogent la vraie dépendance :
+`database` ouvre une connexion via le moteur SQLAlchemy partagé
+(`tmis.core.database.engine`, `pool_pre_ping=True`) et exécute
+`SELECT 1` ; `queue` fait un vrai `PING` Redis
+(`redis.Redis.from_url(...).ping()`), avec un timeout court côté connexion et
+socket pour qu'une dépendance injoignable ne fasse jamais pendre la
+sonde. Toute exception est absorbée par `CallableHealthCheck.check()`
+et rapportée comme `DOWN` (jamais une 500) — voir
+`tmis.platform.health.bootstrap`. Les autres sondes
+(`cache`/`ai_kernel`/`event_bus`/`connectors`) restent des vérifications
+structurelles sur l'AI Kernel in-memory, et `storage` reste
+volontairement toujours `UP` : aucun client de stockage objet n'existe
+encore (`raw_bytes` reste un sprint distinct).
+
+`GET /api/v1/health` est un alias de **liveness** (process up, réponse
+`{"status": "ok"}` en dur) — ce n'est pas une sonde de readiness et elle
+ne doit jamais dépendre d'une ressource externe. Pour la readiness,
+utiliser `/platform/health/ready`.
+
 ## Tableau de bord de supervision
 
 `GET /platform/monitoring` compose l'état de santé, le compteur total
